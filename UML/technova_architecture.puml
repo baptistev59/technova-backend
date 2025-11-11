@@ -1,0 +1,25 @@
+@startuml technova_architecture
+title Architecture - TechNova (Symfony / React / Flutter / PostgreSQL)
+
+rectangle "React SPA (Client & Vendeur)" as React
+rectangle "Symfony + Twig (Admin)" as Twig
+rectangle "Symfony API REST (JWT)" as API
+database "PostgreSQL" as PG
+rectangle "AuditLog (BDD)" as Audit
+rectangle "Monolog (Logs système)" as Monolog
+rectangle "Stripe API" as Stripe
+rectangle "Flutter App Client" as FlutterC
+rectangle "Flutter App Vendeur" as FlutterV
+
+React --> API : Requêtes HTTP/JSON
+Twig --> API : Appels internes (services & contrôleurs)
+API --> PG : Accès aux données
+API --> Audit : Journalisation métier
+API --> Monolog : Logs système
+React --> Stripe : Checkout / paiement
+API --> Stripe : Webhooks / confirmation
+Stripe --> API : Notifications de paiement
+FlutterC --> API : HTTP/JSON
+FlutterV --> API : HTTP/JSON
+
+@enduml

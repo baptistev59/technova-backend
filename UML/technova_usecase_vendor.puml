@@ -1,0 +1,22 @@
+@startuml technova_usecase_vendor
+title Use Case – Vendeur (TechNova)
+
+actor Vendeur
+
+rectangle "Espace Vendeur (React)" {
+  usecase "Paramétrer boutique" as UV1
+  usecase "Gérer produits (CRUD)" as UV2
+  usecase "Gérer commandes" as UV3
+  usecase "Suivre ventes & stocks" as UV4
+  usecase "Mettre des produits à la une" as UV5
+  usecase "Répondre messages clients" as UV6
+}
+
+Vendeur --> UV1
+Vendeur --> UV2
+Vendeur --> UV3
+Vendeur --> UV4
+Vendeur --> UV5
+Vendeur --> UV6
+
+@enduml

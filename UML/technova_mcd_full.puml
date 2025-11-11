@@ -1,0 +1,202 @@
+@startuml technova_mcd_full
+title MCD – TechNova Marketplace (complet)
+
+entity "User" as User {
+  *id: int
+  --
+  email: string
+  password: string
+  roles: json
+  firstName: string
+  lastName: string
+  createdAt: datetime
+  updatedAt: datetime
+}
+
+entity "Vendor" as Vendor {
+  *id: int
+  --
+  companyName: string
+  siret: string
+  phone: string
+  address: string
+}
+
+entity "Shop" as Shop {
+  *id: int
+  --
+  name: string
+  slug: string
+  description: text
+  contactEmail: string
+  logo: string
+  banner: string
+  policies: text
+  createdAt: datetime
+}
+
+entity "Category" as Category {
+  *id: int
+  --
+  name: string
+  slug: string
+  parentId: int?
+}
+
+entity "Brand" as Brand {
+  *id: int
+  --
+  name: string
+  slug: string
+}
+
+entity "Tag" as Tag {
+  *id: int
+  --
+  name: string
+  slug: string
+}
+
+entity "Product" as Product {
+  *id: int
+  --
+  name: string
+  slug: string
+  description: text
+  shortDescription: string
+  price: decimal
+  stock: int
+  sku: string
+  barcode: string
+  type: string
+  isFeatured: bool
+  createdAt: datetime
+  updatedAt: datetime
+}
+
+entity "ProductImage" as ProductImage {
+  *id: int
+  --
+  url: string
+  alt: string
+  title: string
+  caption: string
+  position: int
+  isMain: bool
+  fileSize: int
+  mimeType: string
+  createdAt: datetime
+}
+
+entity "ProductReview" as ProductReview {
+  *id: int
+  --
+  rating: int
+  comment: text
+  createdAt: datetime
+}
+
+entity "Wishlist" as Wishlist {
+  *id: int
+  --
+  name: string
+}
+
+entity "Cart" as Cart {
+  *id: int
+  --
+  status: string
+  createdAt: datetime
+}
+
+entity "CartItem" as CartItem {
+  *id: int
+  --
+  quantity: int
+  unitPrice: decimal
+}
+
+entity "Order" as Order {
+  *id: int
+  --
+  orderNumber: string
+  status: string
+  total: decimal
+  createdAt: datetime
+}
+
+entity "OrderItem" as OrderItem {
+  *id: int
+  --
+  label: string
+  quantity: int
+  unitPrice: decimal
+}
+
+entity "Payment" as Payment {
+  *id: int
+  --
+  method: string
+  status: string
+  transactionId: string
+  paidAt: datetime?
+  amount: decimal
+}
+
+entity "Media" as Media {
+  *id: int
+  --
+  filePath: string
+  alt: string
+  title: string
+  keywords: string
+}
+
+entity "Post" as Post {
+  *id: int
+  --
+  title: string
+  slug: string
+  content: text
+  createdAt: datetime
+}
+
+entity "AuditLog" as AuditLog {
+  *id: int
+  --
+  action: string
+  entity: string?
+  entityId: int?
+  timestamp: datetime_immutable
+  ipAddress: string?
+}
+
+User ||--o{ Vendor
+Vendor ||--o{ Shop
+
+Category ||--o{ Product
+Brand ||--o{ Product
+Tag }o--o{ Product : ProductTag
+Shop ||--o{ Product
+
+Product ||--o{ ProductImage
+Product ||--o{ ProductReview
+User ||--o{ ProductReview
+
+User ||--|| Cart
+Cart ||--o{ CartItem
+Product ||--o{ CartItem
+
+User ||--o{ Order
+Order ||--o{ OrderItem
+Product ||--o{ OrderItem
+Order ||--|| Payment
+Order ||--|| Shop
+
+User }o--o{ Product : Wishlist
+Product }o--o{ Media
+Post ||--o{ Media
+
+AuditLog }o--|| User
+
+@enduml

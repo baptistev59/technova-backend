@@ -1,0 +1,24 @@
+@startuml technova_usecase_admin
+title Use Case – Administrateur (TechNova)
+
+actor Administrateur
+
+rectangle "Back‑office (Twig)" {
+  usecase "Se connecter (ROLE_ADMIN)" as UA1
+  usecase "Gérer catalogue global" as UA2
+  usecase "Gérer commandes" as UA3
+  usecase "Gérer utilisateurs" as UA4
+  usecase "Mettre des produits à la une" as UA5
+  usecase "Suspendre produit/boutique/commande" as UA6
+  usecase "Consulter AuditLog" as UA7
+}
+
+Administrateur --> UA1
+Administrateur --> UA2
+Administrateur --> UA3
+Administrateur --> UA4
+Administrateur --> UA5
+Administrateur --> UA6
+Administrateur --> UA7
+
+@enduml

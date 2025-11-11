@@ -1,0 +1,26 @@
+@startuml technova_usecase_client
+title Use Case – Client (TechNova)
+
+actor Client
+
+rectangle "TechNova Front (React)" {
+  usecase "Parcourir le catalogue" as UC1
+  usecase "Rechercher un produit" as UC2
+  usecase "Voir fiche produit" as UC3
+  usecase "Gérer le panier" as UC4
+  usecase "Passer commande" as UC5
+  usecase "Recevoir email récapitulatif" as UC6
+  usecase "Gérer mon compte & adresses" as UC7
+  usecase "Laisser un avis produit" as UC8
+}
+
+Client --> UC1
+Client --> UC2
+Client --> UC3
+Client --> UC4
+Client --> UC5
+Client --> UC6
+Client --> UC7
+Client --> UC8
+
+@enduml

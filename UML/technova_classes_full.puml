@@ -1,0 +1,184 @@
+@startuml technova_classes_full
+title Diagramme de classes – TechNova Marketplace (complet)
+
+class User {
+  +id: int
+  +email: string
+  +password: string
+  +roles: json
+  +firstName: string
+  +lastName: string
+  +createdAt: datetime
+  +updatedAt: datetime
+}
+
+class Vendor {
+  +id: int
+  +companyName: string
+  +siret: string
+  +phone: string
+  +address: string
+}
+
+class Shop {
+  +id: int
+  +name: string
+  +slug: string
+  +description: text
+  +logo: string
+  +banner: string
+  +contactEmail: string
+  +policies: text
+  +createdAt: datetime
+}
+
+class Category {
+  +id: int
+  +name: string
+  +slug: string
+  +parentId: int?
+}
+
+class Brand {
+  +id: int
+  +name: string
+  +slug: string
+}
+
+class Tag {
+  +id: int
+  +name: string
+  +slug: string
+}
+
+class Product {
+  +id: int
+  +name: string
+  +slug: string
+  +description: text
+  +shortDescription: string
+  +price: decimal
+  +stock: int
+  +sku: string
+  +barcode: string
+  +type: string
+  +isFeatured: bool
+  +createdAt: datetime
+  +updatedAt: datetime
+}
+
+class ProductImage {
+  +id: int
+  +url: string
+  +alt: string
+  +title: string
+  +caption: string
+  +position: int
+  +isMain: bool
+  +fileSize: int
+  +mimeType: string
+  +createdAt: datetime
+}
+
+class ProductReview {
+  +id: int
+  +rating: int
+  +comment: text
+  +createdAt: datetime
+}
+
+class Wishlist {
+  +id: int
+  +name: string
+}
+
+class Cart {
+  +id: int
+  +status: string
+  +createdAt: datetime
+}
+
+class CartItem {
+  +id: int
+  +quantity: int
+  +unitPrice: decimal
+}
+
+class Order {
+  +id: int
+  +orderNumber: string
+  +status: string
+  +total: decimal
+  +createdAt: datetime
+}
+
+class OrderItem {
+  +id: int
+  +label: string
+  +quantity: int
+  +unitPrice: decimal
+}
+
+class Payment {
+  +id: int
+  +method: string
+  +status: string
+  +transactionId: string
+  +paidAt: datetime?
+  +amount: decimal
+}
+
+class Media {
+  +id: int
+  +filePath: string
+  +alt: string
+  +title: string
+  +keywords: string
+}
+
+class Post {
+  +id: int
+  +title: string
+  +slug: string
+  +content: text
+  +createdAt: datetime
+}
+
+class AuditLog {
+  +id: int
+  +action: string
+  +entity: string?
+  +entityId: int?
+  +timestamp: datetime_immutable
+  +ipAddress: string?
+}
+
+User "1" o-- "0..1" Vendor
+Vendor "1" o-- "1..*" Shop
+
+Shop "1" o-- "1..*" Product
+Brand "1" o-- "0..*" Product
+Category "1" o-- "0..*" Product
+Tag "0..*" o-- "0..*" Product : ProductTag
+
+Product "1" o-- "0..*" ProductImage
+Product "1" o-- "0..*" ProductReview
+User "1" o-- "0..*" ProductReview
+
+User "1" o-- "1" Cart
+Cart "1" o-- "1..*" CartItem
+Product "1" o-- "0..*" CartItem
+
+User "1" o-- "0..*" Order
+Order "1" o-- "1..*" OrderItem
+Product "1" o-- "0..*" OrderItem
+Order "1" o-- "1" Payment
+Order "1" o-- "1" Shop
+
+User "0..*" -- "0..*" Product : Wishlist
+Product "0..*" -- "0..*" Media
+Post "1" o-- "0..*" Media
+
+AuditLog "0..*" o-- "0..1" User
+
+@enduml
