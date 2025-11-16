@@ -57,9 +57,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToOne(inversedBy: 'owner', cascade: ['persist', 'remove'])]
     private ?Vendor $vendor = null;
 
+    /**
+     * @var Collection<int, AuditLog>
+     */
+    #[ORM\OneToMany(mappedBy: 'owner', targetEntity: AuditLog::class)]
+    private Collection $auditLogs;
+
     public function __construct()
     {
         $this->addresses = new ArrayCollection();
+        $this->auditLogs = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -217,6 +224,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setVendor(?Vendor $vendor): static
     {
         $this->vendor = $vendor;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AuditLog>
+     */
+    public function getAuditLogs(): Collection
+    {
+        return $this->auditLogs;
+    }
+
+    public function addAuditLog(AuditLog $auditLog): static
+    {
+        if (!$this->auditLogs->contains($auditLog)) {
+            $this->auditLogs->add($auditLog);
+            $auditLog->setOwner($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAuditLog(AuditLog $auditLog): static
+    {
+        if ($this->auditLogs->removeElement($auditLog)) {
+            // set the owning side to null (unless already changed)
+            if ($auditLog->getOwner() === $this) {
+                $auditLog->setOwner(null);
+            }
+        }
 
         return $this;
     }
