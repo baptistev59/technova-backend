@@ -4,12 +4,12 @@ namespace App\Controller;
 
 use App\Entity\User;
 use Doctrine\Migrations\DependencyFactory;
+use Doctrine\Migrations\MigratorConfiguration;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
-use Doctrine\Migrations\MigratorConfiguration;
 
 class SetupController extends AbstractController
 {
@@ -27,10 +27,21 @@ class SetupController extends AbstractController
     ): Response {
         $output = "== SETUP START ==\n\n";
 
-        // ---- 1) EXÉCUTER LES MIGRATIONS ----
-        $output .= "== RUNNING MIGRATIONS ==\n";
-
         try {
+            // ----------------------------------------------------------
+            // 1) SYNC METADATA STORAGE
+            // ----------------------------------------------------------
+            $output .= "== SYNC METADATA STORAGE ==\n";
+
+            $storage = $this->migrationFactory->getMetadataStorage();
+            $storage->ensureInitialized();
+            $output .= "Metadata storage synced.\n\n";
+
+            // ----------------------------------------------------------
+            // 2) EXÉCUTER LES MIGRATIONS
+            // ----------------------------------------------------------
+            $output .= "== RUNNING MIGRATIONS ==\n";
+
             $aliasResolver   = $this->migrationFactory->getVersionAliasResolver();
             $planCalculator  = $this->migrationFactory->getMigrationPlanCalculator();
             $latestVersion   = $aliasResolver->resolveVersionAlias('latest');
@@ -38,20 +49,23 @@ class SetupController extends AbstractController
 
             $config = new MigratorConfiguration();
             $config->setDryRun(false);
+            $config->setTimeAllQueries(true);
 
-            $migrator        = $this->migrationFactory->getMigrator();
-
+            $migrator = $this->migrationFactory->getMigrator();
             $migrator->migrate($plan, $config);
 
             $output .= "Migrations executed successfully.\n\n";
+
         } catch (\Throwable $e) {
             return new Response(
-                "<pre>Migration error:\n" . $e->getMessage() . "</pre>",
+                "<pre>Migration error:\n" . $e->getMessage() . "\n\n" . $e->getTraceAsString() . "</pre>",
                 500
             );
         }
 
-        // ---- 2) CRÉER L’ADMIN SI BESOIN ----
+        // ----------------------------------------------------------
+        // 3) CRÉER L’UTILISATEUR ADMIN SI NON EXISTANT
+        // ----------------------------------------------------------
         $output .= "== CREATING ADMIN USER ==\n";
 
         $existing = $em->getRepository(User::class)->findOneBy([
@@ -71,11 +85,11 @@ class SetupController extends AbstractController
             $em->persist($user);
             $em->flush();
 
-            $output .= "Admin user created successfully.\n";
+            $output .= "Admin user created.\n";
         } else {
             $output .= "Admin user already exists.\n";
         }
 
-        return new Response("<pre>$output</pre>");
+        return new Response("<pre>$output\n\n== SETUP DONE ==</pre>");
     }
 }
