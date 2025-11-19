@@ -2,46 +2,57 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
 use Doctrine\Migrations\Tools\Console\Command\MigrateCommand;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Migrations\DependencyFactory;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
-use App\Entity\User;
 
 class SetupController extends AbstractController
 {
+    private DependencyFactory $migrationFactory;
+
+    public function __construct(DependencyFactory $migrationFactory)
+    {
+        $this->migrationFactory = $migrationFactory;
+    }
+
     #[Route('/run-setup', name: 'run_setup')]
     public function setup(
         EntityManagerInterface $em,
         UserPasswordHasherInterface $passwordHasher
     ): Response {
+        $output = "== START SETUP ==\n\n";
 
-        $output = "";
-
-        // ---- 1) Récupérer manuellement le DependencyFactory ----
-        /** @var DependencyFactory $factory */
-        $factory = $this->container->get('doctrine.migrations.dependency_factory');
-
+        // ---------------------------
+        // 1) Exécuter les migrations
+        // ---------------------------
         $output .= "== EXECUTING MIGRATIONS ==\n\n";
 
-        // ---- 2) Exécuter la migration ----
-        $command = new MigrateCommand($factory);
-        $input = new ArrayInput(['--no-interaction' => true]);
+        $command = new MigrateCommand($this->migrationFactory);
+        $input = new ArrayInput([
+            '--no-interaction' => true,
+            '--allow-no-migration' => true
+        ]);
         $buffer = new BufferedOutput();
+
         $command->run($input, $buffer);
 
-        $output .= $buffer->fetch();
-        $output .= "\n\nMigrations executed.\n\n";
+        $output .= $buffer->fetch() . "\n";
 
-        // ---- 3) Créer l'utilisateur admin ----
+        // ---------------------------
+        // 2) Créer l’utilisateur admin
+        // ---------------------------
         $output .= "== CREATING ADMIN USER ==\n\n";
 
-        $existing = $em->getRepository(User::class)->findOneBy(['email' => 'admin@test.com']);
+        $existing = $em->getRepository(User::class)->findOneBy([
+            'email' => 'admin@test.com'
+        ]);
 
         if (!$existing) {
             $user = new User();
@@ -56,11 +67,11 @@ class SetupController extends AbstractController
             $em->persist($user);
             $em->flush();
 
-            $output .= "Admin user created with email admin@test.com and password 123456\n";
+            $output .= "Admin user created.\n";
         } else {
-            $output .= "Admin user already exists.\n";
+            $output .= "Admin already exists.\n";
         }
 
-        return new Response("<pre>".$output."</pre>");
+        return new Response("<pre>$output</pre>");
     }
 }
