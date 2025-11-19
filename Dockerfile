@@ -14,7 +14,7 @@ WORKDIR /var/www/html
 COPY . .
 
 # Install dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # ---- Etape 2 : Production ----
 FROM php:8.2-fpm
