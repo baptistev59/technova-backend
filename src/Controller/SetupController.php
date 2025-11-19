@@ -3,12 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\User;
-use Doctrine\Migrations\Tools\Console\Command\MigrateCommand;
 use Doctrine\Migrations\DependencyFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
@@ -29,22 +26,29 @@ class SetupController extends AbstractController
     ): Response {
         $output = "== SETUP START ==\n\n";
 
-        // ---- MIGRATIONS ----
-        $output .= "== RUNNING MIGRATIONS ==\n\n";
+        // ---- 1) EXÉCUTER LES MIGRATIONS SANS CONSOLE / STDIN ----
+        $output .= "== RUNNING MIGRATIONS ==\n";
 
-        $command = new MigrateCommand($this->migrationFactory);
+        try {
+            $aliasResolver   = $this->migrationFactory->getVersionAliasResolver();
+            $planCalculator  = $this->migrationFactory->getMigrationPlanCalculator();
+            $latestVersion   = $aliasResolver->resolveVersionAlias('latest');
+            $plan            = $planCalculator->getPlanUntilVersion($latestVersion);
+            $migrator        = $this->migrationFactory->getMigrator();
 
-        $input = new ArrayInput([
-            '--allow-no-migration' => true
-        ]);
+            $migrator->migrate($plan);
 
-        $buffer = new BufferedOutput();
-        $command->run($input, $buffer);
+            $output .= "Migrations executed successfully.\n\n";
+        } catch (\Throwable $e) {
+            return new Response(
+                "<pre>Migration error:\n" . $e->getMessage() . "</pre>",
+                500
+            );
+        }
 
-        $output .= $buffer->fetch();
-        $output .= "\nMigrations completed.\n\n";
+        // ---- 2) CRÉER L’ADMIN SI BESOIN ----
+        $output .= "== CREATING ADMIN USER ==\n";
 
-        // ---- ADMIN USER ----
         $existing = $em->getRepository(User::class)->findOneBy([
             'email' => 'admin@test.com'
         ]);
@@ -62,9 +66,9 @@ class SetupController extends AbstractController
             $em->persist($user);
             $em->flush();
 
-            $output .= "Admin user created.\n";
+            $output .= "Admin user created successfully.\n";
         } else {
-            $output .= "Admin already exists.\n";
+            $output .= "Admin user already exists.\n";
         }
 
         return new Response("<pre>$output</pre>");
