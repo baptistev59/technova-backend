@@ -25,7 +25,7 @@ jobs:
           composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
       - name: Sync files to AlwaysData via rsync
-        uses: burnett01/rsync-deployments@v3
+        uses: burnett01/rsync-deployments@7.x
         with:
           switches: -az --delete --exclude=".github"
           path: ./
