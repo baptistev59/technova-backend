@@ -1,4 +1,2 @@
-APP_ENV
-APP_DEBUG
-DATABASE_URL
-CORS_ALLOW_ORIGIN
+<?php
+phpinfo();
