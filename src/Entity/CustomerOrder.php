@@ -48,6 +48,12 @@ class CustomerOrder
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $paidAt = null;
 
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $paymentSessionId = null;
+
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $paymentIntentId = null;
+
     /**
      * @var Collection<int, CustomerOrderItem>
      */
@@ -158,6 +164,35 @@ class CustomerOrder
         $this->paidAt = $paidAt;
 
         return $this;
+    }
+
+    public function getPaymentSessionId(): ?string
+    {
+        return $this->paymentSessionId;
+    }
+
+    public function setPaymentSessionId(?string $paymentSessionId): self
+    {
+        $this->paymentSessionId = $paymentSessionId;
+
+        return $this;
+    }
+
+    public function getPaymentIntentId(): ?string
+    {
+        return $this->paymentIntentId;
+    }
+
+    public function setPaymentIntentId(?string $paymentIntentId): self
+    {
+        $this->paymentIntentId = $paymentIntentId;
+
+        return $this;
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->status === self::STATUS_PAID;
     }
 
     /**

@@ -15,3 +15,10 @@ services:
     App\Service\OrderMailer:
         arguments:
             $mailerFrom: '%env(MAILER_FROM)%'
+
+    App\Service\StripePaymentService:
+        arguments:
+            $secretKey: '%env(STRIPE_SECRET_KEY)%'
+            $publishableKey: '%env(default::STRIPE_PUBLISHABLE_KEY)%'
+            $webhookSecret: '%env(default::STRIPE_WEBHOOK_SECRET)%'
+            $defaultBaseUrl: '%env(DEFAULT_URI)%'

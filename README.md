@@ -28,6 +28,7 @@ Stack & modules clés
 - **Front tooling** – AssetMapper + Stimulus pour interfacer la doc ou l’admin.  
 - **Catalogue avancé** – Attributs/valeurs/variantes (prix/promo/stock/image par combinaison) + sélection d’options côté front.  
 - **Monitoring** – Monolog JSON sur `php://stderr` en prod (Alwaysdata récupère les logs PHP).
+- **Paiement** – Stripe Checkout + webhook `/stripe/webhook` pour confirmer les commandes.
 
 Endpoints disponibles
 ---------------------
@@ -134,6 +135,34 @@ La réponse retourne directement un token et les informations du compte créé, 
 - Appelez `POST /api/token/refresh` avec le JWT actuel pour en obtenir un nouveau (`{ "token": "...", "expiresIn": 3600 }`).  
 - Le front peut automatiser cette requête pour prolonger la session tant que l’utilisateur est actif.
 
+### Paiement Stripe (Checkout)
+- Le bouton “Payer en ligne (Stripe)” sur `/commande` crée une session Stripe Checkout avec les lignes du panier.  
+- URLs : `success_url` → `/commande/confirmee/{reference}?session_id=...` et `cancel_url` → `/commande/annulee/{reference}`.  
+- Lors du retour Stripe, l’utilisateur voit l’état de la commande (paiement confirmé ou en attente).  
+- Webhook `/stripe/webhook` : Stripe envoie `checkout.session.completed`, on vérifie la signature (`STRIPE_WEBHOOK_SECRET`) puis on bascule la commande en `paid` et on envoie l’e-mail.
+
+Variables à déclarer (`.env.local` + Alwaysdata) :
+```
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_PUBLISHABLE_KEY=pk_test_xxx      # optionnel (exposé côté front)
+STRIPE_WEBHOOK_SECRET=whsec_xxx         # récupéré via Stripe CLI ou Dashboard
+```
+
+Webhook en local (Stripe CLI) :
+```bash
+stripe listen --forward-to http://127.0.0.1:8000/stripe/webhook
+```
+
+### Tests automatisés (Postman / Newman)
+- La collection `postman/technova-api.postman_collection.json` couvre : `/api/test`, `/api/login`, `/api/me`, `/api/products`, `/api/cart`, `/api/token/refresh`, `/api/profile`.
+- L’environnement `postman/local.postman_environment.json` contient les variables utilisées (email/mot de passe, infos de profil, etc.).
+- Le script `./scripts/postman-tests.sh` lance `newman` avec la collection + l’environnement.  
+  Assure-toi que le serveur Symfony tourne (`symfony serve -d` ou équivalent) avant d’exécuter :
+  ```bash
+  ./scripts/postman-tests.sh                                    # utilise newman global si dispo
+  ./scripts/postman-tests.sh <collection> <env> --reporters cli  # options avancées
+  ```
+
 Documentation API (Swagger)
 ---------------------------
 - UI locale : <http://localhost:8000/api/docs>  
@@ -158,9 +187,12 @@ Déploiement Alwaysdata (prod)
    CORS_ALLOW_ORIGIN=https://technova.alwaysdata.net
   MAILER_DSN=smtp://technova@alwaysdata.net:Teqapexa59Alwaysdata800@smtp-technova.alwaysdata.net:587
   MAILER_FROM="TechNova <technova@alwaysdata.net>"
-   MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
-   DEFAULT_URI=https://technova.alwaysdata.net
-   ```
+  MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
+  DEFAULT_URI=https://technova.alwaysdata.net
+  STRIPE_SECRET_KEY=sk_live_xxx
+  STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+  STRIPE_WEBHOOK_SECRET=whsec_xxx
+  ```
 3. **Première installation via SSH** :
    ```bash
    cd ~/www

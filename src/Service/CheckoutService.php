@@ -53,10 +53,30 @@ class CheckoutService
         $this->entityManager->persist($order);
         $this->entityManager->flush();
 
-        $this->orderMailer->sendConfirmation($order);
-        $this->cartService->clear();
-
         return $order;
+    }
+
+    public function attachPaymentSession(CustomerOrder $order, string $sessionId): void
+    {
+        $order->setPaymentSessionId($sessionId);
+        $this->entityManager->flush();
+    }
+
+    public function finalizePayment(CustomerOrder $order, ?string $paymentIntentId = null): void
+    {
+        $order
+            ->setStatus(CustomerOrder::STATUS_PAID)
+            ->setPaidAt(new \DateTimeImmutable())
+            ->setPaymentIntentId($paymentIntentId);
+
+        $this->entityManager->flush();
+        $this->orderMailer->sendConfirmation($order);
+    }
+
+    public function cancelOrder(CustomerOrder $order): void
+    {
+        $order->setStatus(CustomerOrder::STATUS_CANCELLED);
+        $this->entityManager->flush();
     }
 
     private function generateReference(): string

@@ -4,10 +4,20 @@
 
 {% block body %}
     <section class="tn-section">
-        <div class="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
-            <h1 class="text-2xl font-semibold text-green-900">Merci pour votre commande !</h1>
-            <p class="mt-2 text-green-800">Référence : <strong>{{ order.reference }}</strong></p>
-            <p class="mt-4 text-green-800">Vous recevrez bientôt un e-mail de confirmation. Vous pouvez suivre vos commandes depuis votre profil.</p>
+        <div class="rounded-2xl border {{ order.isPaid ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' }} p-8 text-center">
+            {% if order.isPaid %}
+                <h1 class="text-2xl font-semibold text-green-900">Merci pour votre paiement !</h1>
+                <p class="mt-2 text-green-800">Référence : <strong>{{ order.reference }}</strong></p>
+                <p class="mt-4 text-green-800">Un e-mail récapitulatif vient de t’être envoyé. Tu peux suivre et télécharger la facture depuis ton espace “Mes commandes”.</p>
+            {% else %}
+                <h1 class="text-2xl font-semibold text-amber-900">Paiement en cours de validation…</h1>
+                <p class="mt-2 text-amber-800">Référence : <strong>{{ order.reference }}</strong></p>
+                <p class="mt-4 text-amber-800">Nous avons bien reçu ta commande. Stripe finalise encore la transaction, tu recevras un e‑mail dès confirmation.</p>
+            {% endif %}
+            <div class="mt-4 flex justify-center gap-3">
+                <a class="btn btn-primary" href="{{ path('catalog_index') }}">Continuer mes achats</a>
+                <a class="btn btn-outline" href="{{ path('app_account_orders') }}">Mes commandes</a>
+            </div>
         </div>
 
         <div class="mt-8 grid gap-6 lg:grid-cols-2">
@@ -36,10 +46,6 @@
                     {{ address.postalCode }} {{ address.city }}<br>
                     {{ address.country }}
                 </p>
-                <div class="mt-4 flex gap-3">
-                    <a class="btn btn-primary" href="{{ path('catalog_index') }}">Continuer mes achats</a>
-                    <a class="btn btn-outline" href="{{ path('app_cart_show') }}">Voir mon panier</a>
-                </div>
             </div>
         </div>
     </section>

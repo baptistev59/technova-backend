@@ -21,6 +21,9 @@ Ce document synthétise toutes les manipulations réalisées pour préparer et d
   - `CORS_ALLOW_ORIGIN=https://technova.alwaysdata.net`
   - `MAILER_DSN=smtp://technova@alwaysdata.net:<motdepasse>@smtp-technova.alwaysdata.net:587`
   - `MAILER_FROM="TechNova <technova@alwaysdata.net>"`
+  - `STRIPE_SECRET_KEY=sk_live_xxx`
+  - `STRIPE_PUBLISHABLE_KEY=pk_live_xxx`
+  - `STRIPE_WEBHOOK_SECRET=whsec_xxx`
   - `MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0`
   - `DEFAULT_URI=https://technova.alwaysdata.net`
 
@@ -56,6 +59,7 @@ php bin/console app:create-admin --env=prod
 4. **Provisioning** : lancer `php bin/console app:create-admin --env=prod`. ✅ (admin `admin@test.fr` créé depuis Alwaysdata, commande validée le 29/11).
 5. **Tests** : valider `/api/test`, `/api/docs` et lancer le smoke-test Postman (`./scripts/postman-tests.sh --env prod.postman_environment.json`).  
 6. **Ne pas lancer `doctrine:fixtures:load` en prod** : privilégier le script de synchronisation pour recharger les données de démo (section 7).
+7. **Stripe** : exécuter `stripe listen --forward-to https://technova.alwaysdata.net/stripe/webhook` lors des tests ou configurer un webhook HTTPS dans le Dashboard (événement `checkout.session.completed`).
 
 ## 6. GitHub Actions – `deploy-alwaysdata.yml`
 - Déclenchement : `push` sur `master`.  

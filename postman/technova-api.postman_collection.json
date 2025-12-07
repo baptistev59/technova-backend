@@ -296,6 +296,123 @@
           }
         }
       ]
+    },
+    {
+      "name": "Auth - Refresh token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwtToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/token/refresh",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "token", "refresh"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const refresh = pm.response.json();",
+              "pm.test('Nouveau token', function () {",
+              "    pm.expect(refresh.token).to.exist;",
+              "    pm.expect(refresh.expiresIn).to.be.above(0);",
+              "});",
+              "pm.environment.set('jwtToken', refresh.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile - Consulter",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwtToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/profile",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "profile"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const profile = pm.response.json();",
+              "pm.test('profil chargé', function () {",
+              "    pm.expect(profile.email).to.eql(pm.environment.get('loginEmail'));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile - Mise à jour",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwtToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"firstname\": \"{{profileFirstname}}\",\n    \"lastname\": \"{{profileLastname}}\",\n    \"phone\": \"{{profilePhone}}\",\n    \"newsletterOptIn\": {{profileNewsletter}},\n    \"address\": {\n        \"label\": \"{{profileAddressLabel}}\",\n        \"addressLine1\": \"{{profileAddressLine1}}\",\n        \"postalCode\": \"{{profilePostalCode}}\",\n        \"city\": \"{{profileCity}}\",\n        \"country\": \"{{profileCountry}}\",\n        \"isDefault\": true,\n        \"isShipping\": true,\n        \"isBilling\": true\n    }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/profile",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "profile"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const profile = pm.response.json();",
+              "pm.test('profil mis à jour', function () {",
+              "    pm.expect(profile.firstname).to.eql(pm.environment.get('profileFirstname'));",
+              "    pm.expect(profile.address).to.exist;",
+              "    pm.expect(profile.address.city).to.eql(pm.environment.get('profileCity'));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     }
   ]
 }

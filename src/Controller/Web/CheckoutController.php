@@ -9,11 +9,13 @@ use App\Repository\UserRepository;
 use App\Security\ViewerAccessChecker;
 use App\Service\CartService;
 use App\Service\CheckoutService;
+use App\Service\StripePaymentService;
 use App\Service\UserProfileService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 #[Route('/commande')]
 class CheckoutController extends AbstractController
@@ -24,7 +26,9 @@ class CheckoutController extends AbstractController
         private readonly UserProfileService $profileService,
         private readonly CheckoutService $checkoutService,
         private readonly UserRepository $userRepository,
-        private readonly CustomerOrderRepository $orderRepository
+        private readonly CustomerOrderRepository $orderRepository,
+        private readonly StripePaymentService $stripePaymentService,
+        private readonly UrlGeneratorInterface $urlGenerator
     ) {
     }
 
@@ -83,7 +87,28 @@ class CheckoutController extends AbstractController
             return $this->redirectToRoute('app_cart_show');
         }
 
-        return $this->redirectToRoute('app_checkout_success', ['reference' => $order->getReference()]);
+        $successUrl = $this->urlGenerator->generate(
+            'app_checkout_success',
+            ['reference' => $order->getReference()],
+            UrlGeneratorInterface::ABSOLUTE_URL
+        ) . '?session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = $this->urlGenerator->generate(
+            'app_checkout_cancel',
+            ['reference' => $order->getReference()],
+            UrlGeneratorInterface::ABSOLUTE_URL
+        );
+
+        try {
+            $session = $this->stripePaymentService->createCheckoutSession($order, $successUrl, $cancelUrl);
+            $this->checkoutService->attachPaymentSession($order, $session['id']);
+        } catch (\Throwable $exception) {
+            $this->checkoutService->cancelOrder($order);
+            $this->addFlash('danger', $exception->getMessage());
+
+            return $this->redirectToRoute('app_cart_show');
+        }
+
+        return $this->redirect($session['url']);
     }
 
     #[Route('/confirmee/{reference}', name: 'app_checkout_success', methods: ['GET'])]
@@ -98,9 +123,26 @@ class CheckoutController extends AbstractController
             throw $this->createNotFoundException('Commande introuvable.');
         }
 
+        $this->cartService->clear();
+
         return $this->render('checkout/success.html.twig', [
             'order' => $order,
         ]);
+    }
+
+    #[Route('/annulee/{reference}', name: 'app_checkout_cancel', methods: ['GET'])]
+    public function cancel(string $reference, Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $order = $this->orderRepository->findOneBy(['reference' => $reference]);
+        if ($order && $this->ownsOrder($order, $request)) {
+            $this->addFlash('warning', 'Paiement annulé. Ton panier reste disponible pour retenter un règlement.');
+        }
+
+        return $this->redirectToRoute('app_cart_show');
     }
 
     private function resolveViewer(Request $request): User
