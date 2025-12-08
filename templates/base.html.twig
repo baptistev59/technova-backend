@@ -9,9 +9,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
+    <script src="//unpkg.com/alpinejs" defer></script>
 </head>
 <body>
     {% set viewer = viewer_user() %}
+    {% set viewer_is_vendor = viewer and 'ROLE_VENDOR' in viewer.roles %}
     <header class="tn-header">
         <div class="tn-topbar">
             {# En-tête principal disponible sur toutes les pages #}
@@ -57,6 +59,9 @@
                         </summary>
                         <div class="tn-user-menu__panel">
                             <a class="tn-user-menu__item" href="{{ path('app_profile') }}">Mon profil</a>
+                            {% if viewer_is_vendor %}
+                                <a class="tn-user-menu__item" href="{{ path('app_vendor_shop_new') }}">Mon espace vendeur</a>
+                            {% endif %}
                             <a class="tn-user-menu__item" href="{{ path('app_account_orders') }}">Mes commandes</a>
                             <a class="tn-user-menu__item" href="{{ path('app_cart_show') }}">Mon panier</a>
                             <form method="post" action="{{ path('app_logout_web') }}">

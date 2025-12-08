@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Conditions vendeur — TechNova{% endblock %}
+
+{% block body %}
+    <section class="bg-slate-50 py-10 min-h-[80vh]">
+        <div class="max-w-3xl mx-auto px-4">
+            <div class="text-center mb-10">
+                <p class="text-sm uppercase tracking-[0.3em] text-slate-400">TechNova</p>
+                <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Règles vendeurs</h1>
+                <p class="text-slate-500 mt-4">
+                    Avant de publier ta boutique, merci de prendre connaissance des engagements suivants.
+                </p>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-lg border border-slate-200 p-8 space-y-6">
+                <ul class="space-y-4 text-sm text-slate-600">
+                    <li>• Fournir des descriptions et visuels fidèles aux produits commercialisés.</li>
+                    <li>• Expédier les commandes dans les délais annoncés et proposer un numéro de suivi.</li>
+                    <li>• Respecter la politique de retours TechNova (30 jours minimum).</li>
+                    <li>• Répondre aux demandes clients sous 48h ouvrées.</li>
+                </ul>
+
+                {{ form_start(form) }}
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <label class="flex items-center gap-3 text-sm text-slate-700">
+                        {{ form_widget(form.accept) }}
+                        <span>{{ form.accept.vars.label }}</span>
+                    </label>
+                    {{ form_errors(form.accept) }}
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <a href="{{ path('app_profile') }}" class="btn btn-outline">Retour au profil</a>
+                    <button type="submit" class="btn btn-primary">Continuer</button>
+                </div>
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </section>
+{% endblock %}

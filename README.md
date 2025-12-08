@@ -83,6 +83,15 @@ Espace compte (Twig + API)
 >
 > Ces étapes sont listées dans `docs/product-roadmap.md` (section « Authentification front & session »).
 
+Espace vendeur (Sprint 4A)
+--------------------------
+- Accessible aux comptes vendeurs (`ROLE_VENDOR`) pour la consultation/modification de la boutique.  
+- Menu profil → **Mon espace vendeur** → `/mon-espace-vendeur/boutique`.
+- `ShopType` (Twig) permet de créer la boutique : nom, description, email de contact, politiques SAV + upload optionnel d’un logo/bannière (stockés dans `public/uploads/shops`).
+- Le slug est généré automatiquement (unique) et la boutique est liée au profil `Vendor` du user.
+- Si une boutique existe déjà, la page affiche les informations en attendant les US d’édition / gestion.
+- Un client peut créer sa boutique : lors de la soumission du formulaire, un profil `Vendor` est créé/associé et le rôle `ROLE_VENDOR` est ajouté automatiquement. Les vendeurs existants ne voient que la page de gestion.
+
 Installation locale (dev)
 -------------------------
 Prérequis : PHP 8.2+, Composer 2, PostgreSQL 16, Node (facultatif pour assets).

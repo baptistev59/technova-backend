@@ -26,8 +26,25 @@ pg_dump --data-only --column-inserts --no-owner --no-acl -h "$LOCAL_DB_HOST" -U 
 echo "[2/4] Transfert du dump vers ${REMOTE_SSH}:${REMOTE_SQL_PATH}" >&2
 scp "$DUMP_FILE" "${REMOTE_SSH}:${REMOTE_SQL_PATH}"
 
+if [[ -z "${REMOTE_DB_PASSWORD:-}" ]]; then
+  echo "Erreur: REMOTE_DB_PASSWORD n'est pas défini. Exporte-le avant de lancer le script." >&2
+  exit 1
+fi
+
 echo "[3/4] Restauration sur Alwaysdata (${REMOTE_DB_NAME})" >&2
-ssh "$REMOTE_SSH" "PGPASSWORD=\"${REMOTE_DB_PASSWORD:-}\" psql -h $REMOTE_DB_HOST -U $REMOTE_DB_USER -d $REMOTE_DB_NAME < $REMOTE_SQL_PATH"
+read -r -d '' truncate_sql <<'SQL'
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+        EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
+    END LOOP;
+END
+$$;
+SQL
+ssh "$REMOTE_SSH" "PGPASSWORD=\"${REMOTE_DB_PASSWORD}\" psql -h $REMOTE_DB_HOST -U $REMOTE_DB_USER -d $REMOTE_DB_NAME -c \"$truncate_sql\" >/dev/null"
+ssh "$REMOTE_SSH" "PGPASSWORD=\"${REMOTE_DB_PASSWORD}\" psql -h $REMOTE_DB_HOST -U $REMOTE_DB_USER -d $REMOTE_DB_NAME < $REMOTE_SQL_PATH"
 
 echo "[4/4] Nettoyage" >&2
 rm -f "$DUMP_FILE"

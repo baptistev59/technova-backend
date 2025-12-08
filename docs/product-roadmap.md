@@ -42,3 +42,19 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Créer un authenticator Symfony pour mettre à disposition les rôles (`Security`) au lieu d’un simple `viewer_user()`.
 - Ajouter une vraie gestion de session (logout côté API, expiration du jeton, rotation).
 - Prévoir un stockage sécurisé du token côté React (future SPA) pour réutiliser la même base.
+
+## 10. Industrialisation CI/CD
+- Automatiser les tests unitaires, lints et scénarios API via GitHub Actions (PHPUnit + `php bin/console lint:twig templates` + `./scripts/postman-tests.sh`).
+- Interrompre le pipeline en cas d’échec et publier les rapports.
+- Prévoir un job de déploiement contrôlé (SSH/rsync) après validation manuelle.
+
+## 11. Sprint qualité (R1-R3)
+- Ajouter une user story dédiée après les premières US du sprint 4A (création boutique / dashboard vendeur).
+- Couvrir les services critiques : panier, checkout/Stripe, OrderMailer, anonymiseur, sauvegarde panier.
+- Écrire des tests fonctionnels/API pour `/api/login`, `/api/register`, `/api/cart`, `/commande`, webhook Stripe (en simulant les events).
+- Intégrer ces tests dans le pipeline GitHub Actions (voir section 10) afin de sécuriser les régressions.
+
+## 12. Vitrine publique des boutiques
+- Nouvelle route publique `/boutiques/{slug}` qui expose la bannière, le logo, la description et les politiques du vendeur.
+- Grille des produits associés (cards existantes réutilisées) avec pagination / CTA “Voir la boutique” depuis les fiches produit.
+- Bouton “Voir ma boutique” sur le dashboard vendeur pour prévisualiser la page publique.
