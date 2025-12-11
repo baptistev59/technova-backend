@@ -156,9 +156,11 @@
                 <div class="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm"
                      x-show="currentVariant">
                     <div class="flex items-baseline gap-3">
-                        <span class="font-semibold text-slate-900" x-html="currentVariant.priceHtml"></span>
-                        <span class="text-xs" :class="currentVariant.promoPrice ? 'text-red-600' : 'text-slate-500'"
-                              x-text="currentVariant.stockText"></span>
+                        <span class="font-semibold text-slate-900"
+                              x-html="currentVariant ? currentVariant.priceHtml : ''"></span>
+                        <span class="text-xs"
+                              :class="currentVariant && currentVariant.promoPrice ? 'text-red-600' : 'text-slate-500'"
+                              x-text="currentVariant ? currentVariant.stockText : ''"></span>
                     </div>
                 </div>
                 <p class="text-sm text-slate-500" x-show="warningMessage" x-text="warningMessage"></p>

@@ -98,12 +98,19 @@ class Product
     #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductVariant::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $variants;
 
+    /**
+     * @var Collection<int, ProductAttributeSelection>
+     */
+    #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductAttributeSelection::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $attributeSelections;
+
     public function __construct()
     {
         $this->images = new ArrayCollection();
         $this->reviews = new ArrayCollection();
         $this->attributes = new ArrayCollection();
         $this->variants = new ArrayCollection();
+        $this->attributeSelections = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -406,6 +413,33 @@ class Product
     {
         if ($this->variants->removeElement($variant) && $variant->getProduct() === $this) {
             $variant->setProduct(null);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProductAttributeSelection>
+     */
+    public function getAttributeSelections(): Collection
+    {
+        return $this->attributeSelections;
+    }
+
+    public function addAttributeSelection(ProductAttributeSelection $selection): self
+    {
+        if (!$this->attributeSelections->contains($selection)) {
+            $this->attributeSelections->add($selection);
+            $selection->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAttributeSelection(ProductAttributeSelection $selection): self
+    {
+        if ($this->attributeSelections->removeElement($selection) && $selection->getProduct() === $this) {
+            $selection->setProduct(null);
         }
 
         return $this;
