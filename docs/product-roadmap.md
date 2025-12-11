@@ -37,11 +37,13 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Possibilité d’associer une image spécifique à chaque variante.
 
 ## 9. Authentification front & session
-- Déléguer les formulaires Twig (`/connexion`, `/inscription`) à `POST /api/login` / `/api/register` afin d’unifier le workflow.
-- Persister le JWT côté navigateur (session/local storage) et automatiser `POST /api/token/refresh`.
-- Créer un authenticator Symfony pour mettre à disposition les rôles (`Security`) au lieu d’un simple `viewer_user()`.
-- Ajouter une vraie gestion de session (logout côté API, expiration du jeton, rotation).
-- Prévoir un stockage sécurisé du token côté React (future SPA) pour réutiliser la même base.
+- ✅ Formulaire Twig `/connexion` branché sur `App\Security\LoginFormAuthenticator` (firewall `main`) + remember-me.
+- ✅ Session Symfony et `viewer_user()` alignés avec `Security` (JWT conservé pour compatibilité Twig).
+- À poursuivre :
+  - Persister le JWT côté navigateur (session/local storage) et automatiser `POST /api/token/refresh`.
+  - Ajouter un logout API et la rotation/expiration serveur.
+  - Prévoir un stockage sécurisé pour la future SPA React.
+  - Indus : unifier les rôles/ACL entre Twig et SPA, exposer un endpoint `DELETE /api/logout` et documenter le besoin de rotation automatique.
 
 ## 10. Industrialisation CI/CD
 - Automatiser les tests unitaires, lints et scénarios API via GitHub Actions (PHPUnit + `php bin/console lint:twig templates` + `./scripts/postman-tests.sh`).
@@ -58,3 +60,18 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Nouvelle route publique `/boutiques/{slug}` qui expose la bannière, le logo, la description et les politiques du vendeur.
 - Grille des produits associés (cards existantes réutilisées) avec pagination / CTA “Voir la boutique” depuis les fiches produit.
 - Bouton “Voir ma boutique” sur le dashboard vendeur pour prévisualiser la page publique.
+
+## 13. Roadmap API vendeur
+- Ajouter une US dédiée dans le sprint technique pour exposer les endpoints `vendor` / `shop` / `product`.
+- Prévoir les routes suivantes :
+  - `GET /api/vendor/shop`, `POST /api/vendor/shop`, `PUT/PATCH /api/vendor/shop`.
+  - `GET /api/vendor/profile`, `PUT/PATCH /api/vendor/profile`.
+  - `GET /api/vendor/products`, `POST /api/vendor/products`, `GET /api/vendor/products/{id}`, `PUT/PATCH /api/vendor/products/{id}`, `DELETE /api/vendor/products/{id}`.
+  - `POST /api/vendor/media` pour l’upload des logos/bannières/visuels.
+  - (futur) `GET/POST /api/vendor/tax-rules` pour configurer le rule engine TVA.
+- Prévoir les tests Postman/Newman associés + intégration CI (GitHub Actions).
+
+## 14. Actions catalogue (dupliquer / publier / supprimer)
+- Ajouter les routes et méthodes nécessaires dans `VendorProductController` (ou équivalent) pour `dupliquer`, `togglePublish` (publier/dépublier) et `delete`.
+- Brancher les icônes du listing `templates/vendor/product/index.html.twig` sur ces routes (POST/DELETE sécurisés avec CSRF, confirmations).
+- Renvoyer les réponses en JSON pour préparer un rafraîchissement AJAX (Alpine) et mettre à jour la table sans rechargement complet.

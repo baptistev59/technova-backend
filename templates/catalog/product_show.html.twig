@@ -2,8 +2,22 @@
 
 {% block title %}{{ product.name }} | TechNova{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+{% endblock %}
+
 {% block body %}
 {% set viewer = viewer_user() %}
+{% set seller_vendor = product.shop.owner %}
+{% set seller_user = seller_vendor and seller_vendor.owner ? seller_vendor.owner : null %}
+{% set current_vendor = viewer and viewer.vendor ? viewer.vendor : null %}
+{% set current_user = viewer %}
+{% set can_edit = viewer and (
+    is_granted('ROLE_ADMIN') or
+    (seller_vendor is not null and current_vendor is not null and seller_vendor.id == current_vendor.id) or
+    (seller_user is not null and current_user and seller_user.id == current_user.id)
+) %}
 {# Bloc principal affichant la galerie et les infos produit #}
 {% if app.request.query.get('cart_added') %}
     <div class="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -17,36 +31,168 @@
         </div>
     </div>
 {% endif %}
-<section class="tn-product-layout">
-    <div class="tn-product-gallery">
-        {% set mainImage = product.images|first %}
-        {% if mainImage %}
-            <img src="{{ mainImage.url }}" alt="{{ mainImage.alt }}">
-        {% else %}
-            <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut">
-        {% endif %}
-        <div class="tn-product-gallery__thumbs">
-            {% for image in product.images %}
-                <img src="{{ image.url }}" alt="{{ image.alt }}">
-            {% else %}
-                <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut">
-            {% endfor %}
+{% set navQuery = contextShopId ? {'shop': contextShopId} : {} %}
+{% if previousProduct or nextProduct %}
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            {% if previousProduct %}
+                <a href="{{ path('product_show', {'slug': previousProduct.slug} | merge(navQuery)) }}"
+                   class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50">
+                    ← Produit précédent
+                </a>
+            {% endif %}
+        </div>
+        <div class="text-xs uppercase tracking-[0.35em] text-slate-300">Navigation</div>
+        <div>
+            {% if nextProduct %}
+                <a href="{{ path('product_show', {'slug': nextProduct.slug} | merge(navQuery)) }}"
+                   class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50">
+                    Produit suivant →
+                </a>
+            {% endif %}
         </div>
     </div>
-    <div class="tn-product-info">
+{% endif %}
+<section class="tn-product-layout">
+    {% set galleryImages = [] %}
+    {% for image in product.images %}
+        {% set galleryImages = galleryImages|merge([{
+            'url': asset(image.url),
+            'alt': image.alt ?? product.name
+        }]) %}
+    {% endfor %}
+    {% if galleryImages is empty %}
+        {% set galleryImages = [{
+            'url': asset('assets/images/product-placeholder.svg'),
+            'alt': 'Visuel par défaut'
+        }] %}
+    {% endif %}
+    <div class="tn-product-gallery"
+         x-data="productGallery($el.dataset.images)"
+         data-images="{{ galleryImages|json_encode|e('html_attr') }}"
+         @keydown.window.escape="closeLightbox()">
+        <div class="tn-product-main"
+             @mousemove="onZoom($event)"
+             @mouseenter="zoomVisible = true"
+             @mouseleave="zoomVisible = false"
+             @click="openLightbox">
+            <img x-ref="main" :src="currentImage.url" :alt="currentImage.alt">
+            <div class="tn-zoom-lens"
+                 x-show="zoomVisible"
+                 x-transition
+                 :style="zoomLensStyle"></div>
+        </div>
+        <div class="swiper tn-thumbs-swiper" x-show="images.length > 0">
+            <div class="swiper-wrapper">
+                <template x-for="(img, index) in images" :key="index">
+                    <div class="swiper-slide">
+                        <img :src="img.url"
+                             :alt="img.alt"
+                             class="tn-thumb"
+                             :class="{'active': currentIndex === index}"
+                             @click="selectImage(index)">
+                    </div>
+                </template>
+            </div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+        </div>
+        <div class="tn-lightbox" x-show="lightbox" x-transition>
+            <div class="tn-lightbox__backdrop" @click="closeLightbox"></div>
+            <div class="tn-lightbox__content">
+                <button type="button" class="tn-lightbox__close" @click="closeLightbox">×</button>
+                <img :src="currentImage.url" :alt="currentImage.alt">
+            </div>
+        </div>
+    </div>
+    <div class="tn-product-info" x-data>
         <p class="tn-product-info__category">{{ product.category.name }}</p>
         <h1>{{ product.name }}</h1>
-        <p class="tn-product-info__price">{{ product.price|number_format(2, ',', ' ') }} €</p>
-        <p>{{ product.description }}</p>
+        <div id="main-price-block">
+            {% if product.promoPrice %}
+                <div class="flex items-baseline gap-3">
+                    <span class="line-through text-slate-400 text-xl" id="main-price-full">{{ product.price|number_format(2, ',', ' ') }} €</span>
+                    <p class="tn-product-info__price text-red-600" id="main-price-promo">{{ product.promoPrice|number_format(2, ',', ' ') }} €</p>
+                </div>
+            {% else %}
+                <p class="tn-product-info__price" id="main-price-full-only">{{ product.price|number_format(2, ',', ' ') }} €</p>
+            {% endif %}
+        </div>
+        <p class="text-xs text-slate-500 mt-1"
+           x-show="$store.variantState && $store.variantState.message"
+           x-text="$store.variantState ? $store.variantState.message : ''"></p>
+        {% if product.shortDescription %}
+            <p>{{ product.shortDescription }}</p>
+        {% elseif product.description %}
+            <p>{{ product.description }}</p>
+        {% endif %}
+        {% if product.description %}
+            <div class="tn-product-description rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-sm ">
+                <h3 class="underline decoration-solid text-xl font-semibold ">Description détaillée</h3>
+                <p>{{ product.description|nl2br }}</p>
+            </div>
+        {% endif %}
+
+        {% if variantData is not empty %}
+            <div class="mt-6 space-y-4"
+                 x-data="variantConfigurator($el.dataset.variants)"
+                 data-variants="{{ variantData|json_encode|e('html_attr') }}">
+                <p class="block text-sm font-medium text-slate-600">Configure ton produit</p>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <template x-for="attribute in attributeKeys" :key="attribute">
+                        <div>
+                            <label class="text-xs text-slate-500 uppercase tracking-[0.2em]" x-text="attribute"></label>
+                            <select class="tn-select rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 w-full mt-1"
+                                    x-model="selectedAttributes[attribute]"
+                                    @change="onSelect(attribute)">
+                                <option value="">Sélectionner</option>
+                                <template x-for="value in (availableOptions[attribute] ?? [])" :key="value">
+                                    <option :value="value" x-text="value"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </template>
+                </div>
+                <div class="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm"
+                     x-show="currentVariant">
+                    <div class="flex items-baseline gap-3">
+                        <span class="font-semibold text-slate-900" x-html="currentVariant.priceHtml"></span>
+                        <span class="text-xs" :class="currentVariant.promoPrice ? 'text-red-600' : 'text-slate-500'"
+                              x-text="currentVariant.stockText"></span>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-500" x-show="warningMessage" x-text="warningMessage"></p>
+            </div>
+        {% endif %}
+
         {% if viewer %}
-            <form class="tn-add-to-cart" method="post" action="{{ path('app_cart_add', {id: product.id}) }}">
+            <form class="tn-add-to-cart py-4" method="post" action="{{ path('app_cart_add', {id: product.id}) }}">
                 <label class="sr-only" for="quantity">Quantité</label>
-                <input class="tn-input" id="quantity" name="quantity" type="number" min="1" max="{{ product.stock }}" value="1">
+                <input class="tn-input"
+                       x-ref="quantityField"
+                       id="quantity"
+                       name="quantity"
+                       type="number"
+                       min="1"
+                       :max="$store.variantState.stock ?? {{ product.stock ?? 0 }}"
+                       value="1"
+                       :disabled="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready"
+                       x-on:input="const max = Number($store.variantState.stock ?? {{ product.stock ?? 0 }}); if ($event.target.value > max) { $event.target.value = max; } if ($event.target.value < 1) { $event.target.value = 1; }"
+                       x-effect="const max = Number($store.variantState.stock ?? {{ product.stock ?? 0 }}); if (Number($refs.quantityField.value) > max) { $refs.quantityField.value = max; }">
+                <input type="hidden" name="variant_id" :value="$store.variantState.variantId ?? ''">
                 <input type="hidden" name="redirect_to" value="product">
                 <input type="hidden" name="product_slug" value="{{ product.slug }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('add_to_cart_' ~ product.id) }}">
-                <button class="btn btn-primary" type="submit">Ajouter au panier</button>
+                <button class="btn btn-primary" type="submit"
+                        :class="{'cursor-not-allowed opacity-40': $store.variantState && $store.variantState.needsSelection && !$store.variantState.ready}"
+                        :disabled="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready">
+                    Ajouter au panier
+                </button>
             </form>
+            <p class="text-xs text-red-500"
+               x-show="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready">
+                Sélectionne une configuration complète pour continuer.
+            </p>
         {% else %}
             <p class="text-slate-600">Connectez-vous pour ajouter ce produit au panier.</p>
             <a class="btn btn-outline" href="{{ path('app_login') }}">Connexion</a>
@@ -58,9 +204,16 @@
             </div>
             <div>
                 <strong>Stock</strong>
-                <p>{{ product.stock > 0 ? product.stock ~ ' disponibles' : 'Rupture' }}</p>
+                <p id="main-stock">{{ product.stock > 0 ? product.stock ~ ' disponibles' : 'Rupture' }}</p>
             </div>
         </div>
+        {% if can_edit %}
+            <div class="mt-4">
+                <a href="{{ path('app_vendor_product_edit', {id: product.id}) }}" class="btn btn-outline">
+                    Modifier ce produit
+                </a>
+            </div>
+        {% endif %}
     </div>
 </section>
 
@@ -101,47 +254,6 @@
     </section>
 {% endif %}
 
-{% if variantData is not empty %}
-    <section class="tn-section">
-        <div class="tn-section__header">
-            <h2>Variantes proposées</h2>
-        </div>
-        <div class="tn-variants-list">
-            {% for variant in variantData %}
-                <article>
-                    {% set metadataValues = [] %}
-                    {% if variant.metadata %}
-                        {% for key, value in variant.metadata %}
-                            {% set metadataValues = metadataValues|merge([value]) %}
-                        {% endfor %}
-                    {% endif %}
-                    <strong>
-                        {% if metadataValues is not empty %}
-                            {{ metadataValues|join(' • ') }}
-                        {% else %}
-                            Configuration standard
-                        {% endif %}
-                    </strong>
-                    <p class="tn-variant-price">
-                        {% if variant.promoPrice %}
-                            <span class="tn-variant-old">{{ variant.price|number_format(2, ',', ' ') }} €</span>
-                            <span>{{ variant.promoPrice|number_format(2, ',', ' ') }} €</span>
-                        {% else %}
-                            {{ variant.price|number_format(2, ',', ' ') }} €
-                        {% endif %}
-                    </p>
-                    <p class="tn-variant-stock">
-                        {% if variant.stock > 0 %}
-                            {{ variant.stock }} en stock
-                        {% else %}
-                            Réapprovisionnement en cours
-                        {% endif %}
-                    </p>
-                </article>
-            {% endfor %}
-        </div>
-    </section>
-{% endif %}
 
 {# Avis clients fictifs issus des fixtures #}
 <section class="tn-section">
@@ -161,4 +273,289 @@
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('variantState', {
+                needsSelection: false,
+                ready: true,
+                message: '',
+                variantId: null,
+                stock: null,
+                setState(needs, ready, message, variantId = null, stock = null) {
+                    this.needsSelection = needs;
+                    this.ready = ready;
+                    this.message = message ?? '';
+                    this.variantId = variantId;
+                    this.stock = stock;
+                }
+            });
+            Alpine.data('variantConfigurator', (jsonData) => ({
+                variants: [],
+                attributeKeys: [],
+                attributes: {},
+                availableOptions: {},
+                selectedAttributes: {},
+                priceBlockEl: null,
+                stockMainEl: null,
+                basePriceHtml: '',
+                baseStockText: '',
+                baseStockCount: null,
+                currentVariant: null,
+                warningMessage: '',
+                priceRangeHtml: '',
+                formatter: new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }),
+                init() {
+                    this.priceBlockEl = document.querySelector('#main-price-block');
+                    this.stockMainEl = document.querySelector('#main-stock');
+                    this.basePriceHtml = this.priceBlockEl ? this.priceBlockEl.innerHTML : '';
+                    this.baseStockText = this.stockMainEl ? this.stockMainEl.textContent : '';
+                    try {
+                        let raw = [];
+                        if (typeof jsonData === 'string') {
+                            raw = JSON.parse(jsonData || '[]');
+                        } else if (Array.isArray(jsonData)) {
+                            raw = jsonData;
+                        }
+                        this.variants = raw.map((variant, index) => this.normalizeVariant(variant, index));
+                    } catch (e) {
+                        this.variants = [];
+                    }
+                    this.computePriceRange();
+                    this.computeBaseStock();
+                    this.attributes = this.extractAttributes();
+                    this.attributeKeys = Object.keys(this.attributes);
+                    const needsSelection = this.attributeKeys.length > 0;
+                    const baseStock = this.baseStockCount ?? {{ product.stock ?? 0 }};
+                    Alpine.store('variantState').setState(
+                        needsSelection,
+                        !needsSelection,
+                        needsSelection ? 'Sélectionne une configuration pour voir le tarif précis.' : '',
+                        null,
+                        !needsSelection ? baseStock : null
+                    );
+                    this.resetSelection();
+                    this.updateAvailableOptions();
+                    this.updateDisplay(null);
+                },
+                normalizeVariant(variant, index) {
+                    const metadata = variant.metadata ?? {};
+                    const priceFormatted = this.formatter.format(Number(variant.price));
+                    const promoPriceFormatted = variant.promoPrice ? this.formatter.format(Number(variant.promoPrice)) : null;
+                    const stockText = variant.stock > 0 ? `${variant.stock} en stock` : 'Réapprovisionnement en cours';
+                    const priceHtml = promoPriceFormatted
+                        ? `<span class=\"line-through text-slate-400 text-xs mr-2\">${priceFormatted}</span><span class=\"text-red-600 font-semibold\">${promoPriceFormatted}</span>`
+                        : `<span class=\"font-semibold text-slate-900\">${priceFormatted}</span>`;
+                    return {
+                        key: variant.id ?? index,
+                        metadata,
+                        price: Number(variant.price),
+                        promoPrice: variant.promoPrice ? Number(variant.promoPrice) : null,
+                        priceFormatted,
+                        promoPriceFormatted,
+                        stock: variant.stock ?? 0,
+                        stockText,
+                        priceHtml,
+                    };
+                },
+                extractAttributes() {
+                    const attrs = {};
+                    this.variants.forEach((variant) => {
+                        Object.entries(variant.metadata).forEach(([attribute, value]) => {
+                            if (!attrs[attribute]) {
+                                attrs[attribute] = new Set();
+                            }
+                            attrs[attribute].add(value);
+                        });
+                    });
+                    return Object.fromEntries(Object.entries(attrs).map(([key, set]) => [key, Array.from(set)]));
+                },
+                resetSelection() {
+                    this.selectedAttributes = {};
+                    this.attributeKeys.forEach((key) => {
+                        this.selectedAttributes[key] = '';
+                    });
+                },
+                onSelect(attribute) {
+                    this.updateAvailableOptions(attribute);
+                    this.updateCurrentVariant();
+                },
+                updateAvailableOptions() {
+                    const options = {};
+                    this.attributeKeys.forEach((attribute) => {
+                        const filtered = this.attributes[attribute].filter((value) => {
+                            const candidate = { ...this.selectedAttributes, [attribute]: value };
+                            return this.variants.some((variant) => this.matchesSelection(variant, candidate));
+                        });
+                        options[attribute] = filtered;
+                        if (this.selectedAttributes[attribute] && !filtered.includes(this.selectedAttributes[attribute])) {
+                            this.selectedAttributes[attribute] = '';
+                        }
+                    });
+                    this.availableOptions = options;
+                },
+                matchesSelection(variant, selection) {
+                    return Object.entries(selection).every(([attribute, value]) => {
+                        if (!value) {
+                            return true;
+                        }
+                        return variant.metadata[attribute] === value;
+                    });
+                },
+                updateCurrentVariant() {
+                    const incomplete = Object.values(this.selectedAttributes).some((value) => value === '');
+                    if (incomplete) {
+                        this.currentVariant = null;
+                        this.warningMessage = '';
+                        this.updateDisplay(null);
+                        if (this.attributeKeys.length > 0) {
+                            Alpine.store('variantState').setState(true, false, 'Sélectionne une configuration pour voir le tarif précis.', null, null);
+                        }
+                        return;
+                    }
+                    const found = this.variants.find((variant) => this.matchesSelection(variant, this.selectedAttributes));
+                    if (found) {
+                        this.currentVariant = found;
+                        this.warningMessage = '';
+                        this.updateDisplay(found);
+                        Alpine.store('variantState').setState(true, true, '', found.key ?? null, found.stock ?? null);
+                    } else {
+                        this.currentVariant = null;
+                        this.warningMessage = 'Cette combinaison n’est pas disponible.';
+                        this.updateDisplay(null);
+                        Alpine.store('variantState').setState(true, false, 'Cette combinaison n’est pas disponible.', null, null);
+                    }
+                },
+                updateDisplay(variant) {
+                    if (this.priceBlockEl) {
+                        if (variant) {
+                            if (variant.promoPrice) {
+                                this.priceBlockEl.innerHTML = `<div class=\"flex items-baseline gap-3\"><span class=\"line-through text-slate-400 text-xl\">${variant.priceFormatted}</span><p class=\"tn-product-info__price text-red-600\">${variant.promoPriceFormatted}</p></div>`;
+                            } else {
+                                this.priceBlockEl.innerHTML = `<p class=\"tn-product-info__price\">${variant.priceFormatted}</p>`;
+                            }
+                        } else if (this.priceRangeHtml) {
+                            this.priceBlockEl.innerHTML = this.priceRangeHtml;
+                        } else {
+                            this.priceBlockEl.innerHTML = this.basePriceHtml;
+                        }
+                    }
+                    if (this.stockMainEl) {
+                        this.stockMainEl.textContent = variant ? variant.stockText : this.baseStockText;
+                    }
+                },
+                computePriceRange() {
+                    if (!this.variants.length) {
+                        this.priceRangeHtml = this.basePriceHtml;
+                        return;
+                    }
+                    let min = Infinity;
+                    let max = -Infinity;
+                    this.variants.forEach((variant) => {
+                        const effective = variant.promoPrice ?? variant.price;
+                        if (effective < min) {
+                            min = effective;
+                        }
+                        if (effective > max) {
+                            max = effective;
+                        }
+                    });
+                    const minFormatted = this.formatter.format(min);
+                    const maxFormatted = this.formatter.format(max);
+                    if (min === max) {
+                        this.priceRangeHtml = `<p class=\"tn-product-info__price\">${minFormatted}</p>`;
+                    } else {
+                        this.priceRangeHtml = `<p class=\"tn-product-info__price\">${minFormatted} – ${maxFormatted}</p>`;
+                    }
+                    this.basePriceHtml = this.priceRangeHtml;
+                    if (this.priceBlockEl) {
+                        this.priceBlockEl.innerHTML = this.priceRangeHtml;
+                    }
+                },
+                computeBaseStock() {
+                    if (!this.variants.length) {
+                        this.baseStockCount = {{ product.stock ?? 0 }};
+                        this.baseStockText = this.baseStockCount > 0 ? `${this.baseStockCount} disponibles` : 'Réapprovisionnement en cours';
+                        if (this.stockMainEl) {
+                            this.stockMainEl.textContent = this.baseStockText;
+                        }
+                        return;
+                    }
+                    const total = this.variants.reduce((acc, variant) => acc + (variant.stock ?? 0), 0);
+                    this.baseStockCount = total;
+                    this.baseStockText = total > 0 ? `${total} disponibles` : 'Réapprovisionnement en cours';
+                    if (!this.currentVariant && this.stockMainEl) {
+                        this.stockMainEl.textContent = this.baseStockText;
+                    }
+                },
+            }));
+            Alpine.data('productGallery', (jsonData) => ({
+                images: [],
+                currentIndex: 0,
+                zoomVisible: false,
+                zoomLensStyle: '',
+                lightbox: false,
+                init() {
+                    try {
+                        this.images = typeof jsonData === 'string'
+                            ? JSON.parse(jsonData || '[]')
+                            : (Array.isArray(jsonData) ? jsonData : []);
+                    } catch (e) {
+                        this.images = [];
+                    }
+                    this.$nextTick(() => {
+                        new Swiper('.tn-thumbs-swiper', {
+                            slidesPerView: 'auto',
+                            spaceBetween: 12,
+                            navigation: {
+                                nextEl: '.swiper-button-next',
+                                prevEl: '.swiper-button-prev',
+                            },
+                        });
+                    });
+                },
+                get currentImage() {
+                    if (!this.images.length) {
+                        return { url: '{{ asset('assets/images/product-placeholder.svg') }}', alt: 'Visuel par défaut' };
+                    }
+                    return this.images[this.currentIndex];
+                },
+                selectImage(index) {
+                    if (index >= 0 && index < this.images.length) {
+                        this.currentIndex = index;
+                        this.resetZoom();
+                    }
+                },
+                onZoom(event) {
+                    if (!this.zoomVisible || !this.$refs.main) {
+                        return;
+                    }
+                    const rect = this.$refs.main.getBoundingClientRect();
+                    const lensSize = 150;
+                    let x = event.clientX - rect.left;
+                    let y = event.clientY - rect.top;
+                    x = Math.max(lensSize / 2, Math.min(rect.width - lensSize / 2, x));
+                    y = Math.max(lensSize / 2, Math.min(rect.height - lensSize / 2, y));
+                    const percentX = (x / rect.width) * 100;
+                    const percentY = (y / rect.height) * 100;
+                    this.zoomLensStyle = `left:${x}px;top:${y}px;background-image:url('${this.currentImage.url}');background-position:${percentX}% ${percentY}%;`;
+                },
+                resetZoom() {
+                    this.zoomLensStyle = '';
+                },
+                openLightbox() {
+                    this.lightbox = true;
+                    document.documentElement.classList.add('overflow-hidden');
+                },
+                closeLightbox() {
+                    this.lightbox = false;
+                    document.documentElement.classList.remove('overflow-hidden');
+                },
+            }));
+        });
+    </script>
 {% endblock %}

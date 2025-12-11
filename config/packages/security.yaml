@@ -11,6 +11,19 @@ security:
                 property: email
 
     firewalls:
+        main:
+            lazy: true
+            provider: app_user_provider
+            user_checker: App\Security\UserChecker
+            custom_authenticator:
+                - App\Security\LoginFormAuthenticator
+            logout:
+                path: app_logout
+                target: homepage
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 604800
+                path: /
 
         # 0) Swagger / OpenAPI — PAS DE JWT
         docs:
@@ -55,3 +68,7 @@ security:
 
         # Le reste de l'API nécessite un JWT
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+
+        # Pages publiques: connexion autorisée
+        - { path: ^/connexion, roles: PUBLIC_ACCESS }
+        - { path: ^/deconnexion, roles: PUBLIC_ACCESS }

@@ -127,10 +127,23 @@ class ProfileController extends AbstractController
         $filename = sprintf('avatar-%s.%s', bin2hex(random_bytes(6)), $extension);
 
         try {
+            $this->deleteAvatarFile($user->getAvatarPath());
             $file->move($uploadDir, $filename);
             $user->setAvatarPath('uploads/avatars/' . $filename);
         } catch (FileException) {
             $this->addFlash('error', 'Le téléchargement de ton avatar a échoué.');
+        }
+    }
+
+    private function deleteAvatarFile(?string $relativePath): void
+    {
+        if (!$relativePath || !str_starts_with($relativePath, 'uploads/avatars/')) {
+            return;
+        }
+
+        $absolute = $this->getParameter('kernel.project_dir') . '/public/' . ltrim($relativePath, '/');
+        if (is_file($absolute)) {
+            @unlink($absolute);
         }
     }
 }

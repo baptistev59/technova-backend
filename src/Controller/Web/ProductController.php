@@ -3,6 +3,9 @@
 namespace App\Controller\Web;
 
 use App\Entity\Product;
+use App\Entity\Shop;
+use App\Repository\ProductRepository;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,9 +16,19 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class ProductController extends AbstractController
 {
-    #[Route('/produit/{slug}', name: 'product_show')]
-    public function show(#[MapEntity(mapping: ['slug' => 'slug'])] Product $product): Response
+    public function __construct(private readonly ProductRepository $productRepository)
     {
+    }
+
+    #[Route('/produit/{slug}', name: 'product_show')]
+    public function show(Request $request, #[MapEntity(mapping: ['slug' => 'slug'])] Product $product): Response
+    {
+        $shopContext = null;
+        $requestedShopId = $request->query->get('shop');
+        if ($requestedShopId && $product->getShop() && (int) $requestedShopId === $product->getShop()->getId()) {
+            $shopContext = $product->getShop();
+        }
+
         $optionGroups = [];
         foreach ($product->getAttributes() as $attribute) {
             $values = [];
@@ -50,11 +63,18 @@ class ProductController extends AbstractController
 
         $specifications = $this->buildSpecifications($product);
 
+        $adjacentScopeShop = $shopContext instanceof Shop ? $shopContext : null;
+        $previousProduct = $this->productRepository->findPreviousProduct($product, $adjacentScopeShop);
+        $nextProduct = $this->productRepository->findNextProduct($product, $adjacentScopeShop);
+
         return $this->render('catalog/product_show.html.twig', [
             'product' => $product,
             'optionGroups' => $optionGroups,
             'variantData' => $variantData,
             'specifications' => $specifications,
+            'contextShopId' => $shopContext?->getId(),
+            'previousProduct' => $previousProduct,
+            'nextProduct' => $nextProduct,
         ]);
     }
 
@@ -64,7 +84,6 @@ class ProductController extends AbstractController
     private function buildSpecifications(Product $product): array
     {
         return [
-            'Type' => ucfirst((string) ($product->getType() ?? 'standard')),
             'Catégorie' => $product->getCategory()?->getName() ?? 'N/A',
             'Marque' => $product->getBrand()?->getName() ?? 'TechNova',
             'Boutique' => $product->getShop()?->getName() ?? 'Marketplace',

@@ -3,205 +3,439 @@
 namespace App\Service;
 
 use App\Entity\Product;
+use App\Entity\ProductVariant;
 use App\Entity\SavedCart;
 use App\Entity\User;
 use App\Repository\ProductRepository;
+use App\Repository\ProductVariantRepository;
 use App\Repository\SavedCartRepository;
-use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
- * Stocke le panier du visiteur dans la session et calcule les totaux.
+ * Gère le panier stocké en session (et son miroir base de données) avec
+ * prise en charge des variantes.
  */
 class CartService
 {
     private const SESSION_KEY = 'cart.items';
+    private const STATE_VERSION = 2;
 
-    private bool $cartHydrated = false;
+    /**
+     * @var array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int}>}
+     */
+    private array $state = ['version' => self::STATE_VERSION, 'lines' => []];
+    private bool $initialized = false;
+    private bool $dirty = false;
+
+    private ?SessionInterface $session;
 
     public function __construct(
         private readonly RequestStack $requestStack,
         private readonly ProductRepository $productRepository,
-        private readonly UserRepository $userRepository,
+        private readonly ProductVariantRepository $productVariantRepository,
         private readonly SavedCartRepository $savedCartRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly Security $security
+        private readonly Security $security,
     ) {
+        $this->session = $this->requestStack->getSession();
     }
 
-    public function addProduct(Product $product, int $quantity = 1): void
-    {
-        $quantity = max(1, $quantity);
-        $cart = $this->getCart();
-        $productId = (string) $product->getId();
-        $current = $cart[$productId] ?? 0;
-        $this->setProductQuantity($product, $current + $quantity);
+    public function addProduct(
+        Product $product,
+        int $quantity = 1,
+        ?ProductVariant $variant = null,
+        ?int $variantId = null
+    ): void {
+        $this->ensureInitialized();
+        $variant = $this->resolveVariant($product, $variant, $variantId);
+
+        $lineKey = $this->buildLineKey($product->getId(), $variant?->getId());
+        $line = $this->state['lines'][$lineKey] ?? [
+            'product_id' => $product->getId(),
+            'variant_id' => $variant?->getId(),
+            'quantity' => 0,
+        ];
+
+        $line['variant_id'] = $variant?->getId();
+        $line['quantity'] = $this->clampQuantity(
+            $line['quantity'] + max(1, $quantity),
+            $this->resolveMaxStock($product, $variant)
+        );
+
+        $this->state['lines'][$lineKey] = $line;
+        $this->dirty = true;
+        $this->persistState();
     }
 
-    public function setProductQuantity(Product $product, int $quantity): void
-    {
-        $quantity = max(0, $quantity);
-        $cart = $this->getCart();
-        $productId = (string) $product->getId();
+    public function setProductQuantity(
+        Product $product,
+        int $quantity,
+        ?ProductVariant $variant = null,
+        ?int $variantId = null
+    ): void {
+        $this->ensureInitialized();
+        $variant = $this->resolveVariant($product, $variant, $variantId);
+        $lineKey = $this->buildLineKey($product->getId(), $variant?->getId());
 
-        if ($quantity === 0) {
-            unset($cart[$productId]);
+        $quantity = $this->clampQuantity(
+            max(0, $quantity),
+            $this->resolveMaxStock($product, $variant)
+        );
+
+        if ($quantity <= 0) {
+            unset($this->state['lines'][$lineKey]);
         } else {
-            $cart[$productId] = min($product->getStock(), $quantity);
+            $this->state['lines'][$lineKey] = [
+                'product_id' => $product->getId(),
+                'variant_id' => $variant?->getId(),
+                'quantity' => $quantity,
+            ];
         }
 
-        $this->saveCart($cart);
+        $this->dirty = true;
+        $this->persistState();
     }
 
-    public function removeProduct(Product $product): void
-    {
-        $this->setProductQuantity($product, 0);
+    public function removeProduct(
+        Product $product,
+        ?ProductVariant $variant = null,
+        ?int $variantId = null
+    ): void {
+        $this->ensureInitialized();
+        $variant = $this->resolveVariant($product, $variant, $variantId);
+        $lineKey = $this->buildLineKey($product->getId(), $variant?->getId());
+
+        if (isset($this->state['lines'][$lineKey])) {
+            unset($this->state['lines'][$lineKey]);
+            $this->dirty = true;
+            $this->persistState();
+        }
     }
 
     public function clear(): void
     {
-        $this->saveCart([]);
+        $this->ensureInitialized();
+        $this->state = $this->freshState();
+        $this->dirty = true;
+        $this->persistState();
     }
 
     /**
-     * @return array{items: list<array{product: Product, quantity: int, lineTotal: float, unitPrice: float, stock: int}>, total: float, totalQuantity: int}
+     * @return array{
+     *     items: array<int, array{
+     *         lineId: string,
+     *         product: Product,
+     *         variant: ProductVariant|null,
+     *         variantLabel: string|null,
+     *         unitPrice: float,
+     *         basePrice: float,
+     *         promoPrice: float|null,
+     *         quantity: int,
+     *         stock: int,
+     *         lineTotal: float,
+     *     }>,
+     *     total: float,
+     *     totalQuantity: int
+     * }
      */
     public function getSummary(): array
     {
-        $cart = $this->getCart();
-        if ($cart === []) {
-            return ['items' => [], 'total' => 0.0, 'totalQuantity' => 0];
-        }
-
-        $productIds = array_map('intval', array_keys($cart));
-        $products = $this->productRepository->findBy(['id' => $productIds]);
+        $this->ensureInitialized();
 
         $items = [];
-        $totalAmount = 0.0;
+        $total = 0.0;
         $totalQuantity = 0;
+        $stateChanged = false;
 
-        foreach ($products as $product) {
-            $quantity = $cart[(string) $product->getId()] ?? 0;
-            if ($quantity <= 0) {
+        foreach ($this->state['lines'] as $lineId => $line) {
+            $product = $this->productRepository->find($line['product_id']);
+            if (!$product) {
+                unset($this->state['lines'][$lineId]);
+                $stateChanged = true;
                 continue;
             }
 
-            $lineTotal = $quantity * $product->getPrice();
+            $variant = null;
+            $variantLabel = null;
+            $basePrice = (float) $product->getPrice();
+            $promoPrice = $product->getPromoPrice();
+            $stock = $product->getStock();
+
+            if ($line['variant_id']) {
+                $variant = $this->productVariantRepository->find($line['variant_id']);
+                if (!$variant || $variant->getProduct()?->getId() !== $product->getId()) {
+                    unset($this->state['lines'][$lineId]);
+                    $stateChanged = true;
+                    continue;
+                }
+                $basePrice = $variant->getPrice();
+                $promoPrice = $variant->getPromoPrice();
+                $stock = $variant->getStock();
+                $variantLabel = $this->formatVariantLabel($variant);
+            }
+
+            $quantity = $line['quantity'];
+            if ($stock >= 0 && $quantity > $stock) {
+                $quantity = $stock;
+                $this->state['lines'][$lineId]['quantity'] = $quantity;
+                $stateChanged = true;
+            }
+
+            if ($quantity <= 0) {
+                unset($this->state['lines'][$lineId]);
+                $stateChanged = true;
+                continue;
+            }
+
+            $unitPrice = $promoPrice ?? $basePrice;
+            $lineTotal = $unitPrice * $quantity;
+
             $items[] = [
+                'lineId' => $lineId,
                 'product' => $product,
+                'variant' => $variant,
+                'variantLabel' => $variantLabel,
+                'unitPrice' => $unitPrice,
+                'basePrice' => $basePrice,
+                'promoPrice' => $promoPrice,
                 'quantity' => $quantity,
+                'stock' => $stock,
                 'lineTotal' => $lineTotal,
-                'unitPrice' => $product->getPrice(),
-                'stock' => $product->getStock(),
             ];
-            $totalAmount += $lineTotal;
+
+            $total += $lineTotal;
             $totalQuantity += $quantity;
+        }
+
+        if ($stateChanged) {
+            $this->dirty = true;
+            $this->persistState();
         }
 
         return [
             'items' => $items,
-            'total' => $totalAmount,
+            'total' => $total,
             'totalQuantity' => $totalQuantity,
         ];
     }
 
-    private function getCart(): array
+    private function ensureInitialized(): void
     {
-        $this->ensureCartLoadedFromSnapshot();
-
-        return $this->getSession()->get(self::SESSION_KEY, []);
-    }
-
-    private function saveCart(array $cart): void
-    {
-        $this->getSession()->set(self::SESSION_KEY, $cart);
-        $this->syncSnapshot($cart);
-    }
-
-    private function ensureCartLoadedFromSnapshot(): void
-    {
-        if ($this->cartHydrated) {
-            return;
-        }
-        $this->cartHydrated = true;
-
-        $session = $this->getSession();
-        $current = $session->get(self::SESSION_KEY, null);
-        if (is_array($current) && $current !== []) {
+        if ($this->initialized) {
             return;
         }
 
-        $user = $this->resolveViewerUser();
-        if (!$user) {
-            return;
-        }
+        $stored = $this->session?->get(self::SESSION_KEY);
+        $state = $this->normalizeState($stored);
 
-        $snapshot = $this->savedCartRepository->findOneBy(['owner' => $user]);
-        if ($snapshot instanceof SavedCart) {
-            $session->set(self::SESSION_KEY, $snapshot->getItems());
-        }
-    }
-
-    private function syncSnapshot(array $cart): void
-    {
-        $user = $this->resolveViewerUser();
-        if (!$user) {
-            return;
-        }
-
-        $snapshot = $this->savedCartRepository->findOneBy(['owner' => $user]);
-
-        if ($cart === []) {
-            if ($snapshot) {
-                $this->entityManager->remove($snapshot);
-                $this->entityManager->flush();
-            }
-
-            return;
-        }
-
-        if (!$snapshot) {
-            $snapshot = (new SavedCart())->setOwner($user);
-        }
-
-        $snapshot->setItems($cart);
-        $snapshot->setUpdatedAt(new \DateTimeImmutable());
-
-        $this->entityManager->persist($snapshot);
-        $this->entityManager->flush();
-    }
-
-    private function resolveViewerUser(): ?User
-    {
-        $user = $this->security->getUser();
-        if ($user instanceof User && !$user->isDeleted()) {
-            return $user;
-        }
-
-        $session = $this->requestStack->getSession();
-        if ($session && $session->has('recent_user_id')) {
-            $userId = (int) $session->get('recent_user_id');
-            if ($userId > 0) {
-                $resolved = $this->userRepository->find($userId);
-                if ($resolved instanceof User && !$resolved->isDeleted()) {
-                    return $resolved;
+        if (empty($state['lines'])) {
+            $user = $this->getUser();
+            if ($user) {
+                $saved = $this->savedCartRepository->findOneBy(['owner' => $user]);
+                if ($saved instanceof SavedCart) {
+                    $state = $this->normalizeState($saved->getItems());
                 }
             }
         }
 
-        return null;
+        $this->state = $state;
+        $this->initialized = true;
+        $this->dirty = false;
+
+        if ($this->session) {
+            $this->session->set(self::SESSION_KEY, $this->state);
+        }
     }
 
-    private function getSession(): SessionInterface
-    {
-        $session = $this->requestStack->getSession();
-        if (!$session->isStarted()) {
-            $session->start();
+    private function resolveVariant(
+        Product $product,
+        ?ProductVariant $variant,
+        ?int $variantId = null
+    ): ?ProductVariant {
+        if ($variant && $variant->getProduct()?->getId() !== $product->getId()) {
+            throw new \InvalidArgumentException('La variante ne correspond pas au produit.');
         }
 
-        return $session;
+        if (!$variant && $variantId) {
+            $variant = $this->productVariantRepository->find($variantId);
+            if ($variant && $variant->getProduct()?->getId() !== $product->getId()) {
+                $variant = null;
+            }
+        }
+
+        return $variant;
+    }
+
+    private function buildLineKey(int $productId, ?int $variantId): string
+    {
+        return sprintf('%d:%s', $productId, $variantId ?? 'base');
+    }
+
+    private function resolveMaxStock(Product $product, ?ProductVariant $variant): int
+    {
+        return $variant?->getStock() ?? $product->getStock();
+    }
+
+    private function clampQuantity(int $quantity, int $max): int
+    {
+        if ($max > 0) {
+            return min($quantity, $max);
+        }
+
+        return $quantity;
+    }
+
+    private function formatVariantLabel(ProductVariant $variant): ?string
+    {
+        $metadata = $variant->getMetadata() ?? [];
+
+        if (empty($metadata)) {
+            return null;
+        }
+
+        return implode(' • ', array_values($metadata));
+    }
+
+    /**
+     * @param mixed $rawState
+     * @return array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int}>}
+     */
+    private function normalizeState(mixed $rawState): array
+    {
+        if (!is_array($rawState)) {
+            return $this->freshState();
+        }
+
+        if (isset($rawState['version'], $rawState['lines']) && (int) $rawState['version'] === self::STATE_VERSION) {
+            return [
+                'version' => self::STATE_VERSION,
+                'lines' => $this->sanitizeLines($rawState['lines']),
+            ];
+        }
+
+        // Legacy format : [productId => quantity]
+        if ($this->looksLikeLegacy($rawState)) {
+            $lines = [];
+            foreach ($rawState as $productId => $quantity) {
+                $productId = (int) $productId;
+                $quantity = max(0, (int) $quantity);
+                if ($productId > 0 && $quantity > 0) {
+                    $lineId = $this->buildLineKey($productId, null);
+                    $lines[$lineId] = [
+                        'product_id' => $productId,
+                        'variant_id' => null,
+                        'quantity' => $quantity,
+                    ];
+                }
+            }
+
+            return [
+                'version' => self::STATE_VERSION,
+                'lines' => $lines,
+            ];
+        }
+
+        return $this->freshState();
+    }
+
+    /**
+     * @param array<string, mixed> $lines
+     * @return array<string, array{product_id:int,variant_id:int|null,quantity:int}>
+     */
+    private function sanitizeLines(array $lines): array
+    {
+        $normalized = [];
+        foreach ($lines as $lineId => $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            $productId = isset($line['product_id']) ? (int) $line['product_id'] : 0;
+            $variantId = array_key_exists('variant_id', $line) ? ($line['variant_id'] !== null ? (int) $line['variant_id'] : null) : null;
+            $quantity = isset($line['quantity']) ? max(0, (int) $line['quantity']) : 0;
+
+            if ($productId <= 0 || $quantity <= 0) {
+                continue;
+            }
+
+            $normalized[$lineId] = [
+                'product_id' => $productId,
+                'variant_id' => $variantId,
+                'quantity' => $quantity,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function looksLikeLegacy(array $raw): bool
+    {
+        foreach ($raw as $key => $value) {
+            if (!is_numeric($key) || !is_numeric($value)) {
+                return false;
+            }
+        }
+
+        return !empty($raw);
+    }
+
+    private function freshState(): array
+    {
+        return ['version' => self::STATE_VERSION, 'lines' => []];
+    }
+
+    private function persistState(): void
+    {
+        if (!$this->dirty) {
+            return;
+        }
+
+        if ($this->session) {
+            $this->session->set(self::SESSION_KEY, $this->state);
+        }
+
+        $this->syncSavedCart();
+        $this->dirty = false;
+    }
+
+    private function syncSavedCart(): void
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return;
+        }
+
+        $lines = $this->state['lines'];
+        $saved = $this->savedCartRepository->findOneBy(['owner' => $user]);
+
+        if (empty($lines)) {
+            if ($saved) {
+                $this->entityManager->remove($saved);
+                $this->entityManager->flush();
+            }
+            return;
+        }
+
+        if (!$saved) {
+            $saved = (new SavedCart())->setOwner($user);
+        }
+
+        $saved
+            ->setItems([
+                'version' => self::STATE_VERSION,
+                'lines' => $lines,
+            ])
+            ->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->entityManager->persist($saved);
+        $this->entityManager->flush();
+    }
+
+    private function getUser(): ?User
+    {
+        $user = $this->security->getUser();
+        return $user instanceof User ? $user : null;
     }
 }

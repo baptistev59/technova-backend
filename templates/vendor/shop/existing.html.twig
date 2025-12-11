@@ -1,168 +1,107 @@
-{% extends 'base.html.twig' %}
+{% extends 'vendor/layout.html.twig' %}
 
 {% block title %}Tableau de bord vendeur — {{ shop.name }}{% endblock %}
 
-{% block body %}
+{% block vendor_content %}
     {% set stats = stats ?? [
         { label: 'Ventes du jour', value: '33', trend: '+8% cette semaine', icon: '🛒' },
         { label: 'Revenus', value: '1 240 €', trend: '+12% cette semaine', icon: '💶' },
         { label: 'Commandes en cours', value: '14', trend: '+3% cette semaine', icon: '📦' },
         { label: 'Produits actifs', value: '56', trend: 'Stable', icon: '🏬' }
     ] %}
-    {% set vendor_nav = vendor_nav ?? [
-        { label: 'Accueil', icon: '🏠', active: true },
-        { label: 'Mes produits', icon: '🗂️', active: false },
-        { label: 'Commandes', icon: '📦', active: false },
-        { label: 'Statistiques', icon: '📊', active: false },
-        { label: 'Paramètres', icon: '⚙️', active: false }
-    ] %}
+    <div>
+        <p class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase mb-2">Technova</p>
+        <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Tableau de bord vendeur</h1>
+        <p class="text-slate-500 mt-3">
+            Suivi rapide de ta boutique <strong>{{ shop.name }}</strong>. Les sections se rempliront automatiquement dès que les modules commandes/produits seront finalisés.
+        </p>
+    </div>
 
-    {% set vendor_nav_block %}
-        <div class="space-y-6">
-            <div class="rounded-3xl border border-slate-100 bg-slate-50/80 p-6">
-                <h2 class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase mb-4">Navigation</h2>
-                <nav class="space-y-2">
-                    {% for item in vendor_nav %}
-                        <button type="button" class="w-full text-left flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium {{ item.active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
-                            <span class="text-lg">{{ item.icon }}</span>
-                            {{ item.label }}
-                        </button>
-                    {% endfor %}
-                </nav>
-                <div class="mt-6">
-                    <a href="{{ path('app_vendor_shop_new', { edit: 1 }) }}" class="btn btn-outline w-full">Modifier la boutique</a>
-                </div>
-            </div>
-
-            <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-3">
-                <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Support</p>
-                <p class="text-sm text-slate-600">Besoin d’aide pour gérer ta boutique ? Notre équipe répond en 24 h.</p>
-                <a href="mailto:support@technova.test" class="btn btn-primary w-full">Contacter le support</a>
-            </div>
-        </div>
-    {% endset %}
-
-    <section class="bg-slate-50" x-data="{ mobileNavOpen: false }">
-        <div class="flex justify-end lg:hidden mb-6">
-            <button type="button" class="btn btn-outline" @click="mobileNavOpen = true">Menu vendeur</button>
-        </div>
-
-        <div x-show="mobileNavOpen" x-transition.opacity class="fixed inset-0 z-50 flex lg:hidden">
-            <div class="absolute inset-0 bg-slate-900/40" @click="mobileNavOpen = false"></div>
-            <div x-transition @click.away="mobileNavOpen = false" class="relative ml-auto h-full w-80 bg-white shadow-2xl p-6 overflow-y-auto">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-base font-semibold text-slate-900">Navigation</h2>
-                    <button type="button" class="text-slate-500 hover:text-slate-900" @click="mobileNavOpen = false">✕</button>
-                </div>
-                {{ vendor_nav_block|raw }}
-            </div>
-        </div>
-
-        <div class="max-w-6xl mx-auto rounded-[38px] bg-white p-8 lg:p-10 shadow-[0_40px_90px_rgba(15,25,36,0.08)]">
-            <div class="grid gap-10 lg:grid-cols-[280px,minmax(0,1fr)]">
-                <aside class="hidden lg:block">
-                    {{ vendor_nav_block|raw }}
-                </aside>
-                <div class="space-y-8">
+    <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div class="flex gap-4">
+            {% if shop.logo %}
+                <img src="{{ asset(shop.logo) }}" alt="{{ shop.name }}" class="w-16 h-16 rounded-full object-cover">
+            {% else %}
+                <span class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center font-semibold text-slate-500">{{ shop.name|slice(0,2)|upper }}</span>
+            {% endif %}
+            <div class="flex-1 space-y-2">
+                <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase mb-2">Technova</p>
-                        <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Tableau de bord vendeur</h1>
-                        <p class="text-slate-500 mt-3">
-                            Suivi rapide de ta boutique <strong>{{ shop.name }}</strong>. Les sections se rempliront automatiquement dès que les modules commandes/produits seront finalisés.
-                        </p>
+                        <p class="font-semibold text-slate-900">{{ shop.name }}</p>
+                        <p class="text-xs text-slate-500">Slug : {{ shop.slug }}</p>
+                        <p class="text-xs text-slate-500">Email : {{ shop.contactEmail }}</p>
                     </div>
-
-                    <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <div class="flex gap-4">
-                            {% if shop.logo %}
-                                <img src="{{ asset(shop.logo) }}" alt="{{ shop.name }}" class="w-16 h-16 rounded-full object-cover">
-                            {% else %}
-                                <span class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center font-semibold text-slate-500">{{ shop.name|slice(0,2)|upper }}</span>
-                            {% endif %}
-                            <div class="flex-1 space-y-2">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="font-semibold text-slate-900">{{ shop.name }}</p>
-                                        <p class="text-xs text-slate-500">Slug : {{ shop.slug }}</p>
-                                        <p class="text-xs text-slate-500">Email : {{ shop.contactEmail }}</p>
-                                    </div>
-                                    <a href="{{ path('app_vendor_shop_new', { edit: 1 }) }}" class="btn btn-outline btn-sm whitespace-nowrap">Modifier</a>
-                                </div>
-                                {% if shop.policies %}
-                                    <p class="text-xs text-slate-500 line-clamp-2">{{ shop.policies }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                        {% for card in stats %}
-                            <article class="tn-product-card h-[240px] flex flex-col items-center justify-between text-center">
-                                <div class="text-3xl">{{ card.icon }}</div>
-                                <div class="w-full">
-                                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ card.label }}</p>
-                                    <p class="text-3xl font-semibold text-slate-900 mt-3">{{ card.value }}</p>
-                                </div>
-                                <p class="text-xs font-medium text-blue-600">{{ card.trend }}</p>
-                            </article>
-                        {% endfor %}
-                    </div>
-
-                    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-                            <h2 class="text-xl font-semibold text-slate-900">Commandes récentes</h2>
-                            <span class="text-sm text-slate-500">Synchronisation à venir</span>
-                        </div>
-                        <div class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-2xl">
-                            Les commandes s’afficheront ici dès que le module vendeur sera connecté au back-office.
-                        </div>
-                    </div>
-
-                    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
-                        <div class="border-b border-slate-100 pb-4">
-                            <h2 class="text-xl font-semibold text-slate-900">Statistiques</h2>
-                            <p class="text-sm text-slate-500">Ventes et revenus (placeholders).</p>
-                        </div>
-                        <div class="grid md:grid-cols-2 gap-6">
-                            <div class="bg-slate-50 rounded-xl h-48 px-4 py-6 flex flex-col justify-between">
-                                <p class="text-sm font-medium text-slate-500">Ventes — 30 derniers jours</p>
-                                <div class="h-32 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg"></div>
-                            </div>
-                            <div class="bg-slate-50 rounded-xl h-48 px-4 py-6 flex flex-col justify-between">
-                                <p class="text-sm font-medium text-slate-500">Revenus — par mois</p>
-                                <div class="h-32 bg-gradient-to-r from-blue-200 via-blue-100 to-blue-200 rounded-lg"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
-                        <div class="border-b border-slate-100 pb-4">
-                            <h2 class="text-xl font-semibold text-slate-900">Mes derniers produits</h2>
-                            <p class="text-sm text-slate-500">Placeholders en attendant la création de produits.</p>
-                        </div>
-                        <div class="flex flex-wrap justify-center gap-6">
-                            {% for i in 1..3 %}
-                                <article class="tn-product-card w-[230px] h-[320px] flex flex-col items-center text-center">
-                                    <div class="bg-slate-100 rounded-xl h-40 w-full"></div>
-                                    <div class="w-full">
-                                        <p class="font-semibold text-slate-900">Nom du produit</p>
-                                        <p class="text-sm text-slate-500">59,90 €</p>
-                                    </div>
-                                    <div class="tn-product-card__cta w-full">
-                                        <button class="btn btn-outline w-full">Voir le produit</button>
-                                    </div>
-                                </article>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="text-sm text-slate-500 text-center">
-                        Besoin de modifier ta boutique ? Les écrans d’édition arrivent dans ce sprint. Merci pour ta patience. 🙏
-                    </div>
+                    <a href="{{ path('app_vendor_shop_new', { edit: 1 }) }}" class="btn btn-outline btn-sm whitespace-nowrap">Modifier</a>
                 </div>
-
-
+                {% if shop.policies %}
+                    <p class="text-xs text-slate-500 line-clamp-2">{{ shop.policies }}</p>
+                {% endif %}
             </div>
         </div>
-    </section>
+    </div>
+
+    <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {% for card in stats %}
+            <article class="tn-product-card h-[240px] flex flex-col items-center justify-between text-center">
+                <div class="text-3xl">{{ card.icon }}</div>
+                <div class="w-full">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ card.label }}</p>
+                    <p class="text-3xl font-semibold text-slate-900 mt-3">{{ card.value }}</p>
+                </div>
+                <p class="text-xs font-medium text-blue-600">{{ card.trend }}</p>
+            </article>
+        {% endfor %}
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Commandes récentes</h2>
+            <span class="text-sm text-slate-500">Synchronisation à venir</span>
+        </div>
+        <div class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-2xl">
+            Les commandes s’afficheront ici dès que le module vendeur sera connecté au back-office.
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Statistiques</h2>
+            <p class="text-sm text-slate-500">Ventes et revenus (placeholders).</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-slate-50 rounded-xl h-48 px-4 py-6 flex flex-col justify-between">
+                <p class="text-sm font-medium text-slate-500">Ventes — 30 derniers jours</p>
+                <div class="h-32 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg"></div>
+            </div>
+            <div class="bg-slate-50 rounded-xl h-48 px-4 py-6 flex flex-col justify-between">
+                <p class="text-sm font-medium text-slate-500">Revenus — par mois</p>
+                <div class="h-32 bg-gradient-to-r from-blue-200 via-blue-100 to-blue-200 rounded-lg"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Mes derniers produits</h2>
+            <p class="text-sm text-slate-500">Placeholders en attendant la création de produits.</p>
+        </div>
+        <div class="flex flex-wrap justify-center gap-6">
+            {% for i in 1..3 %}
+                <article class="tn-product-card w-[230px] h-[320px] flex flex-col items-center text-center">
+                    <div class="bg-slate-100 rounded-xl h-40 w-full"></div>
+                    <div class="w-full">
+                        <p class="font-semibold text-slate-900">Nom du produit</p>
+                        <p class="text-sm text-slate-500">59,90 €</p>
+                    </div>
+                    <div class="tn-product-card__cta w-full">
+                        <button class="btn btn-outline w-full">Voir le produit</button>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="text-sm text-slate-500 text-center">
+        Besoin de modifier ta boutique ? Les écrans d’édition arrivent dans ce sprint. Merci pour ta patience. 🙏
+    </div>
 {% endblock %}

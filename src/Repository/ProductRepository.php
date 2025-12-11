@@ -3,7 +3,9 @@
 namespace App\Repository;
 
 use App\Entity\Product;
+use App\Entity\Shop;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -132,5 +134,145 @@ class ProductRepository extends ServiceEntityRepository
         };
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Filtrage dédié aux vendeurs dans l'espace "Mes produits".
+     *
+     * @param array{
+     *     search?: string|null,
+     *     category?: string|null,
+     *     brand?: string|null,
+     *     stock?: string|null,
+     *     type?: string|null,
+     *     status?: string|null
+     * } $filters
+     *
+     * @return Product[]
+     */
+    public function filterForVendor(Shop $shop, array $filters = [], int $page = 1, int $limit = 15, string $sort = 'updated_desc'): array
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->leftJoin('p.category', 'c')
+            ->addSelect('c')
+            ->leftJoin('p.brand', 'b')
+            ->addSelect('b')
+            ->leftJoin('p.images', 'img')
+            ->addSelect('img')
+            ->andWhere('p.shop = :shop')
+            ->setParameter('shop', $shop)
+            ->distinct();
+
+        if (!empty($filters['category'])) {
+            $qb->andWhere('c.slug = :categorySlug')
+                ->setParameter('categorySlug', $filters['category']);
+        }
+
+        if (!empty($filters['brand'])) {
+            $qb->andWhere('b.slug = :brandSlug')
+                ->setParameter('brandSlug', $filters['brand']);
+        }
+
+        if (!empty($filters['type'])) {
+            $qb->andWhere('p.type = :type')
+                ->setParameter('type', $filters['type']);
+        }
+
+        if (!empty($filters['stock'])) {
+            match ($filters['stock']) {
+                'out_of_stock' => $qb->andWhere('p.stock <= 0'),
+                'low_stock' => $qb->andWhere('p.stock > 0')->andWhere('p.stock <= 10'),
+                'in_stock' => $qb->andWhere('p.stock > 10'),
+                default => null,
+            };
+        }
+
+        if (isset($filters['status']) && $filters['status'] !== '') {
+            $qb->andWhere('p.isPublished = :publishedStatus')
+                ->setParameter('publishedStatus', filter_var($filters['status'], FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if (!empty($filters['search'])) {
+            $normalized = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $filters['search'])));
+            if ($normalized !== '') {
+                $terms = array_values(array_filter(explode(' ', $normalized)));
+                if ($terms !== []) {
+                    $orExpressions = [];
+                    foreach ($terms as $index => $term) {
+                        $param = 'vendor_search_' . $index;
+                        $orExpressions[] = sprintf(
+                            '(LOWER(p.name) LIKE :%1$s OR LOWER(p.sku) LIKE :%1$s OR LOWER(p.description) LIKE :%1$s)',
+                            $param
+                        );
+                        $qb->setParameter($param, '%' . $term . '%');
+                    }
+                    $qb->andWhere(implode(' OR ', $orExpressions));
+                }
+            }
+        }
+
+        $sort = $sort ?: 'updated_desc';
+        match ($sort) {
+            'price_asc' => $qb->orderBy('p.price', 'ASC'),
+            'price_desc' => $qb->orderBy('p.price', 'DESC'),
+            'name_asc' => $qb->orderBy('p.name', 'ASC'),
+            'name_desc' => $qb->orderBy('p.name', 'DESC'),
+            'updated_asc' => $qb->orderBy('p.updatedAt', 'ASC'),
+            default => $qb->orderBy('p.updatedAt', 'DESC'),
+        };
+
+        $page = max(1, $page);
+        $limit = max(1, $limit);
+        $qb->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
+
+        $paginator = new Paginator($qb, true);
+
+        return [
+            'items' => iterator_to_array($paginator, false),
+            'total' => count($paginator),
+        ];
+    }
+
+    public function findPreviousProduct(Product $product, ?Shop $shopScope = null): ?Product
+    {
+        return $this->createAdjacentQuery($product, $shopScope, true)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findNextProduct(Product $product, ?Shop $shopScope = null): ?Product
+    {
+        return $this->createAdjacentQuery($product, $shopScope, false)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    private function createAdjacentQuery(Product $product, ?Shop $shopScope, bool $isPrevious)
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->setMaxResults(1)
+            ->setParameter('updatedAt', $product->getUpdatedAt())
+            ->setParameter('currentId', $product->getId());
+
+        if ($shopScope) {
+            $qb->andWhere('p.shop = :shop')
+                ->setParameter('shop', $shopScope);
+        } else {
+            $qb->andWhere('p.isPublished = :published')
+                ->setParameter('published', true);
+        }
+
+        if ($isPrevious) {
+            $qb->andWhere('(p.updatedAt > :updatedAt) OR (p.updatedAt = :updatedAt AND p.id > :currentId)')
+                ->orderBy('p.updatedAt', 'ASC')
+                ->addOrderBy('p.id', 'ASC');
+        } else {
+            $qb->andWhere('(p.updatedAt < :updatedAt) OR (p.updatedAt = :updatedAt AND p.id < :currentId)')
+                ->orderBy('p.updatedAt', 'DESC')
+                ->addOrderBy('p.id', 'DESC');
+        }
+
+        return $qb;
     }
 }

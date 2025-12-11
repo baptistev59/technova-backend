@@ -39,6 +39,9 @@ class Product
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private ?string $price = null;
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    private ?string $promoPrice = null;
+
     #[ORM\Column]
     private int $stock = 0;
 
@@ -50,6 +53,9 @@ class Product
 
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $type = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $keywords = null;
 
     #[ORM\Column(options: ['default' => false])]
     private bool $isFeatured = false;
@@ -177,6 +183,18 @@ class Product
         return $this;
     }
 
+    public function getPromoPrice(): ?float
+    {
+        return $this->promoPrice !== null ? (float) $this->promoPrice : null;
+    }
+
+    public function setPromoPrice(?float $promoPrice): self
+    {
+        $this->promoPrice = $promoPrice !== null ? (string) $promoPrice : null;
+
+        return $this;
+    }
+
     public function getSku(): ?string
     {
         return $this->sku;
@@ -209,6 +227,18 @@ class Product
     public function setType(?string $type): self
     {
         $this->type = $type;
+
+        return $this;
+    }
+
+    public function getKeywords(): ?string
+    {
+        return $this->keywords;
+    }
+
+    public function setKeywords(?string $keywords): self
+    {
+        $this->keywords = $keywords;
 
         return $this;
     }

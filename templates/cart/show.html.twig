@@ -19,39 +19,57 @@
                 <div class="grid grid-cols-1 divide-y divide-slate-100">
                     {% for item in cart.items %}
                         {% set product = item.product %}
-                        {% set mainImage = product.images|first %}
-                        <div class="flex flex-col gap-4 p-6 md:flex-row md:items-center" data-cart-line data-product-id="{{ product.id }}">
+                        {% if item.variant and item.variant.imagePath %}
+                            {% set mainImage = asset(item.variant.imagePath) %}
+                        {% else %}
+                            {% set firstImage = product.images|first %}
+                            {% set mainImage = firstImage ? firstImage.url : null %}
+                        {% endif %}
+                        <div class="flex flex-col gap-4 p-6 md:flex-row md:items-center" data-cart-line data-line-id="{{ item.lineId }}">
                             <div class="flex items-center gap-4 flex-1">
                                 <div class="h-20 w-20 rounded-2xl bg-slate-50 overflow-hidden">
                                     {% if mainImage %}
-                                        <img src="{{ mainImage.url }}" alt="{{ product.name }}" class="h-full w-full object-cover">
+                                        <img src="{{ mainImage }}" alt="{{ product.name }}" class="h-full w-full object-cover">
                                     {% else %}
                                         <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut" class="h-full w-full object-cover">
                                     {% endif %}
                                 </div>
                                 <div>
                                     <h3 class="text-lg font-semibold text-slate-900">{{ product.name }}</h3>
-                                    <p class="text-sm text-slate-500">Prix unitaire : {{ product.price|number_format(2, ',', ' ') }} €</p>
+                                    {% if item.variantLabel %}
+                                        <p class="text-sm text-slate-500">{{ item.variantLabel }}</p>
+                                    {% endif %}
+                                    <div class="text-sm text-slate-500">
+                                        {% if item.promoPrice %}
+                                            <span class="line-through">{{ item.basePrice|number_format(2, ',', ' ') }} €</span>
+                                            <span class="ml-2 font-semibold text-red-600">{{ item.unitPrice|number_format(2, ',', ' ') }} €</span>
+                                        {% else %}
+                                            <span class="font-semibold text-slate-900">{{ item.unitPrice|number_format(2, ',', ' ') }} €</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                             <div class="flex flex-col gap-2 md:items-end">
                                 <form class="mt-3 flex items-center gap-2 cart-update-form" method="post" action="{{ path('app_cart_update', {id: product.id}) }}">
-                                    <label class="text-sm text-slate-600" for="quantity-{{ product.id }}">Quantité</label>
+                                    <label class="text-sm text-slate-600" for="quantity-{{ item.lineId }}">Quantité</label>
                                     <input
                                         class="tn-input cart-quantity-input"
-                                        id="quantity-{{ product.id }}"
+                                        id="quantity-{{ item.lineId }}"
                                         name="quantity"
                                         type="number"
                                         min="1"
-                                        max="{{ item.stock }}"
+                                        max="{{ item.stock > 0 ? item.stock : 1 }}"
                                         value="{{ item.quantity }}"
-                                        data-stock="{{ item.stock }}"
+                                        data-stock="{{ item.stock > 0 ? item.stock : 1 }}"
                                     >
+                                    <input type="hidden" name="variant_id" value="{{ item.variant ? item.variant.id : '' }}">
+                                    <input type="hidden" name="line_id" value="{{ item.lineId }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('update_cart_' ~ product.id) }}">
                                 </form>
                             </div>
                                 <p class="text-xl font-semibold text-slate-900" data-line-total>{{ item.lineTotal|number_format(2, ',', ' ') }} €</p>
                                 <form method="post" action="{{ path('app_cart_remove', {id: product.id}) }}">
+                                    <input type="hidden" name="variant_id" value="{{ item.variant ? item.variant.id : '' }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('remove_from_cart_' ~ product.id) }}">
                                     <button class="btn btn-outline text-sm" type="submit">Retirer</button>
                                 </form>
@@ -109,10 +127,16 @@
                     return;
                 }
                 const data = await response.json();
-                if (data.line) {
-                    const line = document.querySelector(`[data-product-id="${data.line.productId}"] [data-line-total]`);
-                    if (line) {
-                        line.textContent = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(data.line.lineTotal);
+                const lineId = data.lineId ?? null;
+                if (data.lineRemoved && lineId) {
+                    const lineEl = document.querySelector(`[data-line-id="${lineId}"]`);
+                    if (lineEl) {
+                        lineEl.remove();
+                    }
+                } else if (data.line && lineId) {
+                    const lineEl = document.querySelector(`[data-line-id="${lineId}"] [data-line-total]`);
+                    if (lineEl) {
+                        lineEl.textContent = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(data.line.lineTotal);
                     }
                 }
                 if (data.summary) {

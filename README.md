@@ -72,16 +72,9 @@ Espace compte (Twig + API)
 --------------------------
 - `/inscription` : formulaire Tailwind qui appelle directement `POST /api/register`.  
   Après validation l’utilisateur est automatiquement connecté (ID + JWT stockés en session) puis redirigé vers `/mon-compte/profil`.
-- `/connexion` : formulaire Symfony (`LoginType`) qui vérifie l’email/mot de passe côté serveur, crée un JWT via Lexik et mémorise l’utilisateur dans la session (`viewer_user()` côté Twig).  
+- `/connexion` : formulaire Symfony (`LoginType`) branché sur `App\Security\LoginFormAuthenticator` (firewall `main`). L’utilisateur est authentifié via `Security`, la session Symfony est ouverte (remember-me disponible) et un JWT Lexik est toujours regénéré pour alimenter les pages Twig (`viewer_user()` s’appuie désormais sur `Security` quand c’est possible).  
 - `/mon-compte/profil` : page composée de deux formulaires (`ProfileType`, `AddressType`) pour compléter les informations personnelles, préférences marketing et adresse principale.  
 - `/api/profile` (GET/POST/DELETE) : endpoints jumeaux utilisés par le front Twig, protégés par le firewall JWT (`DELETE` anonymise le compte).
-
-> 💡 Actuellement la “connexion” Twig reste volontairement légère : on ne passe pas par `Security`/`firewall` mais par une session dédiée (`recent_user_id`, `jwt_token`). Cela suffit pour afficher le menu utilisateur + préremplir le profil, mais ce n’est **pas** encore une authentification server-side complète (pas de remember-me ni de rôles persistés). Le renforcement prévu consiste à :
-> 1. Utiliser `/api/login` partout (Twig ou React) pour obtenir un JWT.
-> 2. Persister ce token côté navigateur (sessionStorage/localStorage) et le rafraîchir via `/api/token/refresh`.
-> 3. Créer un vrai “front authenticator” qui mappe le JWT vers le `Security` component pour profiter des rôles/ACL.
->
-> Ces étapes sont listées dans `docs/product-roadmap.md` (section « Authentification front & session »).
 
 Espace vendeur (Sprint 4A)
 --------------------------

@@ -46,7 +46,8 @@ class CartController extends AbstractController
         }
 
         $quantity = max(1, (int) $request->request->get('quantity', 1));
-        $this->cartService->addProduct($product, $quantity);
+        $variantId = $this->extractVariantId($request);
+        $this->cartService->addProduct($product, $quantity, variantId: $variantId);
         if ('product' !== $request->request->get('redirect_to')) {
             $this->addFlash('success', sprintf('%s a été ajouté au panier.', $product->getName()));
         }
@@ -74,22 +75,28 @@ class CartController extends AbstractController
         }
 
         $quantity = max(0, (int) $request->request->get('quantity', 1));
-        $this->cartService->setProductQuantity($product, $quantity);
+        $variantId = $this->extractVariantId($request);
+        $lineId = (string) ($request->request->get('line_id') ?? $this->buildLineKey($product, $variantId));
+        $this->cartService->setProductQuantity($product, $quantity, variantId: $variantId);
         $summary = $this->cartService->getSummary();
 
         if ($request->isXmlHttpRequest()) {
             $currentLine = null;
             foreach ($summary['items'] as $item) {
-                if ($item['product']->getId() === $product->getId()) {
+                if ($item['lineId'] === $lineId) {
                     $currentLine = [
                         'productId' => $product->getId(),
+                        'variantId' => $variantId,
                         'quantity' => $item['quantity'],
                         'lineTotal' => $item['lineTotal'],
                     ];
+                    break;
                 }
             }
 
             return $this->json([
+                'lineId' => $lineId,
+                'lineRemoved' => null === $currentLine,
                 'line' => $currentLine,
                 'summary' => [
                     'total' => $summary['total'],
@@ -111,7 +118,8 @@ class CartController extends AbstractController
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
 
-        $this->cartService->removeProduct($product);
+        $variantId = $this->extractVariantId($request);
+        $this->cartService->removeProduct($product, variantId: $variantId);
         $this->addFlash('success', sprintf('%s a été retiré du panier.', $product->getName()));
 
         return $this->redirectToRoute('app_cart_show');
@@ -131,5 +139,20 @@ class CartController extends AbstractController
         $this->addFlash('success', 'Panier vidé.');
 
         return $this->redirectToRoute('app_cart_show');
+    }
+
+    private function extractVariantId(Request $request): ?int
+    {
+        $raw = $request->request->get('variant_id');
+        if (null === $raw || '' === $raw) {
+            return null;
+        }
+        $variantId = (int) $raw;
+        return $variantId > 0 ? $variantId : null;
+    }
+
+    private function buildLineKey(Product $product, ?int $variantId): string
+    {
+        return sprintf('%d:%s', $product->getId(), $variantId ?? 'base');
     }
 }
