@@ -116,6 +116,7 @@ class VendorShopController extends AbstractController
                 ],
 
                 'shop' => $existingShop,
+                'attributeStats' => $this->buildAttributeStats($existingShop),
             ]);
         }
 
@@ -409,7 +410,7 @@ class VendorShopController extends AbstractController
                 return $this->redirectAfterVariantAction($product);
             }
         }
-        $attributeOptions = $this->getAttributeDefinitionsData();
+        $attributeOptions = $this->getAttributeDefinitionsData($shop);
         $selectionState = $form->isSubmitted()
             ? $this->parseAttributeSelectionPayload($request)
             : $this->getProductAttributeSelectionState($product);
@@ -511,7 +512,7 @@ class VendorShopController extends AbstractController
                 return $this->redirectAfterVariantAction($product);
             }
         }
-        $attributeOptions = $this->getAttributeDefinitionsData();
+        $attributeOptions = $this->getAttributeDefinitionsData($product->getShop());
         $selectionState = $form->isSubmitted()
             ? $this->parseAttributeSelectionPayload($request)
             : $this->getProductAttributeSelectionState($product);
@@ -640,10 +641,17 @@ class VendorShopController extends AbstractController
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function getAttributeDefinitionsData(): array
+    private function getAttributeDefinitionsData(?Shop $shop): array
     {
+        if (!$shop) {
+            return [];
+        }
+
         /** @var AttributeDefinition[] $definitions */
-        $definitions = $this->attributeDefinitionRepository->findBy([], ['position' => 'ASC', 'name' => 'ASC']);
+        $definitions = $this->attributeDefinitionRepository->findBy(
+            ['shop' => $shop],
+            ['position' => 'ASC', 'name' => 'ASC']
+        );
         $data = [];
 
         foreach ($definitions as $definition) {
@@ -1504,6 +1512,44 @@ class VendorShopController extends AbstractController
         }
 
         return (int) $value;
+    }
+
+    /**
+     * @return array{attributes:int, values:int, variants:int}
+     */
+    private function buildAttributeStats(?Shop $shop): array
+    {
+        if (!$shop) {
+            return [
+                'attributes' => 0,
+                'values' => 0,
+                'variants' => 0,
+            ];
+        }
+
+        $attributeCount = (int) $this->attributeDefinitionRepository
+            ->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.shop = :shop')
+            ->setParameter('shop', $shop)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $valueCount = (int) $this->entityManager
+            ->createQuery('SELECT COUNT(v.id) FROM App\Entity\AttributeValueDefinition v JOIN v.attribute attr WHERE attr.shop = :shop')
+            ->setParameter('shop', $shop)
+            ->getSingleScalarResult();
+
+        $variantCount = (int) $this->entityManager
+            ->createQuery('SELECT COUNT(variant.id) FROM App\Entity\ProductVariant variant JOIN variant.product p WHERE p.shop = :shop')
+            ->setParameter('shop', $shop)
+            ->getSingleScalarResult();
+
+        return [
+            'attributes' => $attributeCount,
+            'values' => $valueCount,
+            'variants' => $variantCount,
+        ];
     }
 
     private function resolveViewer(Request $request): User

@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Entity\Product;
+use App\Entity\AttributeDefinition;
 use App\Entity\Traits\Timestampable;
 use App\Entity\Vendor;
 use App\Repository\ShopRepository;
@@ -54,9 +55,16 @@ class Shop
     #[ORM\OneToMany(mappedBy: 'shop', targetEntity: Product::class, orphanRemoval: true)]
     private Collection $products;
 
+    /**
+     * @var Collection<int, AttributeDefinition>
+     */
+    #[ORM\OneToMany(mappedBy: 'shop', targetEntity: AttributeDefinition::class, orphanRemoval: true)]
+    private Collection $attributeDefinitions;
+
     public function __construct()
     {
         $this->products = new ArrayCollection();
+        $this->attributeDefinitions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -182,6 +190,33 @@ class Shop
     {
         if ($this->products->removeElement($product) && $product->getShop() === $this) {
             $product->setShop(null);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AttributeDefinition>
+     */
+    public function getAttributeDefinitions(): Collection
+    {
+        return $this->attributeDefinitions;
+    }
+
+    public function addAttributeDefinition(AttributeDefinition $attributeDefinition): self
+    {
+        if (!$this->attributeDefinitions->contains($attributeDefinition)) {
+            $this->attributeDefinitions->add($attributeDefinition);
+            $attributeDefinition->setShop($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAttributeDefinition(AttributeDefinition $attributeDefinition): self
+    {
+        if ($this->attributeDefinitions->removeElement($attributeDefinition) && $attributeDefinition->getShop() === $this) {
+            $attributeDefinition->setShop(null);
         }
 
         return $this;

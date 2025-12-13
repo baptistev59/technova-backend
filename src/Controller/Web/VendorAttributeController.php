@@ -3,8 +3,11 @@
 namespace App\Controller\Web;
 
 use App\Entity\AttributeDefinition;
+use App\Entity\Shop;
+use App\Entity\User;
 use App\Form\Vendor\AttributeDefinitionType;
 use App\Repository\AttributeDefinitionRepository;
+use App\Repository\ShopRepository;
 use App\Security\ViewerAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +25,7 @@ class VendorAttributeController extends AbstractController
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
         private readonly AttributeDefinitionRepository $attributeRepository,
+        private readonly ShopRepository $shopRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly SluggerInterface $slugger
     ) {
@@ -34,7 +38,8 @@ class VendorAttributeController extends AbstractController
             return $response;
         }
 
-        $attributes = $this->attributeRepository->findBy([], ['position' => 'ASC', 'name' => 'ASC']);
+        $shop = $this->resolveShop($request);
+        $attributes = $this->attributeRepository->findBy(['shop' => $shop], ['position' => 'ASC', 'name' => 'ASC', 'slug' => 'ASC']);
 
         return $this->render('vendor/attribute/index.html.twig', [
             'attributes' => $attributes,
@@ -49,12 +54,14 @@ class VendorAttributeController extends AbstractController
             return $response;
         }
 
+        $shop = $this->resolveShop($request);
         $attribute = new AttributeDefinition();
+        $attribute->setShop($shop);
         $form = $this->createForm(AttributeDefinitionType::class, $attribute);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->handleSlug($attribute);
+            $this->handleSlug($attribute, $shop);
             $this->entityManager->persist($attribute);
             $this->entityManager->flush();
 
@@ -78,11 +85,17 @@ class VendorAttributeController extends AbstractController
             return $response;
         }
 
+        $shop = $this->resolveShop($request);
+        if ($attribute->getShop() && $attribute->getShop() !== $shop) {
+            throw $this->createNotFoundException();
+        }
+        $attribute->setShop($shop);
+
         $form = $this->createForm(AttributeDefinitionType::class, $attribute);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->handleSlug($attribute);
+            $this->handleSlug($attribute, $shop);
             $this->entityManager->flush();
 
             $this->addFlash('success', sprintf('L’attribut "%s" a été mis à jour.', $attribute->getName()));
@@ -103,6 +116,11 @@ class VendorAttributeController extends AbstractController
     {
         if ($response = $this->guardViewer($request)) {
             return $response;
+        }
+
+        $shop = $this->resolveShop($request);
+        if ($attribute->getShop() !== $shop) {
+            throw $this->createNotFoundException();
         }
 
         if ($this->isCsrfTokenValid('attribute_delete_' . $attribute->getId(), $request->request->get('_token'))) {
@@ -141,18 +159,22 @@ class VendorAttributeController extends AbstractController
         ];
     }
 
-    private function handleSlug(AttributeDefinition $attribute): void
+    private function handleSlug(AttributeDefinition $attribute, Shop $shop): void
     {
         $name = (string) $attribute->getName();
-        $baseSlug = $attribute->getSlug() ?: (string) $this->slugger->slug($name)->lower();
-        if (!$baseSlug) {
+        $shopSegment = $shop->getSlug() ?: (string) $shop->getId();
+        $baseSlug = (string) $this->slugger->slug(trim($name !== '' ? $name : uniqid('attribute_', true)))->lower();
+        if ($shopSegment) {
+            $baseSlug = trim($baseSlug . '-' . $shopSegment, '-');
+        }
+        if ($baseSlug === '') {
             $baseSlug = uniqid('attribute_', true);
         }
 
         $slug = $baseSlug;
         $suffix = 1;
 
-        while ($existing = $this->attributeRepository->findOneBy(['slug' => $slug])) {
+        while ($existing = $this->attributeRepository->findOneBy(['slug' => $slug, 'shop' => $shop])) {
             if ($existing->getId() === $attribute->getId()) {
                 break;
             }
@@ -162,5 +184,24 @@ class VendorAttributeController extends AbstractController
 
         $attribute->setSlug($slug);
     }
-}
 
+    private function resolveShop(Request $request): Shop
+    {
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('Connexion requise.');
+        }
+
+        $vendor = $user->getVendor();
+        if (!$vendor) {
+            throw $this->createAccessDeniedException('Crée ta boutique avant de gérer tes attributs.');
+        }
+
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
+        if (!$shop) {
+            throw $this->createNotFoundException('Boutique introuvable.');
+        }
+
+        return $shop;
+    }
+}

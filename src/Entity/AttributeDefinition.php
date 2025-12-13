@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\AttributeDefinitionRepository;
+use App\Entity\Shop;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -19,7 +20,7 @@ class AttributeDefinition
     #[ORM\Column(length: 120)]
     private ?string $name = null;
 
-    #[ORM\Column(length: 120, unique: true)]
+    #[ORM\Column(length: 120)]
     private ?string $slug = null;
 
     #[ORM\Column(length: 40, options: ['default' => 'select'])]
@@ -27,6 +28,9 @@ class AttributeDefinition
 
     #[ORM\Column(type: 'smallint', options: ['default' => 0])]
     private int $position = 0;
+
+    #[ORM\ManyToOne(inversedBy: 'attributeDefinitions')]
+    private ?Shop $shop = null;
 
     /**
      * @var Collection<int, AttributeValueDefinition>
@@ -95,6 +99,18 @@ class AttributeDefinition
     public function setPosition(?int $position): self
     {
         $this->position = $position ?? 0;
+
+        return $this;
+    }
+
+    public function getShop(): ?Shop
+    {
+        return $this->shop;
+    }
+
+    public function setShop(?Shop $shop): self
+    {
+        $this->shop = $shop;
 
         return $this;
     }

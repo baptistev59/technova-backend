@@ -89,3 +89,10 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Permettre de saisir une date/heure de publication différée pour la fiche produit (statut planifié).
 - Étendre les champs promo pour renseigner une période (date début/fin) de prix remisé.
 - Côté front, ne publier que les produits dont la date est atteinte et afficher les prix promos uniquement sur leur plage de validité.
+
+## 16. Tableau de bord vendeur — commandes
+- Ajouter une entrée “Commandes” dans la sidebar du dashboard vendeur (templates `vendor/layout.html.twig` et `vendor/shop/existing.html.twig`).
+- Vue synthétique listant les dernières commandes du shop : numéro, date, client, montant, statut (avec badge couleur).
+- Filtres rapides (période, statut) et pagination côté serveur pour charger les commandes par lot.
+- Actions de base : accéder au détail d’une commande, changer le statut (préparation, expédiée), télécharger la facture/proforma.
+- Préparer l’agrégation des stats (CA du jour/semaine, commandes en attente) pour affichage sur la page d’accueil du dashboard.
