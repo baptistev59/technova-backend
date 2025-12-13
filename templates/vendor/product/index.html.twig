@@ -24,7 +24,7 @@
                         <input type="search"
                                name="q"
                                value="{{ filters.search }}"
-                               placeholder="Rechercher par nom, SKU…"
+                               placeholder="Rechercher par nom, UGS…"
                                class="tn-input rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 py-3 w-full">
                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                     </div>
@@ -106,7 +106,7 @@
                                 <th class="py-3 px-4 text-left">Produit</th>
                                 <th class="py-3 px-4 text-left">Catégorie</th>
                                 <th class="py-3 px-4 text-left" style="width:1%; white-space: nowrap;">Prix</th>
-                                <th class="py-3 px-4 text-left">Stock</th>
+                                <th class="py-3 px-4 text-left" style="width:1%; white-space: nowrap;">Stock</th>
                                 <th class="py-3 px-4 text-left">Type</th>
                                 <th class="py-3 px-4 text-left">Mise à jour</th>
                                 <th class="py-3 px-4 text-right">Actions</th>
@@ -145,7 +145,7 @@
                                                     </a>
                                                 </p>
                                                 <p class="text-xs text-slate-500">Marque : {{ product.brand ? product.brand.name : '—' }}</p>
-                                                <p class="text-xs text-slate-400">SKU : {{ product.sku ?? '—' }}</p>
+                                                <p class="text-xs text-slate-400">UGS : {{ product.sku ?? '—' }}</p>
                                                 {% if product.isPublished %}
                                                     <span class="inline-flex items-center gap-1 text-xs text-green-600 mt-1">● Publié</span>
                                                 {% else %}
@@ -158,26 +158,121 @@
                                         {{ product.category ? product.category.name : '—' }}
                                     </td>
                                     <td class="py-4 px-4 align-top" style="width:1%; white-space: nowrap;">
-                                        <div class="flex flex-col whitespace-nowrap">
-                                            <span class="font-semibold text-slate-900">{{ product.price|number_format(2, ',', ' ') }} €</span>
-                                            <span class="text-xs text-slate-500">Prix plein</span>
-                                            <span class="text-sm text-blue-600">
-                                                {% if promoPrice %}
-                                                    {{ promoPrice|number_format(2, ',', ' ') }} €
-                                                {% else %}
-                                                    —
+                                        {% set variantCount = product.variants|length %}
+                                        {% if variantCount > 0 and product.type == 'variable' %}
+                                            {% set prices = [] %}
+                                            {% for variant in product.variants %}
+                                                {% set effective = variant.promoPrice ?? variant.price %}
+                                                {% if effective is not null %}
+                                                    {% set prices = prices|merge([effective]) %}
                                                 {% endif %}
-                                            </span>
-                                            <span class="text-xs text-slate-500">Promo</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 align-top">
-                                        {% if product.stock <= 0 %}
-                                            <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
-                                        {% elseif product.stock <= 10 %}
-                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-600">Faible ({{ product.stock }})</span>
+                                            {% endfor %}
+                                            {% if prices is not empty %}
+                                                {% set sortedPrices = prices|sort %}
+                                                {% set minPrice = sortedPrices|first %}
+                                                {% set maxPrice = sortedPrices|last %}
+                                                <div class="flex flex-col whitespace-nowrap">
+                                                    <span class="font-semibold text-slate-900">{{ minPrice|number_format(2, ',', ' ') }} €</span>
+                                                    <span class="text-xs text-slate-500">Prix min</span>
+                                                    <span class="font-semibold text-slate-900 mt-2">{{ maxPrice|number_format(2, ',', ' ') }} €</span>
+                                                    <span class="text-xs text-slate-500">Prix max</span>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-sm text-slate-500">—</span>
+                                            {% endif %}
+                                        {% elseif product.type == 'grouped' %}
+                                            {% set bundlePrices = [] %}
+                                            {% for item in product.bundleItems %}
+                                                {% if item.component %}
+                                                    {% if item.component.variants|length > 0 %}
+                                                        {% for variant in item.component.variants %}
+                                                            {% set effective = variant.promoPrice ?? variant.price %}
+                                                            {% if effective is not null %}
+                                                                {% set bundlePrices = bundlePrices|merge([effective]) %}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        {% set effective = item.component.promoPrice ?? item.component.price %}
+                                                        {% if effective is not null %}
+                                                            {% set bundlePrices = bundlePrices|merge([effective]) %}
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if bundlePrices %}
+                                                {% set sortedBundle = bundlePrices|sort %}
+                                                {% set minBundle = sortedBundle|first %}
+                                                {% set maxBundle = sortedBundle|last %}
+                                                <div class="flex flex-col whitespace-nowrap">
+                                                    <span class="font-semibold text-slate-900">{{ minBundle|number_format(2, ',', ' ') }} €</span>
+                                                    <span class="text-xs text-slate-500">Prix min pack</span>
+                                                    <span class="font-semibold text-slate-900 mt-2">{{ maxBundle|number_format(2, ',', ' ') }} €</span>
+                                                    <span class="text-xs text-slate-500">Prix max pack</span>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-sm text-slate-500">—</span>
+                                            {% endif %}
                                         {% else %}
-                                            <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ product.stock }} en stock</span>
+                                            <div class="flex flex-col whitespace-nowrap">
+                                                <span class="font-semibold text-slate-900">{{ product.price|number_format(2, ',', ' ') }} €</span>
+                                                <span class="text-xs text-slate-500">Prix plein</span>
+                                                <span class="text-sm text-blue-600">
+                                                    {% if promoPrice %}
+                                                        {{ promoPrice|number_format(2, ',', ' ') }} €
+                                                    {% else %}
+                                                        —
+                                                    {% endif %}
+                                                </span>
+                                                <span class="text-xs text-slate-500">Promo</span>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-4 align-top" style="width:1%; white-space: nowrap;">
+                                        {% if product.type == 'grouped' %}
+                                            {% set groupedStocks = [] %}
+                                            {% for item in product.bundleItems %}
+                                                {% if item.component %}
+                                                    {% set componentStock = 0 %}
+                                                    {% if item.component.variants|length > 0 %}
+                                                        {% for variant in item.component.variants %}
+                                                            {% set componentStock = componentStock + (variant.stock ?? 0) %}
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        {% set componentStock = item.component.stock ?? 0 %}
+                                                    {% endif %}
+                                                    {% if componentStock > 0 %}
+                                                        {% set groupedStocks = groupedStocks|merge([componentStock]) %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if groupedStocks %}
+                                                {% set sortedStocks = groupedStocks|sort %}
+                                                {% set minStock = sortedStocks|first %}
+                                                <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ minStock }} en stock</span>
+                                            {% else %}
+                                                <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
+                                            {% endif %}
+                                        {% elseif product.variants|length > 0 %}
+                                            {% set totalStock = 0 %}
+                                            {% for variant in product.variants %}
+                                                {% set totalStock = totalStock + (variant.stock ?? 0) %}
+                                            {% endfor %}
+                                            {% if totalStock <= 0 %}
+                                                <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
+                                            {% elseif totalStock <= 10 %}
+                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-600">Faible ({{ totalStock }})</span>
+                                            {% else %}
+                                                <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ totalStock }} en stock</span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% set totalStock = product.stock %}
+                                            {% if totalStock <= 0 %}
+                                                <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
+                                            {% elseif totalStock <= 10 %}
+                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-600">Faible ({{ totalStock }})</span>
+                                            {% else %}
+                                                <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ totalStock }} en stock</span>
+                                            {% endif %}
                                         {% endif %}
                                     </td>
                                     <td class="py-4 px-4 align-top">
@@ -191,15 +286,34 @@
                                             <a href="{{ path('app_vendor_product_edit', {id: product.id}) }}" class="hover:text-slate-900" title="Éditer">
                                                 ✏️
                                             </a>
-                                            <a href="#" class="hover:text-slate-900" title="Dupliquer">
-                                                📄
-                                            </a>
-                                            <a href="#" class="hover:text-slate-900" title="{{ product.isPublished ? 'Dépublier' : 'Publier' }}">
-                                                📢
-                                            </a>
-                                            <a href="#" class="hover:text-red-600" title="Supprimer">
-                                                🗑️
-                                            </a>
+                                            <form method="post"
+                                                  action="{{ path('app_vendor_product_duplicate', {id: product.id}) }}"
+                                                  class="inline-flex"
+                                                  onsubmit="return confirm('Dupliquer ce produit ?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('product_duplicate_' ~ product.id) }}">
+                                                <button type="submit" class="hover:text-slate-900" title="Dupliquer">
+                                                    📄
+                                                </button>
+                                            </form>
+                                            <form method="post"
+                                                  action="{{ path('app_vendor_product_toggle_publish', {id: product.id}) }}"
+                                                  class="inline-flex">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('product_toggle_' ~ product.id) }}">
+                                                <button type="submit"
+                                                        class="hover:text-slate-900"
+                                                        title="{{ product.isPublished ? 'Dépublier' : 'Publier' }}">
+                                                    {{ product.isPublished ? '📥' : '📢' }}
+                                                </button>
+                                            </form>
+                                            <form method="post"
+                                                  action="{{ path('app_vendor_product_delete', {id: product.id}) }}"
+                                                  class="inline-flex"
+                                                  onsubmit="return confirm('Supprimer définitivement ce produit ?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('product_delete_' ~ product.id) }}">
+                                                <button type="submit" class="hover:text-red-600" title="Supprimer">
+                                                    🗑️
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>

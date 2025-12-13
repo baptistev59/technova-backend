@@ -26,5 +26,3 @@ node_modules/
 /config/jwt/*.key
 /config/jwt/*.crt
 ###< lexik/jwt-authentication-bundle ###
-
-*.bat

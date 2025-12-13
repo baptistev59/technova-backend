@@ -1,0 +1,190 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% import _self as forms %}
+
+{% set currentAttribute = attributeDefinition is defined ? attributeDefinition : (form.vars.data ?? null) %}
+
+{% block title %}
+    {{ currentAttribute and currentAttribute.id ? 'Modifier l’attribut' : 'Créer un attribut' }} — TechNova
+{% endblock %}
+
+{% block body %}
+    {% set is_edit = currentAttribute and currentAttribute.id %}
+
+    {% set title = is_edit ? 'Modifier l’attribut' : 'Créer un attribut' %}
+    {% set subtitle = is_edit
+        ? 'Actualise les informations de cet attribut global. Les modifications seront proposées lors de la configuration des produits variables.'
+        : 'Définis un attribut global (couleur, taille, capacité…) et ses valeurs disponibles pour les vendeurs.' %}
+
+    <section class="bg-slate-50 py-10">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-blue-400">TechNova</p>
+                    <h1 class="text-3xl font-semibold text-slate-900">{{ title }}</h1>
+                    <p class="text-slate-500 mt-2">{{ subtitle }}</p>
+                </div>
+                <a href="{{ path('app_vendor_attributes') }}"
+                   class="btn btn-outline">
+                    ← Retour à mes attributs
+                </a>
+            </div>
+
+            <div class="bg-white rounded-[32px] border border-slate-100 shadow-[0_30px_90px_rgba(15,25,36,0.08)] p-8 space-y-6">
+                {{ form_start(form, {attr: {class: 'space-y-8'}}) }}
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        {{ form_label(form.name, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.name, {attr: {class: 'tn-input'}}) }}
+                        {{ form_help(form.name) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    <div>
+                        {{ form_label(form.slug, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.slug, {attr: {class: 'tn-input'}}) }}
+                        <p class="text-xs text-slate-500 mt-1">Utilisé comme identifiant unique (ex. color, size).</p>
+                        {{ form_errors(form.slug) }}
+                    </div>
+                    <div>
+                        {{ form_label(form.inputType, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.inputType, {attr: {class: 'tn-input-select'}}) }}
+                        {{ form_errors(form.inputType) }}
+                    </div>
+                    <div>
+                        {{ form_label(form.position, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.position, {attr: {class: 'tn-input'}}) }}
+                        <p class="text-xs text-slate-500 mt-1">Ordre d’affichage dans les formulaires produits.</p>
+                        {{ form_errors(form.position) }}
+                    </div>
+                </div>
+
+                <div class="rounded-[28px] border border-slate-100 bg-slate-50/70 p-6"
+                     x-data="attributeValuesCollection()"
+                     x-init="init()">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-slate-900">Valeurs disponibles</h2>
+                            <p class="text-sm text-slate-500">Chaque valeur sera proposée lors de la création de produits variables.</p>
+                        </div>
+                        <button type="button"
+                                class="btn btn-outline"
+                                @click="addValue()">
+                            + Ajouter une valeur
+                        </button>
+                    </div>
+
+                    <div class="mt-6 space-y-4"
+                         data-collection-holder
+                         data-prototype="{{ forms.attribute_value_row(form.values.vars.prototype)|e('html_attr') }}">
+                        {% for valueForm in form.values %}
+                            {{ forms.attribute_value_row(valueForm) }}
+                        {% endfor %}
+                        <div class="text-sm text-slate-400" data-empty-state>
+                            Commence par créer une première valeur pour cet attribut.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                    {{ form_rest(form) }}
+                    <p class="text-sm text-slate-500">Les attributs globaux restent modifiables à tout moment.</p>
+                    <button type="submit" class="btn btn-primary px-8">
+                        {{ is_edit ? 'Mettre à jour' : 'Publier l’attribut' }}
+                    </button>
+                </div>
+
+                {{ form_end(form, {render_rest: false}) }}
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% macro attribute_value_row(valueForm) %}
+    <div class="bg-white rounded-2xl border border-slate-200 px-4 py-4 flex flex-col gap-3 md:flex-row md:items-center md:gap-4"
+         data-value-row>
+        <div class="flex-1">
+            {{ form_label(valueForm.label, null, {label_attr: {class: 'tn-label'}}) }}
+            {{ form_widget(valueForm.label, {attr: {class: 'tn-input'}}) }}
+            {{ form_errors(valueForm.label) }}
+        </div>
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="flex-1 md:flex-none">
+                {{ form_label(valueForm.value, null, {label_attr: {class: 'tn-label'}}) }}
+                {{ form_widget(valueForm.value, {attr: {class: 'tn-input'}}) }}
+                {{ form_errors(valueForm.value) }}
+            </div>
+            <button type="button"
+                    class="btn btn-outline text-sm whitespace-nowrap"
+                    data-remove-button>
+                Supprimer
+            </button>
+        </div>
+    </div>
+{% endmacro %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        function attributeValuesCollection() {
+            return {
+                holder: null,
+                prototype: null,
+                index: 0,
+                emptyState: null,
+                init() {
+                    this.holder = document.querySelector('[data-collection-holder]');
+                    if (!this.holder) {
+                        return;
+                    }
+                    this.prototype = this.holder.dataset.prototype;
+                    this.emptyState = this.holder.querySelector('[data-empty-state]');
+                    this.index = this.holder.querySelectorAll('[data-value-row]').length;
+                    this.refreshState();
+                    this.holder.querySelectorAll('[data-value-row]').forEach(row => {
+                        this.bindRemove(row.querySelector('[data-remove-button]'));
+                    });
+                },
+                addValue() {
+                    if (!this.prototype) {
+                        return;
+                    }
+                    const html = this.prototype.replace(/__name__/g, this.index);
+                    this.index++;
+                    const element = document.createElement('div');
+                    element.innerHTML = html;
+                    const node = element.firstElementChild;
+                    if (this.emptyState) {
+                        this.holder.insertBefore(node, this.emptyState);
+                    } else {
+                        this.holder.appendChild(node);
+                    }
+                    this.bindRemove(node.querySelector('[data-remove-button]'));
+                    this.refreshState();
+                },
+                bindRemove(button) {
+                    if (!button) {
+                        return;
+                    }
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const row = button.closest('[data-value-row]');
+                        if (row) {
+                            row.remove();
+                            this.refreshState();
+                        }
+                    });
+                },
+                refreshState() {
+                    const rows = this.holder.querySelectorAll('[data-value-row]');
+                    if (this.emptyState) {
+                        this.emptyState.classList.toggle('hidden', rows.length > 0);
+                    }
+                },
+                get hasValues() {
+                    return this.holder && this.holder.querySelectorAll('[data-value-row]').length > 0;
+                }
+            };
+        }
+    </script>
+{% endblock %}

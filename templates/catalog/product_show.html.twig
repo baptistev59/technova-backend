@@ -53,6 +53,17 @@
         </div>
     </div>
 {% endif %}
+{% set bundleComponentsActive = product.type == 'grouped' and bundleComponents is not empty %}
+{% if bundleComponentsActive %}
+    {% set bundleComponentsJson = bundleComponents|json_encode %}
+    {% set bundleDiscountValue = product.bundleDiscountPercent is not null ? product.bundleDiscountPercent|number_format(2, '.', '') : '0' %}
+    <div x-data="bundleComposer({components: JSON.parse($el.dataset.components || '[]'), discount: parseFloat($el.dataset.discount || '0') || 0})"
+         x-init="init()"
+         x-cloak
+         class="space-y-8"
+         data-components="{{ bundleComponentsJson|e('html_attr') }}"
+         data-discount="{{ bundleDiscountValue }}">
+{% endif %}
 <section class="tn-product-layout">
     {% set galleryImages = [] %}
     {% for image in product.images %}
@@ -105,17 +116,28 @@
             </div>
         </div>
     </div>
-    <div class="tn-product-info" x-data>
+    <div class="tn-product-info">
         <p class="tn-product-info__category">{{ product.category.name }}</p>
         <h1>{{ product.name }}</h1>
         <div id="main-price-block">
-            {% if product.promoPrice %}
-                <div class="flex items-baseline gap-3">
-                    <span class="line-through text-slate-400 text-xl" id="main-price-full">{{ product.price|number_format(2, ',', ' ') }} €</span>
-                    <p class="tn-product-info__price text-red-600" id="main-price-promo">{{ product.promoPrice|number_format(2, ',', ' ') }} €</p>
-                </div>
+            {% if bundleComponentsActive %}
+                {% set packRangeLabel = bundlePriceRange and bundlePriceRange.label ? bundlePriceRange.label : product.price|number_format(2, ',', ' ') ~ ' €' %}
+                <p class="tn-product-info__price"
+                   x-text="totalPriceLabel() !== '—' ? totalPriceLabel() : '{{ packRangeLabel }}'"></p>
+                {% if bundlePriceRange %}
+                    <p class="text-sm text-slate-500" x-show="selections.length === 0">
+                        Tarifs composants : {{ bundlePriceRange.label }}
+                    </p>
+                {% endif %}
             {% else %}
-                <p class="tn-product-info__price" id="main-price-full-only">{{ product.price|number_format(2, ',', ' ') }} €</p>
+                {% if product.promoPrice %}
+                    <div class="flex items-baseline gap-3">
+                        <span class="line-through text-slate-400 text-xl" id="main-price-full">{{ product.price|number_format(2, ',', ' ') }} €</span>
+                        <p class="tn-product-info__price text-red-600" id="main-price-promo">{{ product.promoPrice|number_format(2, ',', ' ') }} €</p>
+                    </div>
+                {% else %}
+                    <p class="tn-product-info__price" id="main-price-full-only">{{ product.price|number_format(2, ',', ' ') }} €</p>
+                {% endif %}
             {% endif %}
         </div>
         <p class="text-xs text-slate-500 mt-1"
@@ -167,34 +189,104 @@
             </div>
         {% endif %}
 
+        {% if bundleComponentsActive %}
+            <div class="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4" x-cloak>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-700">Produits sélectionnés</h3>
+                    <span class="text-xs text-slate-500">
+                        <span x-show="selections.length"
+                              x-text="selections.length + ' composant' + (selections.length > 1 ? 's configurés' : ' configuré')"></span>
+                        <span x-show="!selections.length">Aucun composant configuré.</span>
+                    </span>
+                </div>
+                <template x-if="selections.length">
+                    <div class="space-y-3 text-sm text-slate-700">
+                        <template x-for="selection in selections" :key="selection.id">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
+                                <div>
+                                    <p class="font-semibold" x-text="selection.name"></p>
+                                    <p class="text-xs text-slate-500" x-text="selection.variantLabel"></p>
+                                    <p class="text-xs text-slate-400" x-text="'Quantité : ' + selection.quantity"></p>
+                                    <p class="text-xs text-slate-500"
+                                       x-text="selection.stock > 0 ? selection.stock + ' en stock' : 'Rupture'"></p>
+                                </div>
+                                <div class="text-right space-y-1">
+                                    <span class="text-slate-700 block" x-text="formatCurrency((selection.price || 0) * (selection.quantity || 1))"></span>
+                                    <button type="button"
+                                            class="text-xs text-red-500 hover:text-red-600"
+                                            @click="removeSelection(selection.id)">
+                                        Retirer
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <p class="text-xs text-slate-500" x-show="!selections.length">
+                    {% if bundlePriceRange %}
+                        Tarifs des composants : {{ bundlePriceRange.label }}.
+                    {% else %}
+                        Configurez les composants pour visualiser le tarif et le stock estimé.
+                    {% endif %}
+                </p>
+                <div class="border-t border-slate-200 pt-3">
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Prix du pack</p>
+                    <p class="text-lg font-semibold text-slate-900" x-text="totalPriceLabel()"></p>
+                    <p class="text-xs text-slate-500"
+                       x-show="discountPercent > 0"
+                       x-text="'Remise pack : -' + discountPercentLabel() + ' (' + discountLabel() + ')'"></p>
+                </div>
+                <p class="text-xs text-red-500" x-show="selections.length && !canCheckout()">
+                    Ajoute au moins deux configurations distinctes pour composer ton pack.
+                </p>
+            </div>
+        {% endif %}
+
         {% if viewer %}
             <form class="tn-add-to-cart py-4" method="post" action="{{ path('app_cart_add', {id: product.id}) }}">
-                <label class="sr-only" for="quantity">Quantité</label>
-                <input class="tn-input"
-                       x-ref="quantityField"
-                       id="quantity"
-                       name="quantity"
-                       type="number"
-                       min="1"
-                       :max="$store.variantState.stock ?? {{ product.stock ?? 0 }}"
-                       value="1"
-                       :disabled="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready"
-                       x-on:input="const max = Number($store.variantState.stock ?? {{ product.stock ?? 0 }}); if ($event.target.value > max) { $event.target.value = max; } if ($event.target.value < 1) { $event.target.value = 1; }"
-                       x-effect="const max = Number($store.variantState.stock ?? {{ product.stock ?? 0 }}); if (Number($refs.quantityField.value) > max) { $refs.quantityField.value = max; }">
+                {% if not bundleComponentsActive %}
+                    <label class="sr-only" for="quantity">Quantité</label>
+                    <input class="tn-input"
+                           x-ref="quantityField"
+                           id="quantity"
+                           name="quantity"
+                           type="number"
+                           min="1"
+                           :max="$store.variantState.stock ?? {{ product.stock ?? 0 }}"
+                           value="1"
+                           :disabled="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready"
+                           x-on:input="const max = Number($store.variantState.stock ?? {{ product.stock ?? 0 }}); if ($event.target.value > max) { $event.target.value = max; } if ($event.target.value < 1) { $event.target.value = 1; }"
+                           x-effect="const max = Number($store.variantState.stock ?? {{ product.stock ?? 0 }}); if (Number($refs.quantityField.value) > max) { $refs.quantityField.value = max; }">
+                {% else %}
+                    <input type="hidden" name="quantity" value="1">
+                    <input type="hidden" name="bundle_selections" x-bind:value="JSON.stringify(selections)">
+                {% endif %}
                 <input type="hidden" name="variant_id" :value="$store.variantState.variantId ?? ''">
                 <input type="hidden" name="redirect_to" value="product">
                 <input type="hidden" name="product_slug" value="{{ product.slug }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('add_to_cart_' ~ product.id) }}">
                 <button class="btn btn-primary" type="submit"
+                        {% if bundleComponentsActive %}
+                        :class="{'cursor-not-allowed opacity-40': !canCheckout()}"
+                        :disabled="!canCheckout()"
+                        {% else %}
                         :class="{'cursor-not-allowed opacity-40': $store.variantState && $store.variantState.needsSelection && !$store.variantState.ready}"
-                        :disabled="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready">
+                        :disabled="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready"
+                        {% endif %}>
                     Ajouter au panier
                 </button>
             </form>
-            <p class="text-xs text-red-500"
-               x-show="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready">
-                Sélectionne une configuration complète pour continuer.
-            </p>
+            {% if bundleComponentsActive %}
+                <p class="text-xs text-red-500"
+                   x-show="selections.length && !canCheckout()">
+                    Sélectionne au moins deux configurations différentes pour profiter du pack.
+                </p>
+            {% else %}
+                <p class="text-xs text-red-500"
+                   x-show="$store.variantState && $store.variantState.needsSelection && !$store.variantState.ready">
+                    Sélectionne une configuration complète pour continuer.
+                </p>
+            {% endif %}
         {% else %}
             <p class="text-slate-600">Connectez-vous pour ajouter ce produit au panier.</p>
             <a class="btn btn-outline" href="{{ path('app_login') }}">Connexion</a>
@@ -219,6 +311,110 @@
     </div>
 </section>
 
+{% if bundleComponentsActive %}
+    <section class="tn-section">
+        <div class="tn-section__header">
+            <h2>Configure ton pack</h2>
+            <p class="text-sm text-slate-500">
+                Choisis la configuration de chaque composant proposé par le commerçant pour visualiser le prix total.
+            </p>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <template x-for="component in components" :key="component.id">
+                <div class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <p class="text-xs uppercase tracking-[0.3em] text-slate-400" x-text="component.typeLabel"></p>
+                        <span class="text-xs font-semibold text-slate-500"
+                              x-text="component.stock ? component.stock + ' en stock' : 'Rupture'"></span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900" x-text="component.name"></h3>
+                    <p class="text-sm text-slate-500" x-text="component.priceRange?.label ?? '—'"></p>
+                    <div class="flex items-center justify-between">
+                        <button type="button"
+                                class="btn btn-outline btn-sm"
+                                @click="openConfiguration(component.id)">
+                            Configurer
+                        </button>
+                        <div class="flex flex-col items-end gap-1 text-xs text-slate-400" x-show="selectionCount(component.id) > 0">
+                            <span x-text="selectionCount(component.id) + ' configuration' + (selectionCount(component.id) > 1 ? 's' : '')"></span>
+                            <button type="button"
+                                    class="text-red-500 hover:text-red-600"
+                                    @click="clearSelectionsForComponent(component.id)">
+                                Supprimer toutes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        
+        <div x-cloak x-show="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div class="absolute inset-0 bg-slate-900/60" @click="closeModal()"></div>
+            <div class="relative w-full max-w-lg rounded-3xl bg-white p-6 space-y-4 shadow-2xl">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-400" x-text="activeComponent ? activeComponent.typeLabel : ''"></p>
+                    <h3 class="text-2xl font-semibold text-slate-900" x-text="activeComponent ? activeComponent.name : ''"></h3>
+                    <p class="text-sm text-slate-500" x-text="activeComponent ? (activeComponent.priceRange?.label ?? '—') : ''"></p>
+                </div>
+                <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500" x-cloak x-show="modalLoading">
+                    Chargement de la fiche produit…
+                </div>
+                <div class="space-y-3" x-cloak x-show="modalHtml" x-html="modalHtml"></div>
+                <div class="space-y-3" x-show="attributeKeys.length">
+                    <template x-for="attribute in attributeKeys" :key="attribute">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400" x-text="attribute"></p>
+                            <select class="tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 mt-1"
+                                    x-model="selectedAttributes[attribute]"
+                                    @change="onAttributeChange(attribute)">
+                                <option value="">Sélectionner</option>
+                                <template x-for="option in availableOptions[attribute]" :key="option">
+                                    <option :value="option" x-text="option"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </template>
+                </div>
+                <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">
+                    <div class="flex items-center justify-between">
+                        <span>Prix estimé</span>
+                        <span class="font-semibold text-slate-900" x-text="formatCurrency(activeVariantPrice())"></span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Stock estimé</span>
+                        <span x-text="activeVariantStockText()"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-600">Quantité</label>
+                    <input class="tn-input w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 mt-1"
+                           type="number"
+                           min="1"
+                           step="1"
+                           x-model.number="activeQuantity">
+                </div>
+                <div class="flex items-center justify-end gap-3">
+                    <button type="button" class="btn btn-outline" @click="closeModal()">Annuler</button>
+                    <button type="button"
+                            class="btn btn-primary"
+                            :disabled="!currentVariantReady()"
+                            @click="confirmSelection()">
+                        Ajouter au pack
+                    </button>
+                </div>
+                <p class="text-xs text-red-500 text-right"
+                   x-show="!currentVariantReady()">
+                    Choisis la configuration souhaitée pour ajouter ce composant au pack.
+                </p>
+            </div>
+        </div>
+    </section>
+{% endif %}
+
+{% if bundleComponentsActive %}
+    </div>
+{% endif %}
+
 {# Caractéristiques synthétiques pour rappeler les points forts #}
 <section class="tn-section">
     <div class="tn-section__header">
@@ -239,15 +435,17 @@
 {% if optionGroups is not empty %}
     <section class="tn-section">
         <div class="tn-section__header">
-            <h2>Options disponibles</h2>
+            <h2>Caractéristiques disponibles</h2>
         </div>
-        <div class="tn-options">
+        <div class="grid gap-4 md:grid-cols-2 tn-options">
             {% for group in optionGroups %}
-                <div>
-                    <h3>{{ group.name }}</h3>
-                    <div class="tn-chips">
+                <div class="rounded-2xl border border-slate-100 bg-white/80 p-4 shadow-sm">
+                    <p class="text-xs uppercase tracking-[0.25em] text-slate-400 mb-1">{{ group.name }}</p>
+                    <div class="flex flex-wrap gap-2">
                         {% for value in group.values %}
-                            <span>{{ value.label }}</span>
+                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                                {{ value.label }}
+                            </span>
                         {% endfor %}
                     </div>
                 </div>
@@ -559,5 +757,335 @@
                 },
             }));
         });
+        function bundleComposer(config) {
+            const formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+
+            return {
+                components: [],
+                selections: [],
+                selectionCounts: {},
+                selectionCounter: 0,
+                discountPercent: 0,
+                modalOpen: false,
+                modalHtml: '',
+                modalLoading: false,
+                activeComponent: null,
+                attributeKeys: [],
+                selectedAttributes: {},
+                availableOptions: {},
+                activeVariant: null,
+                activeQuantity: 1,
+                init() {
+                    const raw = Array.isArray(config.components) ? config.components : [];
+                    this.components = raw.map((component) => ({
+                        ...component,
+                        variants: Array.isArray(component.variants) ? component.variants : [],
+                        priceRange: component.priceRange ?? { label: '—' },
+                    }));
+                    this.discountPercent = Number(config.discount ?? 0) || 0;
+                },
+                openConfiguration(componentId) {
+                    const component = this.components.find((item) => Number(item.id) === Number(componentId));
+                    if (!component) {
+                        return;
+                    }
+                    this.activeComponent = component;
+                    this.prepareAttributes(component);
+                    this.activeQuantity = 1;
+                    this.updateAvailableOptions();
+                    this.updateCurrentVariant();
+                    this.modalOpen = true;
+                    this.loadModalPreview(component);
+                },
+                closeModal() {
+                    this.modalOpen = false;
+                    this.activeVariant = null;
+                    this.modalHtml = '';
+                    this.modalLoading = false;
+                },
+                prepareAttributes(component) {
+                    this.attributeKeys = this.collectAttributeKeys(component.variants);
+                    this.selectedAttributes = {};
+                    this.attributeKeys.forEach((key) => {
+                        this.selectedAttributes[key] = '';
+                    });
+                    this.availableOptions = this.buildOptionsMap(component.variants, this.attributeKeys);
+                },
+                loadModalPreview(component) {
+                    if (!component?.modalUrl) {
+                        this.modalHtml = '';
+                        return;
+                    }
+                    this.modalLoading = true;
+                    this.modalHtml = '';
+                    fetch(component.modalUrl, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    })
+                        .then((response) => (response.ok ? response.text() : ''))
+                        .then((html) => {
+                            this.modalHtml = html || '';
+                        })
+                        .catch(() => {
+                            this.modalHtml = '';
+                        })
+                        .finally(() => {
+                            this.modalLoading = false;
+                        });
+                },
+                collectAttributeKeys(variants) {
+                    const keys = new Set();
+                    variants.forEach((variant) => {
+                        const metadata = variant.metadata ?? {};
+                        Object.keys(metadata).forEach((key) => keys.add(key));
+                    });
+                    return Array.from(keys);
+                },
+                buildOptionsMap(variants, keys) {
+                    const options = {};
+                    keys.forEach((key) => {
+                        const values = new Set();
+                        variants.forEach((variant) => {
+                            const value = variant.metadata?.[key];
+                            if (value !== undefined && value !== null) {
+                                values.add(String(value));
+                            }
+                        });
+                        options[key] = Array.from(values);
+                    });
+                    return options;
+                },
+                onAttributeChange(attribute) {
+                    this.updateAvailableOptions(attribute);
+                    this.updateCurrentVariant();
+                },
+                updateAvailableOptions(attributeToSkip = null) {
+                    this.attributeKeys.forEach((attribute) => {
+                        const values = new Set();
+                        this.activeComponent.variants.forEach((variant) => {
+                            if (this.matchesSelection(variant, attribute)) {
+                                const value = variant.metadata?.[attribute];
+                                if (value !== undefined && value !== null) {
+                                    values.add(String(value));
+                                }
+                            }
+                        });
+                        this.availableOptions[attribute] = Array.from(values);
+                        if (this.selectedAttributes[attribute] && !this.availableOptions[attribute].includes(this.selectedAttributes[attribute])) {
+                            if (attribute !== attributeToSkip) {
+                                this.selectedAttributes[attribute] = '';
+                            }
+                        }
+                    });
+                },
+                matchesSelection(variant, attributeToSkip = null) {
+                    const metadata = variant.metadata ?? {};
+                    return this.attributeKeys.every((attribute) => {
+                        if (attribute === attributeToSkip) {
+                            return true;
+                        }
+                        const selected = this.selectedAttributes[attribute];
+                        if (!selected) {
+                            return true;
+                        }
+                        return String(metadata[attribute] ?? '') === String(selected);
+                    });
+                },
+                updateCurrentVariant() {
+                    this.activeVariant = this.findMatchingVariant();
+                },
+                findMatchingVariant() {
+                    if (!this.activeComponent) {
+                        return null;
+                    }
+                    if (!this.activeComponent.variants.length) {
+                        return this.buildFallbackVariant();
+                    }
+                    const isComplete = this.attributeKeys.every((attribute) => !!this.selectedAttributes[attribute]);
+                    if (!isComplete) {
+                        return null;
+                    }
+                    return this.activeComponent.variants.find((variant) => this.matchesSelection(variant));
+                },
+                currentVariantReady() {
+                    if (!this.activeComponent) {
+                        return false;
+                    }
+                    if (this.attributeKeys.length === 0) {
+                        return true;
+                    }
+                    return this.attributeKeys.every((attribute) => !!this.selectedAttributes[attribute]) && this.activeVariant !== null;
+                },
+                confirmSelection() {
+                    if (!this.currentVariantReady()) {
+                        return;
+                    }
+                    const variant = this.activeVariant ?? this.buildFallbackVariant();
+                    if (!variant || !this.activeComponent) {
+                        return;
+                    }
+                    const unitPrice = (variant.promoPrice && variant.promoPrice > 0) ? variant.promoPrice : variant.price;
+                    const entry = {
+                        id: ++this.selectionCounter,
+                        componentId: this.activeComponent.id,
+                        name: this.activeComponent.name,
+                        typeLabel: this.activeComponent.typeLabel,
+                        variantLabel: this.buildVariantLabel(variant),
+                        variantId: variant.id ?? null,
+                        price: unitPrice ?? 0,
+                        stock: variant.stock ?? 0,
+                        quantity: Number(this.activeQuantity) > 0 ? Number(this.activeQuantity) : 1,
+                        selectedAttributes: { ...this.selectedAttributes },
+                    };
+                    this.selections.push(entry);
+                    this.incrementSelectionCount(entry.componentId);
+                    this.closeModal();
+                },
+                buildVariantLabel(variant) {
+                    const metadata = variant.metadata ?? {};
+                    const parts = Object.entries(metadata)
+                        .filter(([_, value]) => value !== null && value !== undefined && value !== '')
+                        .map(([key, value]) => `${key} : ${value}`);
+                    return parts.length ? parts.join(' • ') : 'Configuration par défaut';
+                },
+                buildFallbackVariant() {
+                    if (!this.activeComponent) {
+                        return null;
+                    }
+                    return {
+                        id: null,
+                        price: this.activeComponent.basePrice ?? 0,
+                        promoPrice: this.activeComponent.promoPrice !== null ? this.activeComponent.promoPrice : null,
+                        stock: this.activeComponent.stock ?? 0,
+                        metadata: {},
+                    };
+                },
+                selectionCount(componentId) {
+                    const key = String(componentId);
+                    return this.selectionCounts[key] ?? 0;
+                },
+                clearSelectionsForComponent(componentId) {
+                    const key = String(componentId);
+                    if (!this.selectionCounts[key]) {
+                        return;
+                    }
+                    this.selections = this.selections.filter((item) => {
+                        if (String(item.componentId) === key) {
+                            this.decrementSelectionCount(item.componentId);
+                            return false;
+                        }
+                        return true;
+                    });
+                },
+                removeSelection(selectionId) {
+                    const index = this.selections.findIndex((item) => item.id === selectionId);
+                    if (index === -1) {
+                        return;
+                    }
+                    const [removed] = this.selections.splice(index, 1);
+                    if (removed) {
+                        this.decrementSelectionCount(removed.componentId);
+                    }
+                },
+                incrementSelectionCount(componentId) {
+                    const key = String(componentId);
+                    this.selectionCounts[key] = (this.selectionCounts[key] ?? 0) + 1;
+                },
+                decrementSelectionCount(componentId) {
+                    const key = String(componentId);
+                    if (!(key in this.selectionCounts)) {
+                        return;
+                    }
+                    this.selectionCounts[key] -= 1;
+                    if (this.selectionCounts[key] <= 0) {
+                        delete this.selectionCounts[key];
+                    }
+                },
+                formatCurrency(value) {
+                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                        return '—';
+                    }
+                    return formatter.format(Number(value));
+                },
+                subtotal() {
+                    if (!this.selections.length) {
+                        return 0;
+                    }
+                    return this.selections.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
+                },
+                discountAmount() {
+                    if (!this.discountPercent) {
+                        return 0;
+                    }
+                    return this.subtotal() * (this.discountPercent / 100);
+                },
+                totalPriceLabel() {
+                    if (!this.selections.length) {
+                        return '—';
+                    }
+                    const subtotal = this.subtotal();
+                    const total = subtotal - this.discountAmount();
+                    if (total <= 0) {
+                        return '—';
+                    }
+                    return this.formatCurrency(total);
+                },
+                discountLabel() {
+                    const discount = this.discountAmount();
+                    if (!discount) {
+                        return '—';
+                    }
+                    return this.formatCurrency(discount);
+                },
+                discountPercentLabel() {
+                    const value = Number(this.discountPercent) || 0;
+                    if (!value) {
+                        return '';
+                    }
+                    return new Intl.NumberFormat('fr-FR', {
+                        minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+                        maximumFractionDigits: 2,
+                    }).format(value) + ' %';
+                },
+                activeVariantPrice() {
+                    const variant = this.activeVariant ?? this.buildFallbackVariant();
+                    if (!variant) {
+                        return 0;
+                    }
+                    const price = (variant.promoPrice && variant.promoPrice > 0) ? variant.promoPrice : variant.price;
+                    return price ?? 0;
+                },
+                activeVariantStockText() {
+                    const variant = this.activeVariant ?? this.buildFallbackVariant();
+                    if (!variant) {
+                        return 'Rupture';
+                    }
+                    const stock = Number(variant.stock) || 0;
+                    return stock > 0 ? `${stock} en stock` : 'Rupture';
+                },
+                selectionKey(selection) {
+                    const componentId = selection.componentId ?? 'component';
+                    const variantId = selection.variantId ?? 'base';
+                    return `${componentId}:${variantId}`;
+                },
+                uniqueSelectionCount() {
+                    const keys = new Set();
+                    this.selections.forEach((selection) => keys.add(this.selectionKey(selection)));
+                    return keys.size;
+                },
+                requiredUniqueSelections() {
+                    const count = this.components.length;
+                    if (count <= 1) {
+                        return count;
+                    }
+                    return 2;
+                },
+                canCheckout() {
+                    if (!this.selections.length) {
+                        return false;
+                    }
+                    return this.uniqueSelectionCount() >= this.requiredUniqueSelections();
+                }
+            };
+        }
     </script>
 {% endblock %}

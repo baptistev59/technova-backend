@@ -1,0 +1,58 @@
+<div class="space-y-4 text-sm text-slate-600">
+    <div class="flex gap-3 items-start">
+        {% set preview = product.images|first %}
+        <div class="flex-shrink-0 w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100">
+            {% if preview %}
+                <img src="{{ asset(preview.url) }}" alt="{{ preview.alt ?? product.name }}" class="h-full w-full object-cover">
+            {% else %}
+                <span class="flex h-full w-full items-center justify-center text-xs uppercase tracking-widest text-slate-300">Visuel</span>
+            {% endif %}
+        </div>
+        <div class="space-y-2">
+            <p class="text-xs uppercase tracking-[0.4em] text-slate-400">Fiche produit</p>
+            <h3 class="text-lg font-semibold text-slate-900">{{ product.name }}</h3>
+            <p class="text-sm text-slate-500">{{ product.shortDescription ?? (product.description|striptags|slice(0, 120) ~ '…') }}</p>
+        </div>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+        <div class="rounded-2xl border border-slate-100 bg-white p-3 space-y-1">
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Prix</p>
+            {% if product.promoPrice %}
+                <p class="text-lg font-semibold text-red-600">{{ product.promoPrice|number_format(2, ',', ' ') }} €</p>
+                <p class="text-xs text-slate-400 line-through">{{ product.price|number_format(2, ',', ' ') }} €</p>
+            {% else %}
+                <p class="text-lg font-semibold text-slate-900">{{ product.price|number_format(2, ',', ' ') }} €</p>
+            {% endif %}
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-3 space-y-1">
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Stock</p>
+            <p class="text-lg font-semibold text-slate-900">{{ product.stock > 0 ? product.stock ~ ' disponibles' : 'Rupture' }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-3 sm:col-span-2">
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Plage de prix (variantes)</p>
+            {% set range = variantData|map(value => value.price)|default([]) %}
+            {% if range|length %}
+                {% set sorted = range|sort %}
+                {% set min = sorted|first %}
+                {% set max = sorted|last %}
+                <p class="text-sm text-slate-600">
+                    {{ min == max ? min|number_format(2, ',', ' ') ~ ' €' : min|number_format(2, ',', ' ') ~ ' – ' ~ max|number_format(2, ',', ' ') ~ ' €' }}
+                </p>
+            {% else %}
+                <p class="text-sm text-slate-500">Pas de variations tarifaires.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% if optionGroups %}
+        <div class="space-y-2">
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Options disponibles</p>
+            <div class="flex flex-wrap gap-2">
+                {% for group in optionGroups %}
+                    <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {{ group.name }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>

@@ -36,6 +36,9 @@ class CustomerOrderItem
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $productImage = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $variantId = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -121,6 +124,18 @@ class CustomerOrderItem
     public function setProductImage(?string $productImage): self
     {
         $this->productImage = $productImage;
+
+        return $this;
+    }
+
+    public function getVariantId(): ?int
+    {
+        return $this->variantId;
+    }
+
+    public function setVariantId(?int $variantId): self
+    {
+        $this->variantId = $variantId;
 
         return $this;
     }

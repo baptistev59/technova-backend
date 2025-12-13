@@ -42,6 +42,9 @@ class Product
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
     private ?string $promoPrice = null;
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
+    private ?string $bundleDiscountPercent = null;
+
     #[ORM\Column]
     private int $stock = 0;
 
@@ -104,6 +107,12 @@ class Product
     #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductAttributeSelection::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $attributeSelections;
 
+    /**
+     * @var Collection<int, ProductBundleItem>
+     */
+    #[ORM\OneToMany(mappedBy: 'bundle', targetEntity: ProductBundleItem::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $bundleItems;
+
     public function __construct()
     {
         $this->images = new ArrayCollection();
@@ -111,6 +120,7 @@ class Product
         $this->attributes = new ArrayCollection();
         $this->variants = new ArrayCollection();
         $this->attributeSelections = new ArrayCollection();
+        $this->bundleItems = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -198,6 +208,18 @@ class Product
     public function setPromoPrice(?float $promoPrice): self
     {
         $this->promoPrice = $promoPrice !== null ? (string) $promoPrice : null;
+
+        return $this;
+    }
+
+    public function getBundleDiscountPercent(): ?float
+    {
+        return $this->bundleDiscountPercent !== null ? (float) $this->bundleDiscountPercent : null;
+    }
+
+    public function setBundleDiscountPercent(?float $bundleDiscountPercent): self
+    {
+        $this->bundleDiscountPercent = $bundleDiscountPercent !== null ? (string) $bundleDiscountPercent : null;
 
         return $this;
     }
@@ -440,6 +462,33 @@ class Product
     {
         if ($this->attributeSelections->removeElement($selection) && $selection->getProduct() === $this) {
             $selection->setProduct(null);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProductBundleItem>
+     */
+    public function getBundleItems(): Collection
+    {
+        return $this->bundleItems;
+    }
+
+    public function addBundleItem(ProductBundleItem $item): self
+    {
+        if (!$this->bundleItems->contains($item)) {
+            $this->bundleItems->add($item);
+            $item->setBundle($this);
+        }
+
+        return $this;
+    }
+
+    public function removeBundleItem(ProductBundleItem $item): self
+    {
+        if ($this->bundleItems->removeElement($item) && $item->getBundle() === $this) {
+            $item->setBundle(null);
         }
 
         return $this;

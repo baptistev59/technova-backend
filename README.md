@@ -85,6 +85,18 @@ Espace vendeur (Sprint 4A)
 - Si une boutique existe déjà, la page affiche les informations en attendant les US d’édition / gestion.
 - Un client peut créer sa boutique : lors de la soumission du formulaire, un profil `Vendor` est créé/associé et le rôle `ROLE_VENDOR` est ajouté automatiquement. Les vendeurs existants ne voient que la page de gestion.
 
+Bundles & packs groupés
+-----------------------
+- L’onglet **Pack de produits** de la fiche vendeur (`templates/vendor/product/form.html.twig`) permet de composer un bundle à partir de produits simples/variables existants, de rendre certains composants obligatoires et de définir une remise globale (champ `bundleDiscountPercent`).  
+- Côté client (`templates/catalog/product_show.html.twig`), la section “Configure ton pack” repose sur `bundleComposer` (Alpine). Chaque composant peut être configuré plusieurs fois avec des variantes différentes, une modale affiche la fiche produit et le prix/stock de la configuration sélectionnée.  
+- Le bloc résumé au-dessus du bouton “Ajouter au panier” indique :
+  - le détail des configurations retenues (prix/stock/unités) ;
+  - le prix total du pack et, le cas échéant, la remise appliquée (pourcentage + montant) ;
+  - une plage indicative “prix min / max des composants” tant que le pack n’est pas entièrement configuré.  
+- Le panier (`templates/cart/show.html.twig`) liste chaque composant comme une ligne indépendante. Les réductions pack sont répercutées sur les prix unitaires et un libellé “Remise appliquée” rappelle le montant économisé par ligne.  
+- La validation impose au moins deux configurations distinctes avant l’ajout au panier. Lors de l’envoi, `CartController::add()` transforme les sélections client en ajouts de produits réels, applique la remise pack et refuse les configurations incomplètes.
+- Checkout : `CheckoutService` vérifie désormais le stock disponible (produits simples, variantes et composants de packs) avant de créer la commande puis décrémente automatiquement les stocks lors de la confirmation du paiement. Toute rupture détectée bloque l’opération.
+
 Installation locale (dev)
 -------------------------
 Prérequis : PHP 8.2+, Composer 2, PostgreSQL 16, Node (facultatif pour assets).

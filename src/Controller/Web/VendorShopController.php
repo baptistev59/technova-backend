@@ -3,13 +3,22 @@
 namespace App\Controller\Web;
 
 use App\Entity\Address;
+use App\Entity\AttributeDefinition;
+use App\Entity\AttributeValueDefinition;
 use App\Entity\Product;
+use App\Entity\ProductAttribute;
+use App\Entity\ProductAttributeSelection;
+use App\Entity\ProductAttributeValue;
 use App\Entity\ProductImage;
+use App\Entity\ProductBundleItem;
+use App\Entity\ProductVariant;
 use App\Entity\Shop;
 use App\Entity\User;
+use App\Entity\Category;
 use App\Entity\Vendor;
 use App\Form\Vendor\ShopType;
 use App\Form\Vendor\ProductType;
+use App\Repository\AttributeDefinitionRepository;
 use App\Repository\ShopRepository;
 use App\Repository\UserRepository;
 use App\Repository\ProductRepository;
@@ -20,12 +29,15 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Throwable;
 
 #[Route('/mon-espace-vendeur')]
 class VendorShopController extends AbstractController
@@ -39,9 +51,12 @@ class VendorShopController extends AbstractController
         private readonly SluggerInterface $slugger,
         private readonly ProductRepository $productRepository,
         private readonly CategoryRepository $categoryRepository,
-        private readonly BrandRepository $brandRepository
+        private readonly BrandRepository $brandRepository,
+        private readonly AttributeDefinitionRepository $attributeDefinitionRepository
     ) {
     }
+
+    private ?bool $bundleTableExists = null;
 
     #[Route('/boutique', name: 'app_vendor_shop_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
@@ -66,6 +81,7 @@ class VendorShopController extends AbstractController
                 'vendor_nav' => [
                     ['label' => 'Accueil', 'icon' => '🏠', 'active' => true, 'path' => 'app_vendor_shop_new'],
                     ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => false, 'path' => 'app_vendor_products'],
+                    ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
                     ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
                     ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
                     ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
@@ -277,6 +293,7 @@ class VendorShopController extends AbstractController
         $vendorNav = [
             ['label' => 'Accueil', 'icon' => '🏠', 'active' => false, 'path' => 'app_vendor_shop_new'],
             ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => true, 'path' => 'app_vendor_products'],
+            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
             ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
             ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
             ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
@@ -372,6 +389,35 @@ class VendorShopController extends AbstractController
         $form = $this->createForm(ProductType::class, $product);
         $this->prefillPromoPercent($form, $product);
         $form->handleRequest($request);
+        $variantAction = (string) $request->request->get('_action', '');
+        if ($form->isSubmitted()) {
+            if ($variantAction === 'delete_all_variants') {
+                $this->deleteAllVariants($product);
+                $this->entityManager->flush();
+                $this->addFlash('success', 'Toutes les variantes ont été supprimées.');
+
+                return $this->redirectAfterVariantAction($product);
+            }
+            if (str_starts_with($variantAction, 'delete_variant_')) {
+                $variantId = (int) substr($variantAction, strlen('delete_variant_'));
+                if ($variantId > 0) {
+                    $this->deleteVariantById($product, $variantId);
+                    $this->entityManager->flush();
+                    $this->addFlash('success', 'La variante a été supprimée.');
+                }
+
+                return $this->redirectAfterVariantAction($product);
+            }
+        }
+        $attributeOptions = $this->getAttributeDefinitionsData();
+        $selectionState = $form->isSubmitted()
+            ? $this->parseAttributeSelectionPayload($request)
+            : $this->getProductAttributeSelectionState($product);
+        $bundleCandidates = $this->getBundleCandidatesData($shop, $product);
+        $bundleState = $form->isSubmitted()
+            ? $this->parseBundleItemsPayload($request)
+            : $this->getProductBundleState($product);
+        $this->applyProductFormValidation($form, $product);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $this->ensureProductSlug($product);
@@ -381,9 +427,26 @@ class VendorShopController extends AbstractController
             $galleryFiles = $form->get('galleryFiles')->getData() ?? [];
             $this->handleProductImages($product, $mainImageFile, $galleryFiles);
             $this->removeSelectedProductImages($product, $request);
+            $this->syncProductAttributeSelections($product, $selectionState);
+            if ($variantAction === 'generate_variants') {
+                $this->syncProductVariantsFromAttributes($product);
+            }
+            $this->updateVariantDetailsFromRequest($product, $request);
+            if ($product->getType() === 'grouped') {
+                $this->syncProductBundleItems($product, $bundleState);
+                $this->ensureGroupedCategory($product);
+            } else {
+                $this->clearProductBundleItems($product);
+            }
 
             $this->entityManager->persist($product);
             $this->entityManager->flush();
+
+            if ($variantAction === 'generate_variants') {
+                $this->addFlash('success', 'Variantes générées. Tu peux maintenant ajuster chaque variante.');
+
+                return $this->redirectToRoute('app_vendor_product_edit', ['id' => $product->getId()]);
+            }
 
             $this->addFlash('success', 'Produit créé avec succès.');
 
@@ -393,6 +456,7 @@ class VendorShopController extends AbstractController
         $vendorNav = [
             ['label' => 'Accueil', 'icon' => '🏠', 'active' => false, 'path' => 'app_vendor_shop_new'],
             ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => true, 'path' => 'app_vendor_products'],
+            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
             ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
             ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
             ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
@@ -404,6 +468,10 @@ class VendorShopController extends AbstractController
             'product' => $product,
             'is_edit' => false,
             'vendor_nav' => $vendorNav,
+            'attribute_options' => $attributeOptions,
+            'attribute_selection_state' => $selectionState,
+            'bundle_candidates' => $bundleCandidates,
+            'bundle_selection_state' => $bundleState,
         ]);
     }
 
@@ -423,6 +491,35 @@ class VendorShopController extends AbstractController
         $form = $this->createForm(ProductType::class, $product);
         $this->prefillPromoPercent($form, $product);
         $form->handleRequest($request);
+        $variantAction = (string) $request->request->get('_action', '');
+        if ($form->isSubmitted()) {
+            if ($variantAction === 'delete_all_variants') {
+                $this->deleteAllVariants($product);
+                $this->entityManager->flush();
+                $this->addFlash('success', 'Toutes les variantes ont été supprimées.');
+
+                return $this->redirectAfterVariantAction($product);
+            }
+            if (str_starts_with($variantAction, 'delete_variant_')) {
+                $variantId = (int) substr($variantAction, strlen('delete_variant_'));
+                if ($variantId > 0) {
+                    $this->deleteVariantById($product, $variantId);
+                    $this->entityManager->flush();
+                    $this->addFlash('success', 'La variante a été supprimée.');
+                }
+
+                return $this->redirectAfterVariantAction($product);
+            }
+        }
+        $attributeOptions = $this->getAttributeDefinitionsData();
+        $selectionState = $form->isSubmitted()
+            ? $this->parseAttributeSelectionPayload($request)
+            : $this->getProductAttributeSelectionState($product);
+        $bundleCandidates = $this->getBundleCandidatesData($product->getShop(), $product);
+        $bundleState = $form->isSubmitted()
+            ? $this->parseBundleItemsPayload($request)
+            : $this->getProductBundleState($product);
+        $this->applyProductFormValidation($form, $product);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $this->ensureProductSlug($product);
@@ -432,8 +529,25 @@ class VendorShopController extends AbstractController
             $galleryFiles = $form->get('galleryFiles')->getData() ?? [];
             $this->handleProductImages($product, $mainImageFile, $galleryFiles);
             $this->removeSelectedProductImages($product, $request);
+            $this->syncProductAttributeSelections($product, $selectionState);
+            if ($variantAction === 'generate_variants') {
+                $this->syncProductVariantsFromAttributes($product);
+            }
+            $this->updateVariantDetailsFromRequest($product, $request);
+            if ($product->getType() === 'grouped') {
+                $this->syncProductBundleItems($product, $bundleState);
+                $this->ensureGroupedCategory($product);
+            } else {
+                $this->clearProductBundleItems($product);
+            }
 
             $this->entityManager->flush();
+
+            if ($variantAction === 'generate_variants') {
+                $this->addFlash('success', 'Variantes mises à jour.');
+
+                return $this->redirectToRoute('app_vendor_product_edit', ['id' => $product->getId()]);
+            }
 
             $this->addFlash('success', 'Produit mis à jour.');
 
@@ -443,6 +557,7 @@ class VendorShopController extends AbstractController
         $vendorNav = [
             ['label' => 'Accueil', 'icon' => '🏠', 'active' => false, 'path' => 'app_vendor_shop_new'],
             ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => true, 'path' => 'app_vendor_products'],
+            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
             ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
             ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
             ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
@@ -454,7 +569,941 @@ class VendorShopController extends AbstractController
             'product' => $product,
             'is_edit' => true,
             'vendor_nav' => $vendorNav,
+            'attribute_options' => $attributeOptions,
+            'attribute_selection_state' => $selectionState,
+            'bundle_candidates' => $bundleCandidates,
+            'bundle_selection_state' => $bundleState,
         ]);
+    }
+
+    #[Route('/produits/{id}/toggle-publication', name: 'app_vendor_product_toggle_publish', methods: ['POST'])]
+    public function toggleProductPublication(Product $product, Request $request): RedirectResponse
+    {
+        if ($response = $this->guardProductAction($product, $request)) {
+            return $response;
+        }
+        if (!$this->isCsrfTokenValid('product_toggle_' . $product->getId(), $request->request->get('_token'))) {
+            $this->addFlash('error', 'Le jeton CSRF est invalide.');
+
+            return $this->redirectToRoute('app_vendor_products');
+        }
+
+        $product->setIsPublished(!$product->isPublished());
+        $this->entityManager->flush();
+
+        $this->addFlash('success', $product->isPublished() ? 'Le produit est publié.' : 'Le produit est repassé en brouillon.');
+
+        return $this->redirectToRoute('app_vendor_products');
+    }
+
+    #[Route('/produits/{id}/dupliquer', name: 'app_vendor_product_duplicate', methods: ['POST'])]
+    public function duplicateProduct(Product $product, Request $request): RedirectResponse
+    {
+        if ($response = $this->guardProductAction($product, $request)) {
+            return $response;
+        }
+        if (!$this->isCsrfTokenValid('product_duplicate_' . $product->getId(), $request->request->get('_token'))) {
+            $this->addFlash('error', 'Le jeton CSRF est invalide.');
+
+            return $this->redirectToRoute('app_vendor_products');
+        }
+
+        $duplicate = $this->duplicateProductEntity($product);
+        $this->entityManager->persist($duplicate);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', sprintf('Le produit "%s" a été dupliqué.', $product->getName()));
+
+        return $this->redirectToRoute('app_vendor_product_edit', ['id' => $duplicate->getId()]);
+    }
+
+    #[Route('/produits/{id}/supprimer', name: 'app_vendor_product_delete', methods: ['POST'])]
+    public function deleteProduct(Product $product, Request $request): RedirectResponse
+    {
+        if ($response = $this->guardProductAction($product, $request)) {
+            return $response;
+        }
+        if (!$this->isCsrfTokenValid('product_delete_' . $product->getId(), $request->request->get('_token'))) {
+            $this->addFlash('error', 'Le jeton CSRF est invalide.');
+
+            return $this->redirectToRoute('app_vendor_products');
+        }
+
+        $this->entityManager->remove($product);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', 'Le produit a été supprimé.');
+
+        return $this->redirectToRoute('app_vendor_products');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function getAttributeDefinitionsData(): array
+    {
+        /** @var AttributeDefinition[] $definitions */
+        $definitions = $this->attributeDefinitionRepository->findBy([], ['position' => 'ASC', 'name' => 'ASC']);
+        $data = [];
+
+        foreach ($definitions as $definition) {
+            $values = [];
+            foreach ($definition->getValues() as $value) {
+                if ($value->getId() === null) {
+                    continue;
+                }
+                $values[] = [
+                    'id' => $value->getId(),
+                    'label' => $value->getLabel(),
+                    'value' => $value->getValue(),
+                    'position' => $value->getPosition(),
+                ];
+            }
+            usort($values, static fn (array $a, array $b) => [$a['position'], $a['label']] <=> [$b['position'], $b['label']]);
+
+            $data[] = [
+                'id' => $definition->getId(),
+                'name' => $definition->getName(),
+                'slug' => $definition->getSlug(),
+                'inputType' => $definition->getInputType(),
+                'position' => $definition->getPosition(),
+                'values' => $values,
+            ];
+        }
+
+        return $data;
+    }
+
+    private function bundleTableExists(): bool
+    {
+        if ($this->bundleTableExists !== null) {
+            return $this->bundleTableExists;
+        }
+
+        try {
+            $schemaManager = $this->entityManager->getConnection()->createSchemaManager();
+            $this->bundleTableExists = $schemaManager->tablesExist(['product_bundle_item']);
+        } catch (Throwable) {
+            $this->bundleTableExists = false;
+        }
+
+        return $this->bundleTableExists;
+    }
+
+    private function applyProductFormValidation(FormInterface $form, Product $product): void
+    {
+        if (!$form->isSubmitted() || $product->getType() === 'grouped') {
+            return;
+        }
+
+        if ($product->getPrice() === null || $product->getPrice() <= 0) {
+            $form->get('price')->addError(new FormError('Indique un prix HT.'));
+        }
+
+        if (!$product->getCategory()) {
+            $form->get('category')->addError(new FormError('Merci de sélectionner une catégorie.'));
+        }
+    }
+
+    private function ensureGroupedCategory(Product $product): void
+    {
+        if ($product->getCategory() || $product->getType() !== 'grouped') {
+            return;
+        }
+
+        $slug = 'produits-groupes';
+        $category = $this->categoryRepository->findOneBy(['slug' => $slug]);
+        if (!$category) {
+            $category = (new Category())
+                ->setName('Produits groupés')
+                ->setSlug($this->slugger->slug('Produits groupés')->lower());
+            $this->entityManager->persist($category);
+        }
+
+        $product->setCategory($category);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function getBundleCandidatesData(?Shop $shop, ?Product $current = null): array
+    {
+        if (!$shop || !$this->bundleTableExists()) {
+            return [];
+        }
+
+        $candidates = $this->productRepository->findBy(['shop' => $shop], ['name' => 'ASC']);
+        $data = [];
+
+        foreach ($candidates as $candidate) {
+            if (!$candidate instanceof Product || !$candidate->getId()) {
+                continue;
+            }
+
+            if ($current && $candidate->getId() === $current->getId()) {
+                continue;
+            }
+
+            $type = $candidate->getType() ?: 'simple';
+            if ($type === 'grouped') {
+                continue;
+            }
+
+            $range = $this->computeProductPriceRange($candidate);
+
+            $data[] = [
+                'id' => $candidate->getId(),
+                'name' => $candidate->getName(),
+                'sku' => $candidate->getSku(),
+                'type' => $type,
+                'typeLabel' => $this->humanizeProductType($type),
+                'priceMin' => $range['min'],
+                'priceMax' => $range['max'],
+                'priceLabel' => $range['label'],
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array<int, array{attribute:int, values:array<int>}>
+     */
+    private function getProductAttributeSelectionState(Product $product): array
+    {
+        $state = [];
+        foreach ($product->getAttributeSelections() as $selection) {
+            $attribute = $selection->getAttribute();
+            if (!$attribute || $attribute->getId() === null) {
+                continue;
+            }
+
+            $valueIds = [];
+            foreach ($selection->getValues() as $value) {
+                if ($value->getId() !== null) {
+                    $valueIds[] = $value->getId();
+                }
+            }
+            if ($valueIds === []) {
+                continue;
+            }
+
+            $state[] = [
+                'attribute' => $attribute->getId(),
+                'values' => array_values(array_unique($valueIds)),
+            ];
+        }
+
+        return $state;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function getProductBundleState(Product $product): array
+    {
+        if (!$this->bundleTableExists()) {
+            return [];
+        }
+
+        $state = [];
+        foreach ($product->getBundleItems() as $item) {
+            $component = $item->getComponent();
+            if (!$component || $component->getId() === null) {
+                continue;
+            }
+
+            $state[] = [
+                'product' => $component->getId(),
+                'required' => $item->isRequired(),
+                'position' => $item->getPosition(),
+            ];
+        }
+
+        usort($state, static fn (array $a, array $b) => ($a['position'] ?? 0) <=> ($b['position'] ?? 0));
+
+        return $state;
+    }
+
+    /**
+     * @return array<int, array{attribute:int, values:array<int>}>
+     */
+    private function parseAttributeSelectionPayload(Request $request): array
+    {
+        $raw = $request->request->get('attribute_selections');
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        try {
+            $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            return [];
+        }
+
+        if (!is_array($data)) {
+            return [];
+        }
+
+        $results = [];
+        foreach ($data as $item) {
+            if (!is_array($item) || !isset($item['attribute'])) {
+                continue;
+            }
+
+            $attributeId = (int) $item['attribute'];
+            if ($attributeId <= 0) {
+                continue;
+            }
+
+            $valueIds = array_values(array_unique(array_filter(array_map(
+                static fn ($value) => is_numeric($value) ? (int) $value : null,
+                $item['values'] ?? []
+            ), static fn ($value) => $value !== null)));
+
+            $results[] = [
+                'attribute' => $attributeId,
+                'values' => $valueIds,
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function parseBundleItemsPayload(Request $request): array
+    {
+        $raw = $request->request->get('bundle_items');
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        try {
+            $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+
+        if (!is_array($data)) {
+            return [];
+        }
+
+        $results = [];
+        foreach ($data as $index => $entry) {
+            if (!is_array($entry) || !isset($entry['product'])) {
+                continue;
+            }
+
+            $productId = (int) $entry['product'];
+            if ($productId <= 0) {
+                continue;
+            }
+
+            $results[] = [
+                'product' => $productId,
+                'required' => isset($entry['required']) ? (bool) $entry['required'] : false,
+                'position' => (int) ($entry['position'] ?? $index),
+            ];
+        }
+
+        usort($results, static fn (array $a, array $b) => $a['position'] <=> $b['position']);
+
+        return $results;
+    }
+
+    /**
+     * @param array<int, array{attribute:int, values:array<int>}> $payload
+     */
+    private function syncProductAttributeSelections(Product $product, array $payload): void
+    {
+        foreach ($product->getAttributeSelections()->toArray() as $existing) {
+            $product->removeAttributeSelection($existing);
+            $this->entityManager->remove($existing);
+        }
+
+        foreach ($payload as $item) {
+            $attribute = $this->attributeDefinitionRepository->find($item['attribute']);
+            if (!$attribute) {
+                continue;
+            }
+
+            $valueIds = $item['values'] ?? [];
+            if ($valueIds === []) {
+                continue;
+            }
+
+            $selection = (new ProductAttributeSelection())
+                ->setProduct($product)
+                ->setAttribute($attribute);
+
+            foreach ($attribute->getValues() as $value) {
+                if ($value->getId() !== null && in_array($value->getId(), $valueIds, true)) {
+                    $selection->addValue($value);
+                }
+            }
+
+            if ($selection->getValues()->count() === 0) {
+                continue;
+            }
+
+            $product->addAttributeSelection($selection);
+            $this->entityManager->persist($selection);
+        }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $payload
+     */
+    private function syncProductBundleItems(Product $product, array $payload): void
+    {
+        if (!$this->bundleTableExists()) {
+            return;
+        }
+
+        $this->clearProductBundleItems($product);
+
+        if ($payload === []) {
+            $this->refreshGroupedProductPrice($product);
+
+            return;
+        }
+
+        $seen = [];
+        $position = 0;
+
+        foreach ($payload as $entry) {
+            $componentId = (int) ($entry['product'] ?? 0);
+            if ($componentId <= 0 || isset($seen[$componentId])) {
+                continue;
+            }
+
+            if ($componentId === $product->getId()) {
+                continue;
+            }
+
+            $component = $this->productRepository->find($componentId);
+            if (!$component) {
+                continue;
+            }
+
+            if ($component->getType() === 'grouped') {
+                continue;
+            }
+
+            if ($component->getShop()?->getId() !== $product->getShop()?->getId()) {
+                continue;
+            }
+
+            $item = (new ProductBundleItem())
+                ->setBundle($product)
+                ->setComponent($component)
+                ->setPosition($position++)
+                ->setIsRequired((bool) ($entry['required'] ?? false));
+
+            $product->addBundleItem($item);
+            $this->entityManager->persist($item);
+            $seen[$componentId] = true;
+        }
+
+        $this->refreshGroupedProductPrice($product);
+    }
+
+    private function clearProductBundleItems(Product $product): void
+    {
+        if (!$this->bundleTableExists()) {
+            return;
+        }
+
+        foreach ($product->getBundleItems()->toArray() as $item) {
+            $product->removeBundleItem($item);
+            $this->entityManager->remove($item);
+        }
+
+        $this->refreshGroupedProductPrice($product);
+    }
+
+    /**
+     * @return array{min:float|null, max:float|null, label:string}
+     */
+    private function computeProductPriceRange(Product $product, array $visited = []): array
+    {
+        $prices = $this->collectEffectivePrices($product, $visited);
+        if ($prices === []) {
+            return [
+                'min' => null,
+                'max' => null,
+                'label' => '—',
+            ];
+        }
+
+        sort($prices, SORT_NUMERIC);
+        $min = $prices[0];
+        $max = $prices[count($prices) - 1];
+        $format = static fn (float $value): string => number_format($value, 2, ',', ' ') . ' €';
+        $label = $min === $max ? $format($min) : sprintf('%s – %s', $format($min), $format($max));
+
+        return [
+            'min' => $min,
+            'max' => $max,
+            'label' => $label,
+        ];
+    }
+
+    /**
+     * @return float[]
+     */
+    private function collectEffectivePrices(Product $product, array $visited = []): array
+    {
+        $prices = [];
+        $productId = $product->getId();
+        if ($productId !== null) {
+            if (in_array($productId, $visited, true)) {
+                return [];
+            }
+            $visited[] = $productId;
+        }
+
+        if ($product->getType() === 'grouped') {
+            foreach ($product->getBundleItems() as $item) {
+                $component = $item->getComponent();
+                if ($component) {
+                    $prices = array_merge($prices, $this->collectEffectivePrices($component, $visited));
+                }
+            }
+
+            return $prices;
+        }
+
+        if ($product->getVariants()->count() > 0) {
+            foreach ($product->getVariants() as $variant) {
+                $price = $variant->getPromoPrice();
+                if ($price === null || $price <= 0) {
+                    $price = $variant->getPrice();
+                }
+                if ($price > 0) {
+                    $prices[] = $price;
+                }
+            }
+        } else {
+            $price = $product->getPromoPrice();
+            if ($price === null || $price <= 0 || $price >= $product->getPrice()) {
+                $price = $product->getPrice();
+            }
+            if ($price > 0) {
+                $prices[] = $price;
+            }
+        }
+
+        return $prices;
+    }
+
+    private function refreshGroupedProductPrice(Product $product): void
+    {
+        if ($product->getType() !== 'grouped' || !$this->bundleTableExists()) {
+            return;
+        }
+
+        $range = $this->computeProductPriceRange($product);
+        if ($range['min'] !== null) {
+            $product->setPrice($range['min']);
+        }
+        $product->setPromoPrice(null);
+    }
+
+    private function humanizeProductType(?string $type): string
+    {
+        return match ($type) {
+            'variable' => 'Produit variable',
+            'grouped' => 'Produit groupé',
+            default => 'Produit simple',
+        };
+    }
+
+    private function syncProductVariantsFromAttributes(Product $product): void
+    {
+        if ($product->getType() !== 'variable') {
+            return;
+        }
+
+        $attributeSets = [];
+        foreach ($product->getAttributeSelections() as $selection) {
+            $attribute = $selection->getAttribute();
+            if (!$attribute) {
+                continue;
+            }
+
+            $values = $selection->getValues()->toArray();
+            if ($values === []) {
+                continue;
+            }
+
+            usort($values, static function ($a, $b) {
+                return [$a->getPosition(), $a->getLabel()] <=> [$b->getPosition(), $b->getLabel()];
+            });
+
+            $attributeSets[] = [
+                'attribute' => $attribute,
+                'values' => $values,
+            ];
+        }
+
+        if ($attributeSets === []) {
+            foreach ($product->getVariants()->toArray() as $variant) {
+                $product->removeVariant($variant);
+                $this->entityManager->remove($variant);
+            }
+
+            return;
+        }
+
+        $combinations = $this->buildVariantCombinations($attributeSets);
+
+        $existing = [];
+        foreach ($product->getVariants() as $variant) {
+            $key = $this->buildVariantKey($variant->getConfiguration());
+            if ($key) {
+                $existing[$key] = $variant;
+            }
+        }
+
+        $seen = [];
+        foreach ($combinations as $combination) {
+            $configuration = [];
+            $metadata = [];
+            foreach ($combination as $entry) {
+                $attribute = $entry['attribute'];
+                $value = $entry['value'];
+                $attributeKey = $attribute->getSlug() ?: ('attribute_' . $attribute->getId());
+                $configuration[$attributeKey] = $value->getValue();
+                $metadata[$attribute->getName() ?? $attributeKey] = $value->getLabel();
+            }
+
+            ksort($configuration);
+            $key = $this->buildVariantKey($configuration);
+            if (!$key) {
+                continue;
+            }
+
+            $seen[] = $key;
+
+            if (isset($existing[$key])) {
+                $variant = $existing[$key];
+                $variant->setConfiguration($configuration);
+                $variant->setMetadata($metadata);
+                continue;
+            }
+
+            $variant = (new ProductVariant())
+                ->setProduct($product)
+                ->setPrice($product->getPrice())
+                ->setPromoPrice(null)
+                ->setStock($product->getStock())
+                ->setIsAvailable(true)
+                ->setConfiguration($configuration)
+                ->setMetadata($metadata)
+                ->setSku($this->generateVariantSku($product, $configuration));
+
+            $mainImage = $this->resolveProductMainImage($product);
+            if ($mainImage) {
+                $variant->setImagePath($mainImage->getUrl());
+            }
+
+            $product->addVariant($variant);
+            $this->entityManager->persist($variant);
+        }
+
+        foreach ($product->getVariants()->toArray() as $variant) {
+            $key = $this->buildVariantKey($variant->getConfiguration());
+            if ($key && !in_array($key, $seen, true)) {
+                $product->removeVariant($variant);
+                $this->entityManager->remove($variant);
+            }
+        }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $attributeSets
+     * @return array<int, array<int, array{attribute: AttributeDefinition, value: AttributeValueDefinition}>>
+     */
+    private function buildVariantCombinations(array $attributeSets): array
+    {
+        if ($attributeSets === []) {
+            return [];
+        }
+
+        $result = [[]];
+
+        foreach ($attributeSets as $set) {
+            $next = [];
+            foreach ($result as $partial) {
+                foreach ($set['values'] as $value) {
+                    $combo = $partial;
+                    $combo[] = [
+                        'attribute' => $set['attribute'],
+                        'value' => $value,
+                    ];
+                    $next[] = $combo;
+                }
+            }
+            $result = $next;
+        }
+
+        return $result;
+    }
+
+    private function buildVariantKey(?array $configuration): ?string
+    {
+        if (!$configuration || $configuration === []) {
+            return null;
+        }
+
+        ksort($configuration);
+
+        return implode('|', array_map(
+            static fn ($attribute, $value) => sprintf('%s=%s', $attribute, $value),
+            array_keys($configuration),
+            $configuration
+        ));
+    }
+
+    private function generateVariantSku(Product $product, array $configuration): string
+    {
+        $base = strtoupper(substr((string) ($product->getSku() ?: $product->getSlug() ?: 'VAR'), 0, 6));
+        $hash = substr(md5(json_encode($configuration, JSON_THROW_ON_ERROR)), 0, 6);
+
+        return sprintf('%s-%s', $base, $hash);
+    }
+
+    private function resolveProductMainImage(Product $product): ?ProductImage
+    {
+        foreach ($product->getImages() as $image) {
+            if ($image->isMain()) {
+                return $image;
+            }
+        }
+
+        return $product->getImages()->first() ?: null;
+    }
+
+    private function deleteAllVariants(Product $product): void
+    {
+        foreach ($product->getVariants()->toArray() as $variant) {
+            $product->removeVariant($variant);
+            $this->entityManager->remove($variant);
+        }
+    }
+
+    private function deleteVariantById(Product $product, int $variantId): void
+    {
+        foreach ($product->getVariants() as $variant) {
+            if ($variant->getId() === $variantId) {
+                $product->removeVariant($variant);
+                $this->entityManager->remove($variant);
+                break;
+            }
+        }
+    }
+
+    private function redirectAfterVariantAction(Product $product): RedirectResponse
+    {
+        if ($product->getId()) {
+            return $this->redirectToRoute('app_vendor_product_edit', ['id' => $product->getId()]);
+        }
+
+        return $this->redirectToRoute('app_vendor_product_new');
+    }
+
+    /**
+     * @return RedirectResponse|Response|null
+     */
+    private function guardProductAction(Product $product, Request $request): ?Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $user = $this->resolveViewer($request);
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $owner = $product->getShop()?->getOwner()?->getOwner();
+            if (!$owner || $owner !== $user) {
+                throw $this->createAccessDeniedException('Accès non autorisé.');
+            }
+        }
+
+        return null;
+    }
+
+    private function duplicateProductEntity(Product $source): Product
+    {
+        $name = trim(($source->getName() ?? 'Produit') . ' (Copie)');
+        $clone = (new Product())
+            ->setName($name)
+            ->setShortDescription($source->getShortDescription())
+            ->setDescription($source->getDescription())
+            ->setPrice($source->getPrice())
+            ->setPromoPrice($source->getPromoPrice())
+            ->setStock($source->getStock())
+            ->setSku(null)
+            ->setBarcode(null)
+            ->setKeywords($source->getKeywords())
+            ->setType($source->getType())
+            ->setIsFeatured($source->isFeatured())
+            ->setIsPublished(false)
+            ->setCategory($source->getCategory())
+            ->setBrand($source->getBrand())
+            ->setShop($source->getShop());
+
+        $clone->setSlug($this->generateUniqueProductSlug($clone->getName() ?? 'produit'));
+
+        foreach ($source->getImages() as $image) {
+            $copyImage = (new ProductImage())
+                ->setUrl((string) $image->getUrl())
+                ->setAlt($image->getAlt())
+                ->setTitle($image->getTitle())
+                ->setCaption($image->getCaption())
+                ->setPosition($image->getPosition())
+                ->setIsMain($image->isMain())
+                ->setFileSize($image->getFileSize())
+                ->setMimeType($image->getMimeType());
+
+            $clone->addImage($copyImage);
+        }
+
+        foreach ($source->getAttributes() as $attribute) {
+            $copyAttribute = (new ProductAttribute())
+                ->setName((string) $attribute->getName())
+                ->setSlug($attribute->getSlug() ?: (string) $this->slugger->slug((string) $attribute->getName())->lower())
+                ->setInputType($attribute->getInputType())
+                ->setPosition($attribute->getPosition());
+
+            foreach ($attribute->getValues() as $value) {
+                $copyValue = (new ProductAttributeValue())
+                    ->setValue((string) $value->getValue())
+                    ->setSlug($value->getSlug() ?: (string) $this->slugger->slug((string) $value->getValue())->lower())
+                    ->setColorHex($value->getColorHex());
+
+                $copyAttribute->addValue($copyValue);
+            }
+
+            $clone->addAttribute($copyAttribute);
+        }
+
+        foreach ($source->getAttributeSelections() as $selection) {
+            $copySelection = (new ProductAttributeSelection())
+                ->setAttribute($selection->getAttribute());
+
+            foreach ($selection->getValues() as $value) {
+                $copySelection->addValue($value);
+            }
+
+            $clone->addAttributeSelection($copySelection);
+        }
+
+        foreach ($source->getVariants() as $variant) {
+            $copyVariant = (new ProductVariant())
+                ->setPrice($variant->getPrice())
+                ->setPromoPrice($variant->getPromoPrice())
+                ->setStock($variant->getStock())
+                ->setIsAvailable($variant->isAvailable())
+                ->setImagePath($variant->getImagePath())
+                ->setConfiguration($variant->getConfiguration())
+                ->setMetadata($variant->getMetadata())
+                ->setSku($variant->getSku() ? $variant->getSku() . '-copie' : null)
+                ->setBarcode($variant->getBarcode() ? $variant->getBarcode() . '-copie' : null);
+
+            $clone->addVariant($copyVariant);
+        }
+
+        foreach ($source->getBundleItems() as $item) {
+            $component = $item->getComponent();
+            if (!$component) {
+                continue;
+            }
+            $copyItem = (new ProductBundleItem())
+                ->setComponent($component)
+                ->setPosition($item->getPosition())
+                ->setIsRequired($item->isRequired());
+
+            $clone->addBundleItem($copyItem);
+        }
+
+        return $clone;
+    }
+
+    private function updateVariantDetailsFromRequest(Product $product, Request $request): void
+    {
+        if ($product->getVariants()->isEmpty()) {
+            return;
+        }
+
+        $payload = $request->request->all('variants');
+        if (!is_array($payload) || $payload === []) {
+            return;
+        }
+
+        foreach ($product->getVariants() as $variant) {
+            $id = $variant->getId();
+            if ($id === null || !isset($payload[$id]) || !is_array($payload[$id])) {
+                continue;
+            }
+
+            $data = $payload[$id];
+
+            $price = $this->normalizeFloat($data['price'] ?? null);
+            if ($price !== null && $price >= 0) {
+                $variant->setPrice($price);
+            }
+
+            $promo = $this->normalizeFloat($data['promoPrice'] ?? null);
+            if ($promo !== null && $promo > 0 && ($price ?? $variant->getPrice()) > $promo) {
+                $variant->setPromoPrice($promo);
+            } else {
+                $variant->setPromoPrice(null);
+            }
+
+            $stock = $this->normalizeInt($data['stock'] ?? null);
+            if ($stock !== null && $stock >= 0) {
+                $variant->setStock($stock);
+            }
+
+            if (array_key_exists('sku', $data)) {
+                $variant->setSku((string) $data['sku']);
+            }
+
+            $variant->setIsAvailable(isset($data['isAvailable']) && (string) $data['isAvailable'] === '1');
+        }
+    }
+
+    private function normalizeFloat(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = str_replace(',', '.', $value);
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (float) $value;
+    }
+
+    private function normalizeInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     private function resolveViewer(Request $request): User

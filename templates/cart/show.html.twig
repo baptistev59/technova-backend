@@ -47,6 +47,11 @@
                                             <span class="font-semibold text-slate-900">{{ item.unitPrice|number_format(2, ',', ' ') }} €</span>
                                         {% endif %}
                                     </div>
+                                    {% if item.appliedDiscount is defined and item.appliedDiscount > 0 %}
+                                        <p class="text-xs text-green-600 mt-1">
+                                            Remise appliquée : −{{ item.appliedDiscount|number_format(2, ',', ' ') }} €
+                                        </p>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="flex flex-col gap-2 md:items-end">

@@ -2,9 +2,23 @@
 
 {% block title %}{{ is_edit ? 'Modifier un produit — ' ~ shop.name : 'Ajouter un produit — ' ~ shop.name }}{% endblock %}
 
+{% set bundleCandidates = bundle_candidates ?? [] %}
+{% set bundleSelectionState = bundle_selection_state ?? [] %}
+{% set initialProductType = product.type ?? form.type.vars.value ?? 'simple' %}
+{% set priceValue = (form.price.vars.data ?? 0) + 0 %}
+{% set promoValue = form.promoPrice.vars.data is not null ? (form.promoPrice.vars.data + 0) : null %}
+{% set percentValue = form.promoPercent.vars.data is not null ? (form.promoPercent.vars.data + 0) : null %}
+{% set promoConfig = {
+    price: priceValue,
+    promo: promoValue,
+    percent: percentValue
+} %}
+
 {% block vendor_content %}
     {% set existingMainImage = null %}
     {% set existingGalleryImages = [] %}
+    {% set attributeOptions = attribute_options ?? [] %}
+    {% set attributeSelectionState = attribute_selection_state ?? [] %}
     {% if product is defined and product %}
         {% for image in product.images %}
             {% if image.isMain %}
@@ -14,7 +28,7 @@
             {% endif %}
         {% endfor %}
     {% endif %}
-    <div class="space-y-10">
+    <div class="space-y-10" x-data="{ productType: '{{ initialProductType|e('js') }}' }">
         <header class="text-center space-y-3">
             <p class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase">Technova</p>
             <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">
@@ -37,17 +51,28 @@
                 </div>
             {% endif %}
 
-            <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6">
+            <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6"
+                     
+                     x-cloak>
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-slate-900">Identité du produit</h2>
                     <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">Étape 1 / 4</span>
                 </div>
-                <div class="grid gap-6">
-                    <div>
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div class="md:col-span-1">
                         <label class="block text-sm font-medium text-slate-600 mb-2">Nom du produit</label>
                         {{ form_widget(form.name, {attr: {class: 'tn-input rounded-2xl min-w-[80%] border border-slate-200 bg-slate-50 p-4'}}) }}
                         {{ form_errors(form.name) }}
                     </div>
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Type de produit</label>
+                        {{ form_widget(form.type, {attr: {class: 'tn-select rounded-2xl border border-slate-200 bg-slate-50 p-4 w-full', 'x-model': 'productType'}}) }}
+                        <p class="text-xs text-slate-500 mt-1">
+                            Choisis « simple », « variable » ou « groupé » pour afficher les sections adaptées (variantes ou pack).
+                        </p>
+                    </div>
+                </div>
+                <div class="grid gap-6">
                     {% set initialSlug = form.slug.vars.value ?? product.slug ?? '' %}
                     {% set hostBase = app.request is defined and app.request ? app.request.schemeAndHttpHost : 'https://technova.test' %}
                     <div x-data="slugEditor('{{ initialSlug|e('js') }}')">
@@ -83,65 +108,82 @@
                         {{ form_widget(form.description, {attr: {class: 'tn-textarea min-h-[300px] min-w-[100%] rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
                     </div>
                 </div>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="flex items-start gap-3">
+                        {{ form_widget(form.isPublished) }}
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Publier immédiatement</p>
+                            <p class="text-xs text-slate-500">Active la visibilité finale dès la sauvegarde.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        {{ form_widget(form.isFeatured) }}
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Mettre en avant (produit à la une)</p>
+                            <p class="text-xs text-slate-500">Apparaît dans la sélection “à la une” de ta boutique.</p>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6"
-                     x-data="promoPricing({
-                        price: {{ form.price.vars.value ?? 0 }},
-                        promo: {{ form.promoPrice.vars.value ?? 'null' }},
-                        percent: {{ form.promoPercent.vars.value ?? 'null' }}
-                     })"
+                     x-show="productType !== 'grouped'"
+                     x-cloak>
+                <div x-data="promoPricing({{ promoConfig|json_encode|e('html_attr') }})"
                      x-init="init()">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-slate-900">Tarification & rattachements</h2>
-                    <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">Étape 2 / 4</span>
-                </div>
-                <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Prix HT</label>
-                        {{ form_widget(form.price, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model.number': 'price', '@input': 'updateFrom("price", $event.target.value)'}}) }}
-                        {{ form_errors(form.price) }}
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-slate-900">Tarification & rattachements</h2>
+                        <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">Étape 2 / 4</span>
                     </div>
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Prix promo HT</label>
-                        {{ form_widget(form.promoPrice, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model': 'promo', '@input': 'updateFrom("promo", $event.target.value)'}}) }}
-                        {{ form_errors(form.promoPrice) }}
+                    <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Prix HT</label>
+                            {{ form_widget(form.price, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model.number': 'price', '@input': 'updateFrom(\"price\", $event.target.value)'}}) }}
+                            {{ form_errors(form.price) }}
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Prix promo HT</label>
+                            {{ form_widget(form.promoPrice, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model': 'promo', '@input': 'updateFrom(\"promo\", $event.target.value)'}}) }}
+                            {{ form_errors(form.promoPrice) }}
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-1">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Réduction (%)</label>
+                            {{ form_widget(form.promoPercent, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model': 'percent', '@input': 'updateFrom(\"percent\", $event.target.value)'}}) }}
+                            {{ form_errors(form.promoPercent) }}
+                        </div>
                     </div>
-                    <div class="md:col-span-2 xl:col-span-1">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Réduction (%)</label>
-                        {{ form_widget(form.promoPercent, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model': 'percent', '@input': 'updateFrom("percent", $event.target.value)'}}) }}
-                        {{ form_errors(form.promoPercent) }}
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+                        Saisis soit le prix promo, soit le pourcentage : l’autre sera recalculé lors de l’enregistrement. TVA multi-pays et règles fiscales arrivent bientôt.
                     </div>
-                </div>
-                <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                    Saisis soit le prix promo, soit le pourcentage : l’autre sera recalculé lors de l’enregistrement. TVA multi-pays et règles fiscales arrivent bientôt.
-                </div>
-                <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Catégorie</label>
-                        {{ form_widget(form.category, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
-                        {{ form_errors(form.category) }}
-                    </div>
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Marque</label>
-                        {{ form_widget(form.brand, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
-                    </div>
-                    <div class="md:col-span-3 xl:col-span-2">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Mots clés</label>
-                        {{ form_widget(form.keywords, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
-                        <p class="text-xs text-slate-500 mt-1">Sépare les mots clés par une virgule pour booster la recherche interne.</p>
+                    <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Catégorie</label>
+                            {{ form_widget(form.category, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                            {{ form_errors(form.category) }}
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Marque</label>
+                            {{ form_widget(form.brand, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                        </div>
+                        <div class="md:col-span-3 xl:col-span-2">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Mots clés</label>
+                            {{ form_widget(form.keywords, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                            <p class="text-xs text-slate-500 mt-1">Sépare les mots clés par une virgule pour booster la recherche interne.</p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6">
+            <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6"
+                     x-show="productType !== 'grouped'"
+                     x-cloak>
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-slate-900">Stock & mise en avant</h2>
                     <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">Étape 3 / 4</span>
                 </div>
                 <div class="grid gap-6 md:grid-cols-2">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-2">SKU</label>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">UGS</label>
                         {{ form_widget(form.sku, {attr: {class: 'tn-input rounded-2xl border min-w-[80%] border-slate-200 bg-slate-50 p-4'}}) }}
                     </div>
                     <div>
@@ -149,32 +191,362 @@
                         {{ form_widget(form.stock, {attr: {class: 'tn-input rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
                     </div>
                 </div>
-                <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-6 items-start">
-                    <div class="md:col-span-1 xl:col-span-2">
-                        <label class="block text-sm font-medium text-slate-600 mb-2">Type de produit</label>
-                        {{ form_widget(form.type, {attr: {class: 'tn-select rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
-                    </div>
-                    <div class="md:col-span-2 xl:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                        Les variantes seront configurables selon les attributs (taille, couleur, etc.) très bientôt.
-                    </div>
+                <div class="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                    Selon le type sélectionné, tu pourras activer les attributs pour générer des variantes ou composer un pack à partir de tes autres produits.
                 </div>
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div class="flex items-start gap-3">
-                        {{ form_widget(form.isPublished) }}
-                        <div>
-                            <p class="text-sm font-medium text-slate-700">Publier immédiatement</p>
-                            <p class="text-xs text-slate-500">Le produit sera visible dès l’enregistrement.</p>
+            </section>
+
+            <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6"
+                     x-show="productType === 'variable'"
+                     x-cloak>
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-slate-900">Attributs globaux & variantes</h2>
+                    <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">Optionnel</span>
+                </div>
+                <p class="text-sm text-slate-500">
+                    Ajoute ici les attributs globaux (couleur, capacité, édition…) qui doivent être proposés lors de la configuration produit.
+                </p>
+                {% if attributeOptions is empty %}
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 space-y-3 text-center">
+                        <p class="text-base font-semibold text-slate-900">Aucun attribut global disponible</p>
+                        <p class="text-sm text-slate-500">
+                            Crée ton premier attribut dans la bibliothèque avant de l’associer à un produit.
+                        </p>
+                        <a href="{{ path('app_vendor_attributes') }}" class="btn btn-outline w-full md:w-auto mx-auto">
+                            Gérer mes attributs
+                        </a>
+                    </div>
+                    <input type="hidden"
+                           name="attribute_selections"
+                           value="{{ attributeSelectionState|json_encode|e('html_attr') }}">
+                {% else %}
+                    <div class="space-y-4"
+                         x-data="productAttributesConfigurator({
+                            definitions: {{ attributeOptions|json_encode|e('html_attr') }},
+                            selected: {{ attributeSelectionState|json_encode|e('html_attr') }}
+                         })">
+                        <input type="hidden" name="attribute_selections" :value="serialized">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Recherche</label>
+                                <input type="text"
+                                       class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                       placeholder="Rechercher un attribut (ex. Couleur, Taille)"
+                                       x-model.debounce.300ms="query"
+                                       @keydown.enter.prevent="onSubmitSearch()">
+                            </div>
+                            <div class="space-y-2" x-show="availableDefinitions().length">
+                                <p class="text-xs text-slate-500 uppercase tracking-[0.2em]">Suggestions</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="definition in availableDefinitions()" :key="definition.id">
+                                        <button type="button"
+                                                class="btn btn-outline text-sm"
+                                                @click="addAttribute(definition.id)">
+                                            <span x-text="definition.name"></span>
+                                            <span class="text-xs text-slate-400 ml-2" x-text="definition.values.length + ' valeur' + (definition.values.length > 1 ? 's' : '')"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <p class="text-xs text-red-500"
+                               x-show="query && !availableDefinitions().length">
+                                Aucun attribut ne correspond à ta recherche.
+                            </p>
+                        </div>
+                        <div class="grid gap-4 mt-4" x-show="selectedAttributes.length">
+                            <template x-for="attributeId in selectedAttributes" :key="attributeId">
+                                <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 space-y-4">
+                                    <template x-if="definitionFor(attributeId)">
+                                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                            <div>
+                                                <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Attribut sélectionné</p>
+                                                <h3 class="text-lg font-semibold text-slate-900" x-text="definitionFor(attributeId).name"></h3>
+                                                <p class="text-sm text-slate-500">
+                                                    <span x-text="valuesFor(attributeId).length"></span>
+                                                    valeur<span x-text="valuesFor(attributeId).length > 1 ? 's' : ''"></span> disponible<span x-text="valuesFor(attributeId).length > 1 ? 's' : ''"></span>
+                                                </p>
+                                            </div>
+                                            <button type="button"
+                                                    class="btn btn-outline whitespace-nowrap"
+                                                    @click="removeAttribute(attributeId)">
+                                                Retirer
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <div class="space-y-3">
+                                        <p class="text-sm text-slate-500">Sélectionne les valeurs proposées aux clients.</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="value in valuesFor(attributeId)" :key="value.id">
+                                                <button type="button"
+                                                        class="px-3 py-1 rounded-full border text-sm transition"
+                                                        :class="isValueSelected(attributeId, value.id) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'"
+                                                        @click="toggleValue(attributeId, value.id)">
+                                                    <span x-text="value.label"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <p class="text-xs text-red-500"
+                                           x-show="selectedValues(attributeId).length === 0">
+                                            Choisis au moins une valeur pour cet attribut ou retire-le.
+                                        </p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <p class="text-sm text-slate-500" x-show="!selectedAttributes.length">
+                            Rechercher un attribut pour commencer à construire tes variantes.
+                        </p>
+                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-4">
+                            <p class="text-sm text-slate-500">
+                                Une fois les attributs définis, génère automatiquement toutes les variantes possibles.
+                            </p>
+                            <div class="flex flex-col gap-2 md:flex-row">
+                                <button type="submit"
+                                        name="_action"
+                                        value="generate_variants"
+                                        class="btn btn-outline w-full md:w-auto"
+                                        :class="{'opacity-40 cursor-not-allowed': !selectedAttributes.length}"
+                                        :disabled="!selectedAttributes.length">
+                                    Créer les variantes
+                                </button>
+                                {% set deleteVariantsDisabled = product.variants is empty %}
+                                <button type="submit"
+                                        name="_action"
+                                        value="delete_all_variants"
+                                        class="btn btn-outline w-full md:w-auto {{ deleteVariantsDisabled ? 'opacity-40 cursor-not-allowed' : '' }} text-red-600 border-red-200 hover:bg-red-50"
+                                        {% if deleteVariantsDisabled %}disabled{% else %}onclick="return confirm('Supprimer toutes les variantes ?')"{% endif %}>
+                                    Supprimer toutes les variantes
+                                </button>
+                            </div>
+                        </div>
+                        <div x-cloak
+                             x-show="showCreateModal"
+                             class="fixed inset-0 z-50 flex items-center justify-center">
+                            <div class="absolute inset-0 bg-slate-900/60" @click="showCreateModal = false"></div>
+                            <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-blue-400">Attributs</p>
+                                    <h3 class="text-xl font-semibold text-slate-900">Aucun attribut correspondant</h3>
+                                    <p class="text-sm text-slate-500 mt-1">
+                                        Tu peux créer un nouvel attribut dans ta bibliothèque pour l’associer ensuite à ce produit.
+                                    </p>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <a href="{{ path('app_vendor_attributes') }}"
+                                       class="btn btn-primary w-full text-center">
+                                        Créer un attribut global
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-outline w-full"
+                                            @click="showCreateModal = false">
+                                        Rester sur ce formulaire
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-start gap-3">
-                        {{ form_widget(form.isFeatured) }}
-                        <div>
-                            <p class="text-sm font-medium text-slate-700">Mettre en avant (produit à la une)</p>
-                            <p class="text-xs text-slate-500">Affiche ce produit dans la sélection “à la une” de ta boutique.</p>
+                {% endif %}
+            </section>
+
+            <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6"
+                     x-show="productType === 'grouped'"
+                     x-cloak>
+                <div x-data="productBundleConfigurator({
+                        candidates: {{ bundleCandidates|json_encode|e('html_attr') }},
+                        selected: {{ bundleSelectionState|json_encode|e('html_attr') }},
+                        typeField: '#{{ form.type.vars.id }}'
+                     })">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-slate-900">Pack de produits</h2>
+                        <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">Section dédiée</span>
+                    </div>
+                    <p class="text-sm text-slate-500">
+                        Compose un pack à partir de produits simples ou variables déjà publiés. Le prix sera automatiquement fixé «&nbsp;à partir de&nbsp;» du composant le moins cher.
+                    </p>
+                    <input type="hidden" name="bundle_items" :value="serialized">
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500"
+                         x-show="!isGrouped">
+                        Sélectionne «&nbsp;Produit groupé&nbsp;» dans le champ «&nbsp;Type de produit&nbsp;» pour configurer ton pack.
+                    </div>
+                    <div class="space-y-5" x-show="isGrouped">
+                        <div class="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Réduction globale du pack (%)</label>
+                            {{ form_widget(form.bundleDiscountPercent, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                            <p class="text-xs text-slate-500 mt-1">Applique une remise immédiate sur le total du pack. Laisse vide si aucune réduction n’est proposée.</p>
                         </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Recherche de produits</label>
+                                <input type="text"
+                                       class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                       placeholder="Ajoute un produit existant (nom, UGS...)"
+                                       x-model.debounce.300ms="query"
+                                       @keydown.enter.prevent="onSubmitSearch">
+                                <p class="text-xs text-slate-500 mt-1">Les suggestions excluent automatiquement les produits déjà présents dans ton pack.</p>
+                            </div>
+                            <div class="space-y-2" x-show="availableCandidates().length">
+                                <p class="text-xs text-slate-500 uppercase tracking-[0.2em]">Suggestions</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="candidate in limitedCandidates()" :key="candidate.id">
+                                        <button type="button"
+                                                class="btn btn-outline text-sm"
+                                                @click="addCandidate(candidate.id)">
+                                            <span class="font-semibold" x-text="candidate.name"></span>
+                                            <span class="text-xs text-slate-400 ml-2" x-text="candidate.priceLabel"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <p class="text-xs text-red-500"
+                               x-show="query && !availableCandidates().length">
+                                Aucun produit ne correspond à ta recherche.
+                            </p>
+                            <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500 text-center"
+                                 x-show="isGrouped && !candidates.length">
+                                Tu dois disposer d’au moins un autre produit simple ou variable pour constituer ton pack.
+                            </div>
+                        </div>
+                        <div class="space-y-3" x-show="selectedItems.length">
+                            <template x-for="item in selectedItems" :key="item.id">
+                                <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
+                                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <p class="text-xs uppercase tracking-[0.3em] text-slate-400" x-text="item.typeLabel"></p>
+                                            <h3 class="text-lg font-semibold text-slate-900" x-text="item.name"></h3>
+                                            <p class="text-xs text-slate-500" x-text="item.sku ? 'UGS : ' + item.sku : 'Sans UGS'"></p>
+                                            <p class="text-sm text-slate-600 mt-1">Tarif : <span class="font-semibold" x-text="item.priceLabel"></span></p>
+                                        </div>
+                                        <div class="flex flex-col gap-2 md:items-end">
+                                            <label class="flex items-center gap-2 text-sm text-slate-600">
+                                                <input type="checkbox"
+                                                       :checked="item.required"
+                                                       @change="toggleRequired(item.id, $event.target.checked)">
+                                                Obligatoire dans le pack
+                                            </label>
+                                            <button type="button"
+                                                    class="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50"
+                                                    @click="removeCandidate(item.id)">
+                                                Retirer du pack
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <p class="text-sm text-slate-500" x-show="!selectedItems.length">
+                            Aucun composant sélectionné pour l’instant. Ajoute au moins un produit pour proposer ce pack.
+                        </p>
                     </div>
                 </div>
             </section>
+
+            {% if product.variants is defined and product.variants|length > 0 %}
+                <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6"
+                         x-show="productType === 'variable'"
+                         x-cloak>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-slate-900">Variantes générées</h2>
+                        <span class="text-xs uppercase tracking-[0.3em] text-slate-400 hidden md:inline">
+                            {{ product.variants|length }} variante{{ product.variants|length > 1 ? 's' : '' }}
+                        </span>
+                    </div>
+                    <p class="text-sm text-slate-500">
+                        Ajuste le prix, le stock ou l’UGS de chaque variante. Ces informations seront utilisées lors de l’achat.
+                    </p>
+                    {% set firstVariant = product.variants|first %}
+                    <div class="space-y-4"
+                         x-data="variantAccordion({initial: {{ firstVariant and firstVariant.id ? firstVariant.id : 'null' }}})">
+                        {% for variant in product.variants %}
+                            {% set configuration = variant.configuration ?? {} %}
+                            {% set metadata = variant.metadata ?? {} %}
+                            {% set summaryParts = [] %}
+                            {% for label, value in metadata %}
+                                {% set summaryParts = summaryParts|merge([label ~ ' : ' ~ value]) %}
+                            {% endfor %}
+                            {% if summaryParts is empty %}
+                                {% set summaryParts = ['Variante ' ~ loop.index] %}
+                            {% endif %}
+                            <div class="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <button type="button"
+                                            class="flex flex-1 flex-col gap-1 text-left cursor-pointer"
+                                            @click="toggle({{ variant.id }})">
+                                        <div>
+                                            <p class="text-sm font-semibold text-slate-900">Variante {{ loop.index }}</p>
+                                            <p class="text-xs text-slate-500">{{ summaryParts|join(' • ') }}</p>
+                                        </div>
+                                        <span class="text-xs text-slate-400">
+                                            <span x-show="!isOpen({{ variant.id }})">Cliquer pour modifier</span>
+                                            <span x-show="isOpen({{ variant.id }})">Cliquer pour refermer</span>
+                                        </span>
+                                    </button>
+                                    <button type="submit"
+                                            name="_action"
+                                            value="delete_variant_{{ variant.id }}"
+                                            class="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50"
+                                            onclick="return confirm('Supprimer cette variante ?');">
+                                        Supprimer
+                                    </button>
+                                </div>
+                                <div class="mt-4 space-y-4"
+                                     x-show="isOpen({{ variant.id }})"
+                                     x-transition>
+                                    <input type="hidden" name="variants[{{ variant.id }}][id]" value="{{ variant.id }}">
+                                    <div class="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-2">Prix HT</label>
+                                            <input type="number"
+                                                   name="variants[{{ variant.id }}][price]"
+                                                   step="0.01"
+                                                   min="0"
+                                                   value="{{ variant.price|number_format(2, '.', '') }}"
+                                                   class="tn-input rounded-2xl border border-slate-200 bg-white p-3">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-2">Prix promo HT</label>
+                                            <input type="number"
+                                                   name="variants[{{ variant.id }}][promoPrice]"
+                                                   step="0.01"
+                                                   min="0"
+                                                   value="{{ variant.promoPrice is not null ? variant.promoPrice|number_format(2, '.', '') : '' }}"
+                                                   class="tn-input rounded-2xl border border-slate-200 bg-white p-3">
+                                            <p class="text-xs text-slate-400 mt-1">Laisse vide si pas de promo.</p>
+                                        </div>
+                                    </div>
+                                    <div class="grid gap-4 md:grid-cols-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-2">Stock</label>
+                                            <input type="number"
+                                                   name="variants[{{ variant.id }}][stock]"
+                                                   min="0"
+                                                   value="{{ variant.stock }}"
+                                                   class="tn-input rounded-2xl border border-slate-200 bg-white p-3">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-2">UGS</label>
+                                            <input type="text"
+                                                   name="variants[{{ variant.id }}][sku]"
+                                                   value="{{ variant.sku }}"
+                                                   class="tn-input rounded-2xl border border-slate-200 bg-white p-3">
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <input type="checkbox"
+                                                   name="variants[{{ variant.id }}][isAvailable]"
+                                                   value="1"
+                                                   {% if variant.isAvailable %}checked{% endif %}
+                                                   class="mt-1">
+                                            <div>
+                                                <p class="text-sm font-medium text-slate-700">Disponible à la vente</p>
+                                                <p class="text-xs text-slate-500">Décoche pour masquer cette variante.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
 
             <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6">
                 <div class="flex items-center justify-between">
@@ -359,6 +731,288 @@
                             this.percent = computedPercent >= 0 ? computedPercent.toFixed(2) : '';
                         }
                     }
+                }
+            };
+        }
+
+        function productAttributesConfigurator(config) {
+            return {
+                definitions: [],
+                selectedMap: {},
+                selectedAttributes: [],
+                serialized: '[]',
+                query: '',
+                showCreateModal: false,
+                init() {
+                    this.definitions = this.parseJson(config.definitions);
+                    const initial = this.parseJson(config.selected);
+                    initial.forEach((item) => {
+                        const attributeId = Number(item.attribute);
+                        const definition = this.definitionFor(attributeId);
+                        if (!attributeId || !definition) {
+                            return;
+                        }
+                        const values = Array.isArray(item.values) ? item.values.map((value) => Number(value)) : [];
+                        this.selectedMap[attributeId] = { values: Array.from(new Set(values)) };
+                        this.selectedAttributes.push(attributeId);
+                    });
+                    this.refresh();
+                },
+                parseJson(value) {
+                    if (Array.isArray(value)) {
+                        return value;
+                    }
+                    if (typeof value !== 'string') {
+                        return [];
+                    }
+                    try {
+                        return JSON.parse(value || '[]');
+                    } catch (error) {
+                        return [];
+                    }
+                },
+                definitionFor(attributeId) {
+                    const normalized = Number(attributeId);
+                    if (!normalized) {
+                        return null;
+                    }
+                    return this.definitions.find((definition) => Number(definition.id) === normalized) || null;
+                },
+                valuesFor(attributeId) {
+                    const definition = this.definitionFor(attributeId);
+                    return definition && Array.isArray(definition.values) ? definition.values : [];
+                },
+                availableDefinitions() {
+                    const term = this.query.trim().toLowerCase();
+                    const results = this.definitions.filter((definition) => {
+                        if (this.selectedMap[definition.id]) {
+                            return false;
+                        }
+                        if (!term) {
+                            return true;
+                        }
+                        const haystack = `${definition.name ?? ''} ${definition.slug ?? ''}`.toLowerCase();
+                        return haystack.includes(term);
+                    });
+
+                    return results.slice(0, 6);
+                },
+                onSubmitSearch() {
+                    const available = this.availableDefinitions();
+                    if (available.length > 0) {
+                        this.addAttribute(available[0].id);
+                        this.query = '';
+                    } else {
+                        this.showCreateModal = true;
+                    }
+                },
+                addAttribute(attributeId) {
+                    const definition = this.definitionFor(attributeId);
+                    if (!definition || this.selectedMap[definition.id]) {
+                        return;
+                    }
+                    this.selectedMap[definition.id] = { values: [] };
+                    this.selectedAttributes.push(definition.id);
+                    this.showCreateModal = false;
+                    this.refresh();
+                },
+                removeAttribute(attributeId) {
+                    const normalized = Number(attributeId);
+                    if (!normalized || !this.selectedMap[normalized]) {
+                        return;
+                    }
+                    delete this.selectedMap[normalized];
+                    this.selectedAttributes = this.selectedAttributes.filter((id) => Number(id) !== normalized);
+                    this.refresh();
+                },
+                ensureEntry(attributeId) {
+                    const normalized = Number(attributeId);
+                    if (!normalized) {
+                        return null;
+                    }
+                    if (!this.selectedMap[normalized]) {
+                        this.selectedMap[normalized] = { values: [] };
+                    }
+                    return this.selectedMap[normalized];
+                },
+                toggleValue(attributeId, valueId) {
+                    const entry = this.ensureEntry(attributeId);
+                    const normalized = Number(valueId);
+                    if (!entry || !normalized) {
+                        return;
+                    }
+                    const index = entry.values.indexOf(normalized);
+                    if (index === -1) {
+                        entry.values.push(normalized);
+                    } else {
+                        entry.values.splice(index, 1);
+                    }
+                    this.refresh();
+                },
+                isValueSelected(attributeId, valueId) {
+                    const entry = this.ensureEntry(attributeId);
+                    return entry ? entry.values.includes(Number(valueId)) : false;
+                },
+                selectedValues(attributeId) {
+                    const entry = this.ensureEntry(attributeId);
+                    return entry ? entry.values : [];
+                },
+                refresh() {
+                    const payload = [];
+                    this.selectedAttributes.forEach((attributeId) => {
+                        const entry = this.selectedMap[attributeId];
+                        if (!entry) {
+                            return;
+                        }
+                        const values = Array.from(new Set(entry.values.filter((value) => !!value)));
+                        if (values.length > 0) {
+                            payload.push({
+                                attribute: Number(attributeId),
+                                values,
+                            });
+                        }
+                    });
+                    this.serialized = JSON.stringify(payload);
+                }
+            };
+        }
+
+        function productBundleConfigurator(config) {
+            return {
+                candidates: [],
+                selectedItems: [],
+                selectedMap: {},
+                serialized: '[]',
+                query: '',
+                isGrouped: false,
+                typeFieldSelector: config.typeField ?? null,
+                init() {
+                    this.candidates = this.parse(config.candidates);
+                    const initial = this.parse(config.selected);
+                    initial.forEach((entry, index) => {
+                        const productId = Number(entry.product);
+                        if (!productId) {
+                            return;
+                        }
+                        this.addCandidate(productId, !!entry.required, entry.position ?? index, true);
+                    });
+                    this.refreshSerialized();
+                    this.setupTypeWatcher();
+                },
+                parse(raw) {
+                    if (Array.isArray(raw)) {
+                        return raw;
+                    }
+                    if (typeof raw !== 'string') {
+                        return [];
+                    }
+                    try {
+                        return JSON.parse(raw || '[]');
+                    } catch (error) {
+                        return [];
+                    }
+                },
+                setupTypeWatcher() {
+                    if (!this.typeFieldSelector) {
+                        this.isGrouped = true;
+                        this.refreshSerialized();
+                        return;
+                    }
+                    const field = document.querySelector(this.typeFieldSelector);
+                    const refresh = () => {
+                        this.isGrouped = !field || field.value === 'grouped';
+                        this.refreshSerialized();
+                    };
+                    refresh();
+                    field?.addEventListener('change', refresh);
+                },
+                availableCandidates() {
+                    const term = this.query.trim().toLowerCase();
+                    return this.candidates.filter((candidate) => {
+                        if (!candidate || this.selectedMap[String(candidate.id)]) {
+                            return false;
+                        }
+                        if (!term) {
+                            return true;
+                        }
+                        const haystack = `${candidate.name ?? ''} ${candidate.sku ?? ''}`.toLowerCase();
+                        return haystack.includes(term);
+                    });
+                },
+                limitedCandidates() {
+                    return this.availableCandidates().slice(0, 6);
+                },
+                addCandidate(id, required = false, position = null, silent = false) {
+                    const candidate = this.candidates.find((item) => Number(item.id) === Number(id));
+                    if (!candidate || this.selectedMap[String(candidate.id)]) {
+                        return;
+                    }
+                    const entry = {
+                        id: Number(candidate.id),
+                        name: candidate.name ?? 'Produit',
+                        sku: candidate.sku ?? null,
+                        typeLabel: candidate.typeLabel ?? '',
+                        priceLabel: candidate.priceLabel ?? '—',
+                        required: !!required,
+                    };
+                    if (typeof position === 'number' && position >= 0 && position <= this.selectedItems.length) {
+                        this.selectedItems.splice(position, 0, entry);
+                    } else {
+                        this.selectedItems.push(entry);
+                    }
+                    this.selectedMap[String(entry.id)] = entry;
+                    if (!silent) {
+                        this.refreshSerialized();
+                    }
+                },
+                removeCandidate(id) {
+                    const numeric = Number(id);
+                    this.selectedItems = this.selectedItems.filter((item) => Number(item.id) !== numeric);
+                    delete this.selectedMap[String(numeric)];
+                    this.refreshSerialized();
+                },
+                toggleRequired(id, value) {
+                    const numeric = Number(id);
+                    const item = this.selectedItems.find((entry) => Number(entry.id) === numeric);
+                    if (!item) {
+                        return;
+                    }
+                    item.required = !!value;
+                    this.refreshSerialized();
+                },
+                onSubmitSearch() {
+                    const [first] = this.availableCandidates();
+                    if (first) {
+                        this.addCandidate(first.id);
+                        this.query = '';
+                    }
+                },
+                refreshSerialized() {
+                    if (!this.isGrouped) {
+                        this.serialized = '[]';
+                        return;
+                    }
+                    this.selectedItems.forEach((item, index) => {
+                        item.position = index;
+                    });
+                    const payload = this.selectedItems.map((item, index) => ({
+                        product: item.id,
+                        required: !!item.required,
+                        position: index,
+                    }));
+                    this.serialized = JSON.stringify(payload);
+                }
+            };
+        }
+
+        function variantAccordion(config) {
+            return {
+                openVariant: config.initial ?? null,
+                toggle(id) {
+                    this.openVariant = this.openVariant === id ? null : id;
+                },
+                isOpen(id) {
+                    return this.openVariant === id;
                 }
             };
         }

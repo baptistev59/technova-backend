@@ -61,14 +61,12 @@ class ProductType extends AbstractType
             ])
             ->add('price', NumberType::class, [
                 'label' => 'Prix (HT)',
+                'required' => false,
                 'html5' => true,
                 'scale' => 2,
                 'attr' => [
                     'min' => 0,
                     'step' => '0.01',
-                ],
-                'constraints' => [
-                    new NotBlank(message: 'Indique un prix HT.'),
                 ],
             ])
             ->add('promoPrice', NumberType::class, [
@@ -96,6 +94,19 @@ class ProductType extends AbstractType
                 ],
                 'help' => 'Tu peux saisir soit le pourcentage, soit le prix promo : l’autre sera recalculé automatiquement.',
             ])
+            ->add('bundleDiscountPercent', NumberType::class, [
+                'label' => 'Réduction pack (%)',
+                'required' => false,
+                'html5' => true,
+                'scale' => 2,
+                'attr' => [
+                    'min' => 0,
+                    'max' => 100,
+                    'step' => '0.1',
+                    'placeholder' => 'Ex : 10',
+                ],
+                'help' => 'Disponible pour les produits groupés. Applique une remise immédiate sur le total du pack.',
+            ])
             ->add('stock', IntegerType::class, [
                 'label' => 'Stock',
                 'attr' => [
@@ -120,10 +131,8 @@ class ProductType extends AbstractType
                 'class' => Category::class,
                 'choice_label' => 'name',
                 'placeholder' => 'Choisir une catégorie',
+                'required' => false,
                 'label' => 'Catégorie',
-                'constraints' => [
-                    new NotBlank(message: 'Merci de sélectionner une catégorie.'),
-                ],
             ])
             ->add('keywords', TextType::class, [
                 'label' => 'Mots clés',

@@ -6,11 +6,15 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Autoriser les vendeurs à regrouper plusieurs SKU dans une offre (ex. “Laptop + souris”).
 - Gérer le prix global (avec remise possible) et décompter le stock sur chaque élément.
 - Laisser la possibilité de masquer/afficher les composants dans la page produit.
+- ✅ Implémenté : configuration côté vendeur (recherche + sélection de composants, remise pack) et configurateur client (modale Alpine, multi-config par composant, affichage des stocks/configs, remise affichée dans le panier).
+- ✅ Maintenant : `CheckoutService` vérifie le stock réel de chaque composant (simple, variable, composant de pack) et décrémente automatiquement lors d’une commande payée.
+- À suivre : exposer une API pour gérer les bundles en masse et prévoir un historique des remises.
 
 ## 2. Bibliothèque d’attributs réutilisables
 - Partager les `ProductAttribute`/`ProductAttributeValue` par vendeur pour éviter la duplication.
 - Interface permettant de rattacher un attribut existant à plusieurs produits.
 - Sélection des valeurs valides par produit + génération automatique des variantes.
+- 🔄 En cours : chantier prioritaire du sprint actuel (conception du modèle partagé + UI de sélection).
 
 ## 3. SEO / Métadonnées
 - Champs `metaTitle`, `metaDescription`, `metaImage` sur le produit.
@@ -61,6 +65,11 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Grille des produits associés (cards existantes réutilisées) avec pagination / CTA “Voir la boutique” depuis les fiches produit.
 - Bouton “Voir ma boutique” sur le dashboard vendeur pour prévisualiser la page publique.
 
+## 13. Produits liés (cross-sell / up-sell)
+- Ajouter deux zones configurables dans la fiche produit vendeur : “Produits suggérés” et “Ventes croisées”.
+- UI avec champ de recherche + suggestions (comportement identique à la recherche d’attributs) pour sélectionner rapidement les produits liés.
+- Fiche produit cliente : afficher ces produits de manière différenciée (carrousel ou liste dédiée) pour booster le panier moyen.
+
 ## 13. Roadmap API vendeur
 - Ajouter une US dédiée dans le sprint technique pour exposer les endpoints `vendor` / `shop` / `product`.
 - Prévoir les routes suivantes :
@@ -75,3 +84,8 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Ajouter les routes et méthodes nécessaires dans `VendorProductController` (ou équivalent) pour `dupliquer`, `togglePublish` (publier/dépublier) et `delete`.
 - Brancher les icônes du listing `templates/vendor/product/index.html.twig` sur ces routes (POST/DELETE sécurisés avec CSRF, confirmations).
 - Renvoyer les réponses en JSON pour préparer un rafraîchissement AJAX (Alpine) et mettre à jour la table sans rechargement complet.
+
+## 15. Programmation des publications & promos
+- Permettre de saisir une date/heure de publication différée pour la fiche produit (statut planifié).
+- Étendre les champs promo pour renseigner une période (date début/fin) de prix remisé.
+- Côté front, ne publier que les produits dont la date est atteinte et afficher les prix promos uniquement sur leur plage de validité.

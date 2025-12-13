@@ -21,10 +21,10 @@ use Symfony\Bundle\SecurityBundle\Security;
 class CartService
 {
     private const SESSION_KEY = 'cart.items';
-    private const STATE_VERSION = 2;
+    private const STATE_VERSION = 3;
 
     /**
-     * @var array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int}>}
+     * @var array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int,unit_price_override:float|null}>}
      */
     private array $state = ['version' => self::STATE_VERSION, 'lines' => []];
     private bool $initialized = false;
@@ -47,7 +47,8 @@ class CartService
         Product $product,
         int $quantity = 1,
         ?ProductVariant $variant = null,
-        ?int $variantId = null
+        ?int $variantId = null,
+        ?float $unitPriceOverride = null,
     ): void {
         $this->ensureInitialized();
         $variant = $this->resolveVariant($product, $variant, $variantId);
@@ -57,6 +58,7 @@ class CartService
             'product_id' => $product->getId(),
             'variant_id' => $variant?->getId(),
             'quantity' => 0,
+            'unit_price_override' => null,
         ];
 
         $line['variant_id'] = $variant?->getId();
@@ -64,6 +66,11 @@ class CartService
             $line['quantity'] + max(1, $quantity),
             $this->resolveMaxStock($product, $variant)
         );
+        if ($unitPriceOverride !== null) {
+            $line['unit_price_override'] = $unitPriceOverride;
+        } elseif (!array_key_exists('unit_price_override', $line)) {
+            $line['unit_price_override'] = null;
+        }
 
         $this->state['lines'][$lineKey] = $line;
         $this->dirty = true;
@@ -79,6 +86,8 @@ class CartService
         $this->ensureInitialized();
         $variant = $this->resolveVariant($product, $variant, $variantId);
         $lineKey = $this->buildLineKey($product->getId(), $variant?->getId());
+        $existing = $this->state['lines'][$lineKey] ?? null;
+        $unitPriceOverride = $existing['unit_price_override'] ?? null;
 
         $quantity = $this->clampQuantity(
             max(0, $quantity),
@@ -92,6 +101,7 @@ class CartService
                 'product_id' => $product->getId(),
                 'variant_id' => $variant?->getId(),
                 'quantity' => $quantity,
+                'unit_price_override' => $unitPriceOverride !== null ? (float) $unitPriceOverride : null,
             ];
         }
 
@@ -163,6 +173,9 @@ class CartService
             $basePrice = (float) $product->getPrice();
             $promoPrice = $product->getPromoPrice();
             $stock = $product->getStock();
+            $unitPriceOverride = array_key_exists('unit_price_override', $line) && $line['unit_price_override'] !== null
+                ? (float) $line['unit_price_override']
+                : null;
 
             if ($line['variant_id']) {
                 $variant = $this->productVariantRepository->find($line['variant_id']);
@@ -190,7 +203,12 @@ class CartService
                 continue;
             }
 
-            $unitPrice = $promoPrice ?? $basePrice;
+            $referencePrice = $promoPrice ?? $basePrice;
+            $unitPrice = $referencePrice;
+            if ($unitPriceOverride !== null) {
+                $unitPrice = $unitPriceOverride;
+            }
+            $appliedDiscount = max(0, $referencePrice - $unitPrice);
             $lineTotal = $unitPrice * $quantity;
 
             $items[] = [
@@ -201,6 +219,7 @@ class CartService
                 'unitPrice' => $unitPrice,
                 'basePrice' => $basePrice,
                 'promoPrice' => $promoPrice,
+                'appliedDiscount' => $appliedDiscount,
                 'quantity' => $quantity,
                 'stock' => $stock,
                 'lineTotal' => $lineTotal,
@@ -301,7 +320,7 @@ class CartService
 
     /**
      * @param mixed $rawState
-     * @return array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int}>}
+     * @return array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int,unit_price_override:float|null}>}
      */
     private function normalizeState(mixed $rawState): array
     {
@@ -309,7 +328,7 @@ class CartService
             return $this->freshState();
         }
 
-        if (isset($rawState['version'], $rawState['lines']) && (int) $rawState['version'] === self::STATE_VERSION) {
+        if (isset($rawState['version'], $rawState['lines']) && (int) $rawState['version'] >= 2) {
             return [
                 'version' => self::STATE_VERSION,
                 'lines' => $this->sanitizeLines($rawState['lines']),
@@ -328,6 +347,7 @@ class CartService
                         'product_id' => $productId,
                         'variant_id' => null,
                         'quantity' => $quantity,
+                        'unit_price_override' => null,
                     ];
                 }
             }
@@ -343,7 +363,7 @@ class CartService
 
     /**
      * @param array<string, mixed> $lines
-     * @return array<string, array{product_id:int,variant_id:int|null,quantity:int}>
+     * @return array<string, array{product_id:int,variant_id:int|null,quantity:int,unit_price_override:float|null}>
      */
     private function sanitizeLines(array $lines): array
     {
@@ -355,6 +375,9 @@ class CartService
             $productId = isset($line['product_id']) ? (int) $line['product_id'] : 0;
             $variantId = array_key_exists('variant_id', $line) ? ($line['variant_id'] !== null ? (int) $line['variant_id'] : null) : null;
             $quantity = isset($line['quantity']) ? max(0, (int) $line['quantity']) : 0;
+            $override = array_key_exists('unit_price_override', $line) && $line['unit_price_override'] !== null
+                ? (float) $line['unit_price_override']
+                : null;
 
             if ($productId <= 0 || $quantity <= 0) {
                 continue;
@@ -364,6 +387,7 @@ class CartService
                 'product_id' => $productId,
                 'variant_id' => $variantId,
                 'quantity' => $quantity,
+                'unit_price_override' => $override,
             ];
         }
 

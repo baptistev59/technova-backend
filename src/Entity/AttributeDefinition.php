@@ -92,9 +92,9 @@ class AttributeDefinition
         return $this->position;
     }
 
-    public function setPosition(int $position): self
+    public function setPosition(?int $position): self
     {
-        $this->position = $position;
+        $this->position = $position ?? 0;
 
         return $this;
     }

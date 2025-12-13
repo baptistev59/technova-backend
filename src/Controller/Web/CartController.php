@@ -3,7 +3,9 @@
 namespace App\Controller\Web;
 
 use App\Entity\Product;
+use App\Entity\ProductVariant;
 use App\Security\ViewerAccessChecker;
+use App\Repository\ProductRepository;
 use App\Service\CartService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,7 +20,8 @@ class CartController extends AbstractController
 {
     public function __construct(
         private readonly CartService $cartService,
-        private readonly ViewerAccessChecker $viewerAccessChecker
+        private readonly ViewerAccessChecker $viewerAccessChecker,
+        private readonly ProductRepository $productRepository,
     ) {
     }
 
@@ -45,11 +48,22 @@ class CartController extends AbstractController
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
 
-        $quantity = max(1, (int) $request->request->get('quantity', 1));
-        $variantId = $this->extractVariantId($request);
-        $this->cartService->addProduct($product, $quantity, variantId: $variantId);
-        if ('product' !== $request->request->get('redirect_to')) {
-            $this->addFlash('success', sprintf('%s a été ajouté au panier.', $product->getName()));
+        if ($product->getType() === 'grouped') {
+            $bundlePayload = (string) $request->request->get('bundle_selections', '');
+            $result = $this->addBundleSelectionsToCart($product, $bundlePayload);
+            if (!$result['success']) {
+                $this->addFlash('error', $result['error'] ?? 'Configuration du pack incomplète.');
+                return $this->redirectToRoute('product_show', [
+                    'slug' => $product->getSlug(),
+                ]);
+            }
+        } else {
+            $quantity = max(1, (int) $request->request->get('quantity', 1));
+            $variantId = $this->extractVariantId($request);
+            $this->cartService->addProduct($product, $quantity, variantId: $variantId);
+            if ('product' !== $request->request->get('redirect_to')) {
+                $this->addFlash('success', sprintf('%s a été ajouté au panier.', $product->getName()));
+            }
         }
 
         $redirectTo = $request->request->get('redirect_to');
@@ -154,5 +168,128 @@ class CartController extends AbstractController
     private function buildLineKey(Product $product, ?int $variantId): string
     {
         return sprintf('%d:%s', $product->getId(), $variantId ?? 'base');
+    }
+
+    /**
+     * @return array{success: bool, error: string|null}
+     */
+    private function addBundleSelectionsToCart(Product $bundleProduct, string $payload): array
+    {
+        if ('' === trim($payload)) {
+            return [
+                'success' => false,
+                'error' => 'Ajoute au moins deux composants différents dans ton pack avant de continuer.',
+            ];
+        }
+
+        try {
+            $selections = json_decode($payload, true, 512, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [
+                'success' => false,
+                'error' => 'Impossible de lire la configuration du pack. Réessaie.',
+            ];
+        }
+
+        if (!is_array($selections) || $selections === []) {
+            return [
+                'success' => false,
+                'error' => 'Aucune configuration de pack reçue.',
+            ];
+        }
+
+        $entries = [];
+        $uniqueKeys = [];
+        foreach ($selections as $selection) {
+            $componentId = isset($selection['componentId']) ? (int) $selection['componentId'] : 0;
+            if ($componentId <= 0) {
+                continue;
+            }
+            $component = $this->productRepository->find($componentId);
+            if (!$component) {
+                continue;
+            }
+            $variantId = isset($selection['variantId']) ? (int) $selection['variantId'] : null;
+            if ($variantId !== null && $variantId <= 0) {
+                $variantId = null;
+            }
+            $quantity = isset($selection['quantity']) ? (int) $selection['quantity'] : 1;
+            $quantity = max(1, $quantity);
+            $variant = $this->resolveVariantFromComponent($component, $variantId);
+            $key = sprintf('%d:%s', $component->getId(), $variant?->getId() ?? 'base');
+            $uniqueKeys[$key] = true;
+            $entries[] = [
+                'component' => $component,
+                'variantId' => $variant?->getId(),
+                'unitPrice' => $this->resolveBundleUnitPrice($component, $variant),
+                'quantity' => $quantity,
+            ];
+        }
+
+        if ($entries === []) {
+            return [
+                'success' => false,
+                'error' => 'Aucun composant valide pour composer ce pack.',
+            ];
+        }
+
+        $minimum = $this->resolveMinimumSelections($bundleProduct);
+        if (count($uniqueKeys) < $minimum) {
+            return [
+                'success' => false,
+                'error' => 'Sélectionne au moins deux configurations différentes pour finaliser ce pack.',
+            ];
+        }
+
+        $discountPercent = $bundleProduct->getBundleDiscountPercent() ?? 0.0;
+        foreach ($entries as $entry) {
+            $unitPrice = $entry['unitPrice'];
+            if ($discountPercent > 0) {
+                $unitPrice = $unitPrice * (1 - ($discountPercent / 100));
+            }
+            $this->cartService->addProduct(
+                $entry['component'],
+                $entry['quantity'],
+                variantId: $entry['variantId'],
+                unitPriceOverride: $unitPrice
+            );
+        }
+
+        return ['success' => true, 'error' => null];
+    }
+
+    private function resolveVariantFromComponent(Product $component, ?int $variantId): ?ProductVariant
+    {
+        if (!$variantId) {
+            return null;
+        }
+        foreach ($component->getVariants() as $variant) {
+            if ($variant->getId() === $variantId) {
+                return $variant;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveBundleUnitPrice(Product $component, ?ProductVariant $variant): float
+    {
+        if ($variant) {
+            $price = $variant->getPromoPrice() ?? $variant->getPrice();
+            return (float) $price;
+        }
+
+        $price = $component->getPromoPrice() ?? $component->getPrice();
+        return (float) $price;
+    }
+
+    private function resolveMinimumSelections(Product $bundleProduct): int
+    {
+        $componentCount = $bundleProduct->getBundleItems()->count();
+        if ($componentCount <= 1) {
+            return max(1, $componentCount);
+        }
+
+        return 2;
     }
 }

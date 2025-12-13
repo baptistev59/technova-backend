@@ -63,6 +63,36 @@
         </div>
     </div>
 
+    <div class="rounded-3xl border border-blue-100 bg-white shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+                <h2 class="text-xl font-semibold text-slate-900">Bibliothèque d’attributs</h2>
+                <p class="text-sm text-slate-500">Mutualise tes attributs (taille, couleur, édition…) pour tous tes produits.</p>
+            </div>
+            <a href="{{ path('app_vendor_attributes') }}" class="btn btn-primary btn-sm whitespace-nowrap">Gérer</a>
+        </div>
+        <div class="grid gap-4 md:grid-cols-3">
+            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Attributs globaux</p>
+                <p class="text-2xl font-semibold text-slate-900 mt-2">{{ attributeStats.attributes ?? 0 }}</p>
+                <p class="text-xs text-slate-500 mt-1">Définis une fois, réutilisés partout.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Valeurs disponibles</p>
+                <p class="text-2xl font-semibold text-slate-900 mt-2">{{ attributeStats.values ?? 0 }}</p>
+                <p class="text-xs text-slate-500 mt-1">Couleurs, tailles, capacités…</p>
+            </div>
+            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Variantes générées</p>
+                <p class="text-2xl font-semibold text-slate-900 mt-2">{{ attributeStats.variants ?? 0 }}</p>
+                <p class="text-xs text-slate-500 mt-1">Chaque combinaison crée une fiche variante.</p>
+            </div>
+        </div>
+        <p class="text-xs text-slate-500">
+            Ajoute d’abord tes attributs globaux, rattache-les aux produits puis laisse la génération automatique créer les variantes.
+        </p>
+    </div>
+
     <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
         <div class="border-b border-slate-100 pb-4">
             <h2 class="text-xl font-semibold text-slate-900">Statistiques</h2>
