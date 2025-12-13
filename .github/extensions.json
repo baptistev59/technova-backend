@@ -1,6 +1,5 @@
 {
     "recommendations": [
-        "openai.codex",
         "ms-vscode.vscode-ai",
         "bmewburn.vscode-intelephense-client",
         "Symfony.symfony-vscode",

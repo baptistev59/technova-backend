@@ -1,8 +1,9 @@
 {
-    "openai.codex.enableInlineChat": true,
-    "openai.codex.inlineChatContext": "fileAndSelection",
-    "openai.codex.panel.position": "right",
-    "openai.codex.enableCodeEdits": true,
+    "github.copilot.enable": {
+        "*": true
+    },
+    "github.copilot.editor.enableAutoCompletions": true,
+
 
     "intelephense.format.enable": true,
     "php.validate.executablePath": "/usr/bin/php",
