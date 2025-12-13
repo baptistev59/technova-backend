@@ -199,7 +199,7 @@ Déploiement Alwaysdata (prod)
    JWT_PASSPHRASE=<même valeur que celle utilisée pour lexik:jwt:generate-keypair>
    JWT_TOKEN_TTL=86400
    CORS_ALLOW_ORIGIN=https://technova.alwaysdata.net
-  MAILER_DSN=smtp://technova@alwaysdata.net:Teqapexa59Alwaysdata800@smtp-technova.alwaysdata.net:587
+  MAILER_DSN=smtp://technova@alwaysdata.net:xxxxx@smtp-technova.alwaysdata.net:587
   MAILER_FROM="TechNova <technova@alwaysdata.net>"
   MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
   DEFAULT_URI=https://technova.alwaysdata.net
