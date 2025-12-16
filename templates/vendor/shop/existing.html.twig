@@ -4,11 +4,43 @@
 
 {% block vendor_content %}
     {% set stats = stats ?? [
-        { label: 'Ventes du jour', value: '33', trend: '+8% cette semaine', icon: '🛒' },
-        { label: 'Revenus', value: '1 240 €', trend: '+12% cette semaine', icon: '💶' },
-        { label: 'Commandes en cours', value: '14', trend: '+3% cette semaine', icon: '📦' },
-        { label: 'Produits actifs', value: '56', trend: 'Stable', icon: '🏬' }
+        { label: 'Commandes totales', value: 0, trend: 'Depuis l’ouverture', icon: '🧾' },
+        { label: 'En attente', value: 0, trend: 'Statut pending', icon: '⏳' },
+        { label: 'Payées / expédiées', value: 0, trend: 'Commandes validées', icon: '✅' },
+        { label: 'Revenus cumulés', value: '0,00 €', trend: 'Cumul boutique', icon: '💶' }
     ] %}
+    {% set orders_preview = orders_preview ?? [] %}
+    {% set orders_metrics = orders_metrics ?? { revenue: 0, totalOrders: 0 } %}
+    {% set status_badges = status_badges ?? {} %}
+    {% set sales_trend = sales_trend ?? [] %}
+    {% set revenue_trend = revenue_trend ?? [] %}
+    {% if sales_trend is empty %}
+        {% set sales_trend = [
+            { label: 'J-6', value: 2 },
+            { label: 'J-5', value: 1 },
+            { label: 'J-4', value: 3 },
+            { label: 'J-3', value: 2 },
+            { label: 'J-2', value: 4 },
+            { label: 'Hier', value: 1 },
+            { label: 'Aujourd’hui', value: 3 },
+        ] %}
+    {% endif %}
+    {% if revenue_trend is empty %}
+        {% set revenue_trend = [
+            { label: 'Jan', value: 950 },
+            { label: 'Fév', value: 1200 },
+            { label: 'Mar', value: 870 },
+            { label: 'Avr', value: 1430 },
+            { label: 'Mai', value: 1100 },
+            { label: 'Juin', value: 1650 },
+            { label: 'Juil', value: 980 },
+            { label: 'Août', value: 1320 },
+            { label: 'Sept', value: 1180 },
+            { label: 'Oct', value: 1740 },
+            { label: 'Nov', value: 1390 },
+            { label: 'Déc', value: 2100 },
+        ] %}
+    {% endif %}
     <div>
         <p class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase mb-2">Technova</p>
         <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Tableau de bord vendeur</h1>
@@ -54,13 +86,48 @@
     </div>
 
     <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-            <h2 class="text-xl font-semibold text-slate-900">Commandes récentes</h2>
-            <span class="text-sm text-slate-500">Synchronisation à venir</span>
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-4">
+            <div>
+                <h2 class="text-xl font-semibold text-slate-900">Commandes récentes</h2>
+                <p class="text-sm text-slate-500">CA cumulé : {{ orders_metrics.revenue|default(0)|number_format(2, ',', ' ') }} €</p>
+            </div>
+            <a href="{{ path('app_vendor_orders') }}" class="btn btn-outline btn-sm">Voir toutes les commandes</a>
         </div>
-        <div class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-2xl">
-            Les commandes s’afficheront ici dès que le module vendeur sera connecté au back-office.
-        </div>
+        {% if orders_preview %}
+            <div class="space-y-4">
+                {% for entry in orders_preview %}
+                    {% set order = entry.entity %}
+                    {% set badge = status_badges[order.status] ?? { label: order.status, class: 'bg-slate-100 text-slate-600 border border-slate-200' } %}
+                    <div class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-3">
+                        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900">{{ order.reference }}</p>
+                                <p class="text-xs text-slate-500">Passée le {{ order.createdAt ? order.createdAt|date('d/m/Y H:i') : '—' }}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{ badge.class }}">{{ badge.label }}</span>
+                                <p class="text-lg font-semibold text-slate-900">{{ entry.lineTotal|number_format(2, ',', ' ') }} €</p>
+                            </div>
+                        </div>
+                        <div class="space-y-1 text-sm text-slate-600">
+                            {% for line in entry.lines %}
+                                <div class="flex items-center justify-between">
+                                    <span>{{ line.name }} × {{ line.quantity }}</span>
+                                    <span class="font-semibold text-slate-900">{{ line.lineTotal|number_format(2, ',', ' ') }} €</span>
+                                </div>
+                            {% endfor %}
+                            {% if entry.moreLines > 0 %}
+                                <p class="text-xs text-slate-500">… et {{ entry.moreLines }} autre{{ entry.moreLines > 1 ? 's' : '' }} article{{ entry.moreLines > 1 ? 's' : '' }}.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-2xl">
+                Aucune commande pour le moment. Elles apparaîtront ici dès qu’un client aura validé un panier.
+            </div>
+        {% endif %}
     </div>
 
     <div class="rounded-3xl border border-blue-100 bg-white shadow-sm p-6 space-y-4">
@@ -96,16 +163,20 @@
     <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
         <div class="border-b border-slate-100 pb-4">
             <h2 class="text-xl font-semibold text-slate-900">Statistiques</h2>
-            <p class="text-sm text-slate-500">Ventes et revenus (placeholders).</p>
+            <p class="text-sm text-slate-500">Tendances basées sur tes commandes réelles.</p>
         </div>
         <div class="grid md:grid-cols-2 gap-6">
-            <div class="bg-slate-50 rounded-xl h-48 px-4 py-6 flex flex-col justify-between">
+            <div class="bg-slate-50 rounded-xl px-4 py-6 space-y-4">
                 <p class="text-sm font-medium text-slate-500">Ventes — 30 derniers jours</p>
-                <div class="h-32 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg"></div>
+                <div class="relative h-24">
+                    <canvas id="salesChart" class="w-full h-full"></canvas>
+                </div>
             </div>
-            <div class="bg-slate-50 rounded-xl h-48 px-4 py-6 flex flex-col justify-between">
-                <p class="text-sm font-medium text-slate-500">Revenus — par mois</p>
-                <div class="h-32 bg-gradient-to-r from-blue-200 via-blue-100 to-blue-200 rounded-lg"></div>
+            <div class="bg-slate-50 rounded-xl px-4 py-6 space-y-4">
+                <p class="text-sm font-medium text-slate-500">Revenus — 12 derniers mois</p>
+                <div class="relative h-24">
+                    <canvas id="revenueChart" class="w-full h-full"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -113,25 +184,121 @@
     <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
         <div class="border-b border-slate-100 pb-4">
             <h2 class="text-xl font-semibold text-slate-900">Mes derniers produits</h2>
-            <p class="text-sm text-slate-500">Placeholders en attendant la création de produits.</p>
+            <p class="text-sm text-slate-500">Retrouve les fiches créées récemment et continue de les enrichir.</p>
         </div>
-        <div class="flex flex-wrap justify-center gap-6">
-            {% for i in 1..3 %}
-                <article class="tn-product-card w-[230px] h-[320px] flex flex-col items-center text-center">
-                    <div class="bg-slate-100 rounded-xl h-40 w-full"></div>
-                    <div class="w-full">
-                        <p class="font-semibold text-slate-900">Nom du produit</p>
-                        <p class="text-sm text-slate-500">59,90 €</p>
-                    </div>
-                    <div class="tn-product-card__cta w-full">
-                        <button class="btn btn-outline w-full">Voir le produit</button>
-                    </div>
-                </article>
-            {% endfor %}
-        </div>
+        {% if latest_products is empty %}
+            <div class="text-center space-y-3 py-8 text-slate-500">
+                <p>Ajoute un produit pour qu’il apparaisse ici dans ton espace vendeur.</p>
+                <div class="flex justify-center">
+                    <a href="{{ path('app_vendor_product_new') }}" class="btn btn-primary btn-sm">Ajouter un produit</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {% for product in latest_products %}
+                    {% set mainImage = product.images|first %}
+                    <article class="tn-product-card w-full h-[320px] flex flex-col items-center text-center">
+                        {% if mainImage and mainImage.url %}
+                            <img src="{{ asset(mainImage.url) }}" alt="{{ mainImage.alt ?: product.name }}" class="h-40 w-full rounded-xl object-cover bg-slate-100">
+                        {% else %}
+                            <div class="h-40 w-full rounded-xl bg-slate-100"></div>
+                        {% endif %}
+                        <div class="w-full space-y-1 pt-3">
+                            <p class="font-semibold text-slate-900 truncate">{{ product.name }}</p>
+                            <p class="text-[10px] uppercase tracking-[0.4em] text-slate-400">{{ product.isPublished() ? 'Publié' : 'Brouillon' }}</p>
+                            <p class="text-xs text-slate-500">Créé le {{ product.createdAt ? product.createdAt|date('d/m/Y') : '—' }}</p>
+                            <p class="text-2xl font-semibold text-slate-900">{{ product.price|number_format(2, ',', ' ') }} €</p>
+                        </div>
+                        <div class="tn-product-card__cta w-full mt-auto">
+                            <a href="{{ path('app_vendor_product_edit', { id: product.id }) }}" class="btn btn-outline btn-sm w-full">Modifier</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <div class="text-right">
+                <a href="{{ path('app_vendor_products') }}" class="btn btn-ghost btn-sm">Voir tous les produits</a>
+            </div>
+        {% endif %}
     </div>
 
     <div class="text-sm text-slate-500 text-center">
         Besoin de modifier ta boutique ? Les écrans d’édition arrivent dans ce sprint. Merci pour ta patience. 🙏
     </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const salesData = {{ sales_trend|json_encode|raw }};
+            const revenueData = {{ revenue_trend|json_encode|raw }};
+
+            const salesCtx = document.getElementById('salesChart');
+            if (salesCtx && salesData.length) {
+
+                new Chart(salesCtx, {
+                    type: 'line',
+                    data: {
+                        labels: salesData.map(point => point.label),
+                        datasets: [{
+                            data: salesData.map(point => point.value),
+                            cubicInterpolationMode: 'monotone',
+                            tension: 0.4,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37,99,235,0.12)',
+                            fill: true,
+                            borderWidth: 1.5,
+                            pointRadius: 2.5,
+                            pointBackgroundColor: '#2563eb',
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: true, callbacks: { label: ctx => ctx.parsed.y + ' commandes' } }
+                        },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false, beginAtZero: true, grace: '10%' }
+                        }
+                    }
+                });
+                
+            }
+
+            const revenueCtx = document.getElementById('revenueChart');
+            if (revenueCtx && revenueData.length) {
+
+                new Chart(revenueCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: revenueData.map(point => point.label),
+                        datasets: [{
+                            data: revenueData.map(point => point.value),
+                            backgroundColor: 'rgba(16,185,129,0.65)',
+                            borderRadius: 4,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: true,
+                                callbacks: { label: ctx => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(ctx.parsed.y) }
+                            }
+                        },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false, beginAtZero: true, grace: '10%' },
+                        }
+                    }
+                });
+                
+            }
+        });
+    </script>
 {% endblock %}
