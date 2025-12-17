@@ -334,8 +334,10 @@ img {
 
 .tn-products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
     gap: 1.75rem;
+    justify-content: center;
+
 }
 
 .tn-product-card {
@@ -347,6 +349,134 @@ img {
     display: flex;
     flex-direction: column;
     gap: .8rem;
+}
+
+.tn-product-card--compact {
+  height: 450px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tn-product-card--compact .tn-product-card__media {
+  aspect-ratio: 4 / 3;   /* ou 1/1 */
+  overflow: hidden;
+  border-radius: calc(var(--tn-radius) - 8px);
+  background: #fff;
+}
+
+.tn-product-card--compact .tn-product-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+/* Titre: 1 ligne avec ellipsis */
+.tn-product-card--compact .tn-product-card__title {
+  margin-top: .8rem;
+}
+
+/* Extrait: 2 lignes max */
+.tn-product-card--compact .tn-product-card__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.tn-product-card--compact .tn-product-card__cta {
+  margin-top: auto;       /* CTA toujours en bas */
+}
+/* Meta: empêcher le wrap du vendeur/marque */
+.tn-product-card--compact .tn-product-card__meta span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Variante carousel: padding + hauteur maîtrisée */
+.tn-product-card--carousel {
+  height: 380px;          /* ajuste (360 / 380 / 400) */
+  overflow: hidden;       /* ok car on clamp les textes */
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.tn-product-card--carousel .tn-product-card__title {
+  -webkit-line-clamp: 2;
+  min-height: calc(1.5em * 2);
+}
+
+.tn-product-card--carousel .tn-product-card__meta {
+  gap: .75rem;
+}
+
+.tn-product-card--carousel .tn-product-card__meta span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+
+/* Image uniforme (même hauteur pour toutes les cards) */
+.tn-product-card__media {
+  border-radius: calc(var(--tn-radius) - 8px);
+  overflow: hidden;
+  aspect-ratio: 4 / 3; /* ou 1/1 si tu préfères */
+  background: #fff;
+}
+
+.tn-product-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* pour des visuels produits, c’est le plus cohérent */
+  border-radius: 0;  /* on évite le double arrondi (car ton img global arrondit déjà) */
+}
+
+/* Titre stable (2 lignes max) */
+.tn-product-card__title {
+  color: var(--tn-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: .8rem;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tn-product-card--compact .tn-product-card__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;  /* ou 3 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+/* Titre 1 ligne avec ellipsis */
+.tn-title--truncate{
+  display:block;
+  width:100%;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  /* neutralise le clamp si présent via .tn-product-card__title */
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+}
+
+/* Titre 2 lignes clamp */
+.tn-title--clamp2{
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .tn-product-card h3 {
@@ -380,6 +510,58 @@ img {
 .tn-product-card__cta .btn {
     width: 100%;
     justify-content: center;
+}
+
+/* -- Pagination ---------------------------------------------------------- */
+
+.tn-pagination {
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--tn-radius);
+    border: 1px solid var(--tn-border);
+    background: var(--tn-surface);
+    box-shadow: var(--tn-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.tn-pagination p {
+    margin: 0;
+    font-size: .9rem;
+    color: var(--tn-muted);
+}
+
+.tn-pagination__actions {
+    display: flex;
+    gap: .75rem;
+}
+
+.tn-pagination__link {
+    border-radius: 999px;
+    padding: .55rem 1.2rem;
+    font-weight: 600;
+    font-size: .9rem;
+    border: 1px solid var(--tn-primary);
+    color: var(--tn-primary);
+    background: #fff;
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+
+.tn-pagination__link:hover {
+    background: var(--tn-primary);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(30, 136, 229, .2);
+}
+
+.tn-pagination__link--disabled {
+    border-color: var(--tn-border);
+    color: var(--tn-muted);
+    pointer-events: none;
+    background: transparent;
+    box-shadow: none;
 }
 
 .tn-banner {
@@ -669,6 +851,20 @@ img {
 .tn-thumbs-swiper .swiper-wrapper {
     display: flex !important;
     flex-direction: row !important;
+}
+
+/* Swiper: toutes les slides ont la même hauteur */
+.tn-carousel .swiper-wrapper {
+  align-items: stretch;
+}
+
+.tn-carousel .swiper-slide {
+  height: auto;
+  display: flex;          /* important */
+}
+
+.tn-carousel .swiper-slide > .tn-product-card {
+  height: 100%;
 }
 
 .tn-thumb {

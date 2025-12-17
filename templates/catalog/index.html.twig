@@ -6,8 +6,12 @@
 {# Entête catalogue : champs de recherche/tri #}
 <section class="tn-section">
     <h1>Catalogue produits</h1>
-    <form class="tn-filters" method="get" action="{{ path('catalog_index') }}">
-        <input type="text" name="search" value="{{ activeFilters.search }}" placeholder="Rechercher un produit…" onkeydown="if (event.key === 'Enter') { this.form.requestSubmit(); }">
+        <form class="tn-filters" method="get" action="{{ path('catalog_index') }}">
+            <input type="hidden" name="page" value="{{ pagination.page }}">
+            <div class="relative max-w-xs w-full">
+                <input type="text" name="search" value="{{ activeFilters.search }}" placeholder="Rechercher un produit…" onkeydown="if (event.key === 'Enter') { this.form.requestSubmit(); }" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <div class="tn-search-suggestions hidden" data-search-suggestions></div>
+            </div>
         <div class="tn-select">
             <select name="category" onchange="this.form.requestSubmit()">
                 <option value="">Toutes les catégories</option>
@@ -34,6 +38,15 @@
                 <option value="price_desc" {{ activeFilters.sort == 'price_desc' ? 'selected' }}>Prix décroissant</option>
             </select>
         </div>
+        <div class="tn-select">
+            <label class="sr-only" for="catalog-rows">Lignes par page</label>
+            <select id="catalog-rows" name="rows">
+                {% for option in rows_options %}
+                    <option value="{{ option }}" {{ selected_rows == option ? 'selected' : '' }}>{{ option }} lignes</option>
+                {% endfor %}
+            </select>
+        </div>
+        <input type="hidden" name="limit" value="{{ pagination.per_page }}">
         <button type="submit" class="btn btn-primary">Filtrer</button>
         <a class="btn btn-outline" href="{{ path('catalog_index') }}">Réinitialiser</a>
     </form>
@@ -46,26 +59,49 @@
     </div>
     <div class="tn-products-grid">
         {% for product in products %}
-            <article class="tn-product-card">
+            <article class="tn-product-card tn-product-card--compact">
                 {% set mainImage = product.images|first %}
-                {% if mainImage %}
-                    <img src="{{ mainImage.url }}" alt="{{ mainImage.alt }}">
-                {% else %}
-                    <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut">
-                {% endif %}
-                <h3>{{ product.name }}</h3>
+                <div class="tn-product-card__media">
+                    <img
+                        src="{{ mainImage ? mainImage.url : asset('assets/images/product-placeholder.svg') }}"
+                        alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
+                    >
+                </div>
+
+                <h3 class="tn-product-card__title tn-title--truncate" title="{{ product.name }}">
+                    {{ product.name }}
+                </h3>
+
                 <p class="tn-product-card__excerpt">{{ product.shortDescription }}</p>
+
                 <div class="tn-product-card__meta">
                     <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
                     <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
                 </div>
-                <div class="tn-product-card__cta">
+                <div class="mt-2 text-xs text-blue-600">
+                    <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
+                </div>
+
+                <div class="tn-product-card__cta mt-auto">
                     <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
                 </div>
             </article>
+
         {% else %}
             <p>Aucun produit ne correspond à votre recherche.</p>
         {% endfor %}
     </div>
+    {% if pagination.pages > 1 %}
+        {% set base_query = app.request.query.all %}
+        <div class="tn-pagination">
+            <p>{{ pagination.total }} produit{{ pagination.total > 1 ? 's' : '' }} — page {{ pagination.page }} sur {{ pagination.pages }}</p>
+            <div class="tn-pagination__actions">
+                <a class="tn-pagination__link {% if pagination.page <= 1 %}tn-pagination__link--disabled{% endif %}"
+                   href="{{ path('catalog_index', base_query|merge({'page': pagination.page - 1})) }}">Précédent</a>
+                <a class="tn-pagination__link {% if pagination.page >= pagination.pages %}tn-pagination__link--disabled{% endif %}"
+                   href="{{ path('catalog_index', base_query|merge({'page': pagination.page + 1})) }}">Suivant</a>
+            </div>
+        </div>
+    {% endif %}
 </section>
 {% endblock %}

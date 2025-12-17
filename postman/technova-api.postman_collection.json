@@ -1,418 +1,1197 @@
 {
-  "info": {
-    "_postman_id": "d5d8c5f4-2e7f-4b5c-98c6-7d5fcb4c1aeb",
-    "name": "TechNova API smoke",
-    "description": "Collection Postman minimale pour valider les endpoints publics et protégés (JWT).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Healthcheck /api/test",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/test",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "test"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const payload = pm.response.json();",
-              "pm.test('statut ok', function () {",
-              "    pm.expect(payload.status).to.eql('ok');",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
+    "info": {
+        "_postman_id": "d5d8c5f4-2e7f-4b5c-98c6-7d5fcb4c1aeb",
+        "name": "TechNova API smoke",
+        "description": "Collection Postman minimale pour valider les endpoints publics et prot\u00e9g\u00e9s (JWT).",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    {
-      "name": "Auth - Login (JWT)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n    \"email\": \"{{loginEmail}}\",\n    \"password\": \"{{loginPassword}}\"\n}"
+    "item": [
+        {
+            "name": "Healthcheck /api/test",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/test",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "test"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const payload = pm.response.json();",
+                            "pm.test('statut ok', function () {",
+                            "    pm.expect(payload.status).to.eql('ok');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
         },
-        "url": {
-          "raw": "{{baseUrl}}/api/login",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "login"]
-        }
-      },
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const loginData = pm.response.json();",
-              "pm.test('token présent', function () {",
-              "    pm.expect(loginData.token).to.exist;",
-              "});",
-              "pm.environment.set('jwtToken', loginData.token);"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth - /api/me",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/me",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "me"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const profile = pm.response.json();",
-              "pm.test('email attendu', function () {",
-              "    pm.expect(profile.email).to.eql(pm.environment.get('loginEmail'));",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Catalogue - Lister les produits",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/products?search={{catalogSearch}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "products"],
-          "query": [
-            {
-              "key": "search",
-              "value": "{{catalogSearch}}"
-            }
-          ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const products = pm.response.json();",
-              "pm.test('au moins un produit', function () {",
-              "    pm.expect(products.length).to.be.above(0);",
-              "});",
-              "",
-              "if (products.length > 0) {",
-              "    const firstProduct = products[0];",
-              "    pm.environment.set('sampleProductSlug', firstProduct.slug);",
-              "    pm.environment.set('cartProductId', firstProduct.id);",
-              "}"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Catalogue - Détail produit",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/products/{{sampleProductSlug}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "products", "{{sampleProductSlug}}"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const product = pm.response.json();",
-              "pm.test('slug cohérent', function () {",
-              "    pm.expect(product.slug).to.eql(pm.environment.get('sampleProductSlug'));",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Cart - Ajouter un produit",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n    \"productId\": {{cartProductId}},\n    \"quantity\": {{cartQuantity}}\n}"
+            "name": "Auth - Login (JWT)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"{{loginEmail}}\",\n    \"password\": \"{{loginPassword}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/login",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "login"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const loginData = pm.response.json();",
+                            "pm.test('token pr\u00e9sent', function () {",
+                            "    pm.expect(loginData.token).to.exist;",
+                            "});",
+                            "pm.environment.set('jwtToken', loginData.token);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
         },
-        "url": {
-          "raw": "{{baseUrl}}/api/cart",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "cart"]
-        }
-      },
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Cart - Consulter",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/cart",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "cart"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const cart = pm.response.json();",
-              "pm.test('totaux présents', function () {",
-              "    pm.expect(cart).to.have.property('total');",
-              "    pm.expect(cart).to.have.property('totalQuantity');",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Cart - Retirer le produit",
-      "request": {
-        "method": "DELETE",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/cart/{{cartProductId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "cart", "{{cartProductId}}"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('204 No Content', function () {",
-              "    pm.response.to.have.status(204);",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth - Refresh token",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/token/refresh",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "token", "refresh"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const refresh = pm.response.json();",
-              "pm.test('Nouveau token', function () {",
-              "    pm.expect(refresh.token).to.exist;",
-              "    pm.expect(refresh.expiresIn).to.be.above(0);",
-              "});",
-              "pm.environment.set('jwtToken', refresh.token);"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Profile - Consulter",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/profile",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "profile"]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const profile = pm.response.json();",
-              "pm.test('profil chargé', function () {",
-              "    pm.expect(profile.email).to.eql(pm.environment.get('loginEmail'));",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Profile - Mise à jour",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{jwtToken}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n    \"firstname\": \"{{profileFirstname}}\",\n    \"lastname\": \"{{profileLastname}}\",\n    \"phone\": \"{{profilePhone}}\",\n    \"newsletterOptIn\": {{profileNewsletter}},\n    \"address\": {\n        \"label\": \"{{profileAddressLabel}}\",\n        \"addressLine1\": \"{{profileAddressLine1}}\",\n        \"postalCode\": \"{{profilePostalCode}}\",\n        \"city\": \"{{profileCity}}\",\n        \"country\": \"{{profileCountry}}\",\n        \"isDefault\": true,\n        \"isShipping\": true,\n        \"isBilling\": true\n    }\n}"
+            "name": "Auth - /api/me",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/me",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "me"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const profile = pm.response.json();",
+                            "pm.test('email attendu', function () {",
+                            "    pm.expect(profile.email).to.eql(pm.environment.get('loginEmail'));",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
         },
-        "url": {
-          "raw": "{{baseUrl}}/api/profile",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "profile"]
-        }
-      },
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const profile = pm.response.json();",
-              "pm.test('profil mis à jour', function () {",
-              "    pm.expect(profile.firstname).to.eql(pm.environment.get('profileFirstname'));",
-              "    pm.expect(profile.address).to.exist;",
-              "    pm.expect(profile.address.city).to.eql(pm.environment.get('profileCity'));",
-              "});"
-            ],
-            "type": "text/javascript"
-          }
+            "name": "Catalogue - Lister les produits",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/products?search={{catalogSearch}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "products"
+                    ],
+                    "query": [
+                        {
+                            "key": "search",
+                            "value": "{{catalogSearch}}"
+                        }
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const products = pm.response.json();",
+                            "pm.test('au moins un produit', function () {",
+                            "    pm.expect(products.length).to.be.above(0);",
+                            "});",
+                            "",
+                            "if (products.length > 0) {",
+                            "    const firstProduct = products[0];",
+                            "    pm.environment.set('sampleProductSlug', firstProduct.slug);",
+                            "    pm.environment.set('cartProductId', firstProduct.id);",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Catalogue - D\u00e9tail produit",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/products/{{sampleProductSlug}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "products",
+                        "{{sampleProductSlug}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const product = pm.response.json();",
+                            "pm.test('slug coh\u00e9rent', function () {",
+                            "    pm.expect(product.slug).to.eql(pm.environment.get('sampleProductSlug'));",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Cart - Ajouter un produit",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"productId\": {{cartProductId}},\n    \"quantity\": {{cartQuantity}}\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/cart",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "cart"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Cart - Consulter",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/cart",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "cart"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const cart = pm.response.json();",
+                            "pm.test('totaux pr\u00e9sents', function () {",
+                            "    pm.expect(cart).to.have.property('total');",
+                            "    pm.expect(cart).to.have.property('totalQuantity');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Cart - Retirer le produit",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/cart/{{cartProductId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "cart",
+                        "{{cartProductId}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('204 No Content', function () {",
+                            "    pm.response.to.have.status(204);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Auth - Refresh token",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/token/refresh",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "token",
+                        "refresh"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const refresh = pm.response.json();",
+                            "pm.test('Nouveau token', function () {",
+                            "    pm.expect(refresh.token).to.exist;",
+                            "    pm.expect(refresh.expiresIn).to.be.above(0);",
+                            "});",
+                            "pm.environment.set('jwtToken', refresh.token);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Profile - Consulter",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/profile",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "profile"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const profile = pm.response.json();",
+                            "pm.test('profil charg\u00e9', function () {",
+                            "    pm.expect(profile.email).to.eql(pm.environment.get('loginEmail'));",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Profile - Mise \u00e0 jour",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"firstname\": \"{{profileFirstname}}\",\n    \"lastname\": \"{{profileLastname}}\",\n    \"phone\": \"{{profilePhone}}\",\n    \"newsletterOptIn\": {{profileNewsletter}},\n    \"address\": {\n        \"label\": \"{{profileAddressLabel}}\",\n        \"addressLine1\": \"{{profileAddressLine1}}\",\n        \"postalCode\": \"{{profilePostalCode}}\",\n        \"city\": \"{{profileCity}}\",\n        \"country\": \"{{profileCountry}}\",\n        \"isDefault\": true,\n        \"isShipping\": true,\n        \"isBilling\": true\n    }\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/profile",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "profile"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const profile = pm.response.json();",
+                            "pm.test('profil mis \u00e0 jour', function () {",
+                            "    pm.expect(profile.firstname).to.eql(pm.environment.get('profileFirstname'));",
+                            "    pm.expect(profile.address).to.exist;",
+                            "    pm.expect(profile.address.city).to.eql(pm.environment.get('profileCity'));",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Boutique (POST)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "name",
+                            "value": "Postman New Vendor Shop",
+                            "type": "text"
+                        },
+                        {
+                            "key": "slug",
+                            "value": "postman-demo-shop",
+                            "type": "text"
+                        },
+                        {
+                            "key": "description",
+                            "value": "Boutique créée via Postman pour tester l'API.",
+                            "type": "text"
+                        },
+                        {
+                            "key": "policies",
+                            "value": "Livraison express, retours 30 jours.",
+                            "type": "text"
+                        },
+                        {
+                            "key": "contactEmail",
+                            "value": "vendor-shop@postman.test",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/shop",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "shop"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('201 Created', function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});",
+                            "",
+                            "const shop = pm.response.json();",
+                            "pm.test('boutique créée', function () {",
+                            "    pm.expect(shop.name).to.eql('Postman New Vendor Shop');",
+                            "});",
+                            "pm.environment.set('vendorShopId', shop.id);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Boutique (PATCH)",
+            "request": {
+                "method": "PATCH",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "name",
+                            "value": "Postman Vendor Shop Updated",
+                            "type": "text"
+                        },
+                        {
+                            "key": "policies",
+                            "value": "Conditions mises à jour pour 2025.",
+                            "type": "text"
+                        },
+                        {
+                            "key": "contactEmail",
+                            "value": "vendor-shop-updated@postman.test",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/shop",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "shop"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const shop = pm.response.json();",
+                            "pm.test('mise à jour boutique', function () {",
+                            "    pm.expect(shop.name).to.eql('Postman Vendor Shop Updated');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Boutique (GET)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/shop",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "shop"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const shop = pm.response.json();",
+                            "pm.environment.set('vendorShopId', shop.id);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Produits (GET)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/products",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "products"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const payload = pm.response.json();",
+                            "pm.test('sortable list', function () {",
+                            "    pm.expect(payload).to.have.property('items');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Cr\u00e9er un produit",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"name\": \"{{vendorProductName}}\",\n    \"price\": 199.90,\n    \"isPublished\": true\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/products",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "products"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('201 Created', function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});",
+                            "",
+                            "const created = pm.response.json();",
+                            "pm.environment.set('vendorProductId', created.id);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Produit detail",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/products/{{vendorProductId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "products",
+                        "{{vendorProductId}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Mise \u00e0 jour produit",
+            "request": {
+                "method": "PATCH",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"price\": 179.90,\n    \"shortDescription\": \"Mise \u00e0 jour via l\u2019API\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/products/{{vendorProductId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "products",
+                        "{{vendorProductId}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Supprimer produit",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/products/{{vendorProductId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "products",
+                        "{{vendorProductId}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('204 No Content', function () {",
+                            "    pm.response.to.have.status(204);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Profil (GET)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/profile",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "profile"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const profile = pm.response.json();",
+                            "pm.test('profil vendeur renvoyé', function () {",
+                            "    pm.expect(profile.companyName).to.be.a('string');",
+                            "    pm.expect(profile.email).to.include('@');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Profil (PATCH)",
+            "request": {
+                "method": "PATCH",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"companyName\": \"Postman Updated Vendor\",\n    \"phone\": \"+33999998877\",\n    \"email\": \"vendor-update@technova.test\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/profile",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "profile"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const payload = pm.response.json();",
+                            "pm.test('mise \u00e0 jour profil', function () {",
+                            "    pm.expect(payload.companyName).to.eql('Postman Updated Vendor');",
+                            "    pm.expect(payload.email).to.eql('vendor-update@technova.test');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - M\u00e9dia (POST)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "profile",
+                            "value": "shop_banner",
+                            "type": "text"
+                        },
+                        {
+                            "key": "file",
+                            "type": "file",
+                            "src": "postman/fixtures/sample-image.png"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/media",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "media"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const upload = pm.response.json();",
+                            "pm.test('upload metadata', function () {",
+                            "    pm.expect(upload.path).to.match(/^uploads/);",
+                            "    pm.expect(upload.mimeType).to.eql('image/webp');",
+                            "});",
+                            "pm.test('url exposée', function () {",
+                            "    pm.expect(upload.url).to.be.a('string');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Commandes (GET)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/orders",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "orders"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const payload = pm.response.json();",
+                            "pm.test('items structure', function () {",
+                            "    pm.expect(payload).to.have.property('items');",
+                            "    pm.expect(payload.items).to.be.an('array');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Commande detail",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/orders/{{vendorOrderId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "orders",
+                        "{{vendorOrderId}}"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const order = pm.response.json();",
+                            "pm.test('structure commande', function () {",
+                            "    pm.expect(order).to.have.property('status');",
+                            "    pm.expect(order).to.have.property('items');",
+                            "    pm.expect(order.items).to.be.an('array');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Commande statut",
+            "request": {
+                "method": "PATCH",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"status\": \"paid\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/orders/{{vendorOrderId}}/status",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "orders",
+                        "{{vendorOrderId}}",
+                        "status"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const payload = pm.response.json();",
+                            "pm.test('statut mis \u00e0 jour', function () {",
+                            "    pm.expect(payload.status).to.exist;",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Vendor - Commande documents",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwtToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "type",
+                            "value": "invoice",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/vendor/orders/{{vendorOrderId}}/documents",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "vendor",
+                        "orders",
+                        "{{vendorOrderId}}",
+                        "documents"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('200 OK', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "const payload = pm.response.json();",
+                            "pm.test('type re\u00e7u', function () {",
+                            "    pm.expect(payload.type).to.eql('invoice');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }

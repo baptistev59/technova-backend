@@ -11,20 +11,6 @@ security:
                 property: email
 
     firewalls:
-        main:
-            lazy: true
-            provider: app_user_provider
-            user_checker: App\Security\UserChecker
-            custom_authenticator:
-                - App\Security\LoginFormAuthenticator
-            logout:
-                path: app_logout
-                target: homepage
-            remember_me:
-                secret: '%kernel.secret%'
-                lifetime: 604800
-                path: /
-
         # 0) Swagger / OpenAPI — PAS DE JWT
         docs:
             pattern: ^/api/docs
@@ -55,6 +41,20 @@ security:
             provider: app_user_provider
             user_checker: App\Security\UserChecker
             jwt: ~
+
+        main:
+            lazy: true
+            provider: app_user_provider
+            user_checker: App\Security\UserChecker
+            custom_authenticator:
+                - App\Security\LoginFormAuthenticator
+            logout:
+                path: app_logout
+                target: homepage
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 604800
+                path: /
 
     access_control:
 

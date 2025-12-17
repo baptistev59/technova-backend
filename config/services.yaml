@@ -22,3 +22,7 @@ services:
             $publishableKey: '%env(default::STRIPE_PUBLISHABLE_KEY)%'
             $webhookSecret: '%env(default::STRIPE_WEBHOOK_SECRET)%'
             $defaultBaseUrl: '%env(DEFAULT_URI)%'
+
+    App\Image\ImageUploader:
+        arguments:
+            $projectDir: '%kernel.project_dir%'

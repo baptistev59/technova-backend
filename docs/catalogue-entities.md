@@ -1,6 +1,7 @@
 # Catalogue Entities Summary
 
 ## Catalogue & vendeurs
+
 - **Category** : hiérarchie (parent facultatif), slug unique, champ `iconPath` vers les pictos SVG versionnés.
 - **Brand** : slug unique, `logoPath` optionnel, relié aux produits.
 - **Shop** : appartient à un `Vendor`, slug unique, expose les produits du vendeur, adresse logistique liée via `Address`.
@@ -12,6 +13,7 @@
 - **Repositories** : `ProductRepository` expose `findLatestPublished()` et `filterBy()` (catégorie, marque, texte, prix, tri).
 
 ## Utilisateurs & profils
+
 - **User** : champs `avatarPath`, `newsletterOptIn`, `phone`, `isDeleted`. Les avatars par défaut sont stockés dans `public/images/avatars/` (admin, vendeurs, client).
 - **Vendor** : relation 1‑1 avec `User`, coordonnées pro et `Shop`.
 - **Address** : utilisée pour les adresses clients, shops et vendeurs (`isShipping`, `isBilling`, `isDefault`).
@@ -19,6 +21,7 @@
 - **SavedCart** : enregistre le panier JSON (`items`) et la date de mise à jour pour chaque client (utilisé lorsqu’un utilisateur quitte la session sans commander).
 
 ## Commandes & panier
+
 - **CartService** (côté app) manipule la session, synchronise avec `SavedCart` et vérifie les stocks.
 - **CustomerOrder** : référence `TN-YYYYMMDD-hhmmss`, `status`, `totalAmount`, `currency`, snapshots des adresses, horodatages `created_at`/`paid_at`, lien vers `User`.
 - **CustomerOrderItem** : produit, libellé, quantité, prix unitaire, total de ligne, miniature persistée (`productImage`).
@@ -26,6 +29,7 @@
 - **SavedCart + CustomerOrder** permettent la reprise du panier et la création d’un historique (`/mon-compte/commandes`).
 
 ## Fixtures & données de démo
+
 - Admin `admin@test.fr` / `123456`.
 - 10 vendeurs `vendor0X@technova.test` avec mots de passe `Vendor#0X`.
 - 3 clients démo `lena.client@technova.test` (`Client#01`), `maxime.client@technova.test` (`Client#02`), `nora.client@technova.test` (`Client#03`) – chacun possède un profil + adresse.
@@ -33,6 +37,7 @@
 - **⚠️ Prod** : ne plus lancer `doctrine:fixtures:load`. Les données de démo Alwaysdata sont réimportées via `scripts/sync-demo-db.sh`.
 
 ## Interfaces consommant ces entités
+
 - Twig : `/`, `/catalogue`, `/produit/{slug}`, `/panier`, `/commande`, `/mon-compte/*`.
 - API : `/api/products`, `/api/products/{slug}`, `/api/cart`, `/api/login`, `/api/register`, `/api/me`, `/api/docs`.
 - Tests Postman/Newman : `postman/technova-api.postman_collection.json` + script `./scripts/postman-tests.sh`.

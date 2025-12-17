@@ -153,7 +153,7 @@ class VendorAttributeController extends AbstractController
             ['label' => 'Accueil', 'icon' => '🏠', 'active' => 'app_vendor_shop_new' === $activeRoute, 'path' => 'app_vendor_shop_new'],
             ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
             ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
+            ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
             ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
             ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
         ];

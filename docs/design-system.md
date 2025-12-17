@@ -1,10 +1,12 @@
 # TechNova – Design System (extrait)
 
 ## Identité visuelle
+
 - **Logo** : `docs/maquettes.pdf` page 1
 - **Accroche** : « Explorez le monde de l’innovation technologique »
 
 ## Palette principale
+
 | Couleur | Usage |
 |---------|-------|
 | `#1E88E5` | Boutons primaires, éléments interactifs |
@@ -14,12 +16,14 @@
 | `#999999` | Sous-titres / métadonnées |
 
 ## Typographies (Inter)
+
 - **H1** : 48px bold
 - **H2** : 24px semi-bold/bold
 - **Texte normal** : 16px regular
 - **Texte small** : 14px regular
 
 ## Composants clés
+
 - **Navigation** :
   - Logo + liens Produits / Vendeurs / Aide à gauche.
   - Champ de recherche pilulé (`rounded-full`, largeur contrôlée via Tailwind) avec icône loupe centrée verticalement.
@@ -36,6 +40,7 @@
 - **Footer** : 4 colonnes (« À propos », « Aide », « Légal », réseaux sociaux) sur fond sombre.
 
 ## Pages
+
 - **Accueil** : hero, catégories populaires, produits populaires, bandeau promotion, footer.
 - **Catalogue** : filtres (recherche, catégorie, marque, tri) avec validation automatique, grille responsive.
 - **Fiche produit** : galerie, description, caractéristiques, avis, produits similaires, bannière de confirmation quand un produit est ajouté au panier (CTA « Continuer mes achats » / « Voir le panier »).

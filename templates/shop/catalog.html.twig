@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Catalogue - {{ shop.name }}{% endblock %}
+
+{% block body %}
+    <section class="tn-section">
+        <div class="tn-section__header">
+            <div>
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Catalogue boutique</p>
+                <h1 class="text-3xl font-semibold text-slate-900">{{ shop.name }}</h1>
+            </div>
+            <form method="get" class="tn-select">
+                <label class="sr-only" for="shop-limit">Produits par page</label>
+                <select id="shop-limit" name="limit" onchange="this.form.submit()">
+                    {% for option in limit_options %}
+                        <option value="{{ option }}" {{ pagination.per_page == option ? 'selected' : '' }}>{{ option }} par page</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        <p class="text-sm text-slate-500">{{ pagination.total }} produit{{ pagination.total > 1 ? 's' : '' }} disponibles.</p>
+    </section>
+
+    <section class="tn-section">
+        <div class="tn-products-grid">
+            {% for product in products %}
+                {% set mainImage = product.images|first %}
+                <article class="tn-product-card tn-product-card--compact h-full flex flex-col">
+                    <div class="tn-product-card__media">
+                        <img
+                            src="{{ mainImage ? asset(mainImage.url) : asset('assets/images/product-placeholder.svg') }}"
+                            alt="{{ mainImage ? mainImage.alt : 'Visuel produit' }}"
+                        >
+                    </div>
+                    <h3 class="tn-product-card__title mt-4" title="{{ product.name }}">{{ product.name }}</h3>
+                    {% if product.shortDescription %}
+                        <p class="tn-product-card__excerpt">{{ product.shortDescription }}</p>
+                    {% endif %}
+                    <div class="tn-product-card__meta">
+                        <span>{{ product.brand ? product.brand.name : shop.name }}</span>
+                        <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
+                    </div>
+                    <div class="mt-2 text-xs text-blue-600">
+                        <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
+                    </div>
+                    <div class="tn-product-card__cta mt-auto">
+                        <a class="btn btn-primary" href="{{ path('product_show', { slug: product.slug }) }}">Voir le produit</a>
+                    </div>
+                </article>
+            {% else %}
+                <p>Aucun produit disponible pour cette boutique.</p>
+            {% endfor %}
+        </div>
+        {% if pagination.pages > 1 %}
+            <div class="tn-pagination">
+                <p>{{ pagination.total }} produit{{ pagination.total > 1 ? 's' : '' }} — page {{ pagination.page }} / {{ pagination.pages }}</p>
+                <div class="tn-pagination__actions">
+                    <a class="tn-pagination__link {{ pagination.page <= 1 ? 'tn-pagination__link--disabled' : '' }}"
+                       href="{{ path('shop_catalog', { slug: shop.slug, page: pagination.page - 1, limit: pagination.per_page }) }}">Précédent</a>
+                    <a class="tn-pagination__link {{ pagination.page >= pagination.pages ? 'tn-pagination__link--disabled' : '' }}"
+                       href="{{ path('shop_catalog', { slug: shop.slug, page: pagination.page + 1, limit: pagination.per_page }) }}">Suivant</a>
+                </div>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

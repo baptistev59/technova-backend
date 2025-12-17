@@ -8,6 +8,50 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    <style>
+        /* Suggestions de recherche */
+        .tn-search__form {
+            position: relative;
+        }
+        .tn-search-suggestions {
+            position: absolute;
+            top: calc(100% + 0.35rem);
+            left: 0;
+            right: 0;
+            margin-top: 0.25rem;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            box-shadow: 0 35px 60px rgba(15, 23, 42, 0.12);
+            padding: 0.5rem 0;
+            z-index: 50;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .tn-search-suggestions__item {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: 0.6rem 1rem;
+            font-size: 0.95rem;
+            color: #0f172a;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            line-height: 1.4;
+        }
+        .tn-search-suggestions__item + .tn-search-suggestions__item {
+            border-top: 1px solid #e2e8f0;
+        }
+        .tn-search-suggestions__item:hover,
+        .tn-search-suggestions__item--active {
+            background: #eef2ff;
+        }
+        .tn-search-suggestions.hidden {
+            display: none;
+        }
+    </style>
     <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
     <script src="//unpkg.com/alpinejs" defer></script>
 </head>
@@ -27,7 +71,7 @@
             </nav>
             <div class="tn-actions">
                 <div class="tn-search max-w-xs w-full">
-                    <form class="tn-search__form" method="get" action="{{ path('catalog_index') }}">
+                    <form class="tn-search__form relative" method="get" action="{{ path('catalog_index') }}">
                         <input
                             type="search"
                             name="search"
@@ -35,7 +79,12 @@
                             value="{{ app.request.get('search') }}"
                             minlength="2"
                             required
+                            autocomplete="off"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            spellcheck="false"
                         >
+                        <div class="tn-search-suggestions hidden" data-search-suggestions></div>
                     </form>
                 </div>
                 <div class="tn-auth">
@@ -78,7 +127,6 @@
             </div>
         </div>
     </header>
-
     <main class="tn-main">
         {% for label, messages in app.flashes %}
             {% for message in messages %}
@@ -94,10 +142,6 @@
         <div class="tn-footer__brand">
             <div class="tn-logo">
                 <img class="tn-logo-img" src="{{ asset('images/branding/logo-technova.png') }}" alt="TechNova">
-                <div>
-                    <strong>TechNova</strong>
-                    <small>Trouvez les meilleurs produits tech.</small>
-                </div>
             </div>
         </div>
         <div class="tn-footer__grid">
@@ -135,6 +179,245 @@
         <div class="tn-footer__bottom">&copy; {{ "now"|date("Y") }} TechNova Marketplace. Tous droits réservés.</div>
     </footer>
 
-    {% block javascripts %}{% endblock %}
+    {% block javascripts %}
+        <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+        <script>
+            const initSwipers = () => {
+                document.querySelectorAll('[data-swiper-init]').forEach((swiperEl) => {
+                    const paginationEl = swiperEl.querySelector('.swiper-pagination');
+                    const nextEl = swiperEl.querySelector('.swiper-button-next');
+                    const prevEl = swiperEl.querySelector('.swiper-button-prev');
+                    const visibleSlides = Math.max(1, parseInt(swiperEl.dataset.swiperVisible ?? '1', 10));
+                    const clamp = (value) => Math.min(value, visibleSlides);
+
+                    new Swiper(swiperEl, {
+                        loop: true,
+                        spaceBetween: 16,
+                        slidesPerView: clamp(1),
+                        slidesPerGroup: clamp(1),
+                        grabCursor: true,
+                        breakpoints: {
+                            640: { slidesPerView: clamp(2), slidesPerGroup: clamp(2) },
+                            768: { slidesPerView: clamp(3), slidesPerGroup: clamp(3) },
+                            1024: { slidesPerView: clamp(4), slidesPerGroup: clamp(4) },
+                            1280: { slidesPerView: clamp(5), slidesPerGroup: clamp(5) },
+                        },
+                        pagination: { el: paginationEl, clickable: true, dynamicBullets: true },
+                        navigation: { nextEl, prevEl },
+                    });
+                });
+            };
+
+            const initCatalogSuggestion = () => {
+                const suggestionsUrl = '{{ path('catalog_product_suggestions') }}';
+                const searchInputs = Array.from(document.querySelectorAll('input[name="search"]'));
+                if (searchInputs.length === 0) {
+                    return;
+                }
+
+                const stateMap = new WeakMap();
+                const controllersMap = new WeakMap();
+                const getState = (input) => stateMap.get(input) ?? { items: [], activeIndex: -1, canOpen: true };
+                const setState = (input, updates) => {
+                    const current = getState(input);
+                    const next = { ...current, ...updates };
+                    stateMap.set(input, next);
+                    return next;
+                };
+
+                const closeSuggestions = (input) => {
+                    const controllerStore = controllersMap.get(input);
+                    if (controllerStore?.current) {
+                        controllerStore.current.abort();
+                        controllerStore.current = null;
+                    }
+
+                    const container = input.closest('form')?.querySelector('[data-search-suggestions]');
+                    if (container) {
+                        container.classList.add('hidden');
+                        container.innerHTML = '';
+                    }
+                    setState(input, { items: [], activeIndex: -1, canOpen: false });
+                };
+
+                const renderSuggestions = (input, items) => {
+                    const container = input.closest('form')?.querySelector('[data-search-suggestions]');
+                    if (!container) {
+                        return;
+                    }
+                    const state = getState(input);
+                    if (!state.canOpen && items.length) {
+                        return;
+                    }
+                    container.innerHTML = '';
+                    if (!items.length) {
+                        container.classList.add('hidden');
+                        setState(input, { items: [], activeIndex: -1, canOpen: false });
+                        return;
+                    }
+                    items.slice(0, 40).forEach((item, index) => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'tn-search-suggestions__item';
+                        button.textContent = item;
+                        button.addEventListener('mousedown', (event) => event.preventDefault());
+                    button.addEventListener('click', () => {
+                        input.value = item;
+                        closeSuggestions(input);
+                        input.blur();
+                        input.form?.requestSubmit();
+                    });
+                        container.appendChild(button);
+                    });
+                    container.classList.remove('hidden');
+                    setState(input, { items, activeIndex: -1, canOpen: true });
+                };
+
+                const requestSuggestions = (query, input, controllerStore) => {
+                    if (query.length < 3) {
+                        renderSuggestions(input, []);
+                        return;
+                    }
+
+                    if (controllerStore.current) {
+                        controllerStore.current.abort();
+                    }
+                    controllerStore.current = new AbortController();
+                    fetch(`${suggestionsUrl}?query=${encodeURIComponent(query)}`, { signal: controllerStore.current.signal })
+                        .then((response) => response.ok ? response.json() : Promise.reject(new Error('Chargement des suggestions impossible')))
+                        .then((payload) => Array.isArray(payload) ? payload : [])
+                        .then((payload) => renderSuggestions(input, payload))
+                        .catch((error) => {
+                            if (error.name !== 'AbortError') {
+                                console.error(error);
+                            }
+                        });
+                };
+
+                const updateActive = (input, delta) => {
+                    const state = getState(input);
+                    const container = input.closest('form')?.querySelector('[data-search-suggestions]');
+                    if (!state || !container) {
+                        return;
+                    }
+                    const buttons = Array.from(container.children);
+                    if (!buttons.length) {
+                        return;
+                    }
+                    let nextIndex = state.activeIndex + delta;
+                    if (nextIndex < 0) {
+                        nextIndex = buttons.length - 1;
+                    }
+                    if (nextIndex >= buttons.length) {
+                        nextIndex = 0;
+                    }
+                    buttons.forEach((button, index) => button.classList.toggle('tn-search-suggestions__item--active', index === nextIndex));
+                    buttons[nextIndex].scrollIntoView({ block: 'nearest' });
+                    setState(input, { activeIndex: nextIndex });
+                };
+
+                const attachHandlers = (input) => {
+                    const controllerStore = { current: null };
+                    controllersMap.set(input, controllerStore);
+                    let timeout;
+                    setState(input, { items: [], activeIndex: -1, canOpen: false });
+
+                    input.addEventListener('input', ({ target }) => {
+                        clearTimeout(timeout);
+                        setState(input, { canOpen: true });
+                        timeout = window.setTimeout(() => requestSuggestions(target.value.trim(), input, controllerStore), 250);
+                    });
+
+                    input.addEventListener('keydown', (event) => {
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            updateActive(input, 1);
+                            return;
+                        }
+
+                        if (event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            updateActive(input, -1);
+                            return;
+                        }
+
+                        if (event.key === 'Escape') {
+                            closeSuggestions(input);
+                            return;
+                        }
+
+                        if (event.key === 'Enter') {
+                            const state = getState(input);
+                            const container = input.closest('form')?.querySelector('[data-search-suggestions]');
+                            const buttons = container ? Array.from(container.children) : [];
+                            if (state && state.activeIndex >= 0 && buttons[state.activeIndex]) {
+                                event.preventDefault();
+                                buttons[state.activeIndex].click();
+                                return;
+                            }
+                            closeSuggestions(input);
+                        }
+                    });
+
+                    input.addEventListener('focus', () => {
+                        const state = getState(input);
+                        if (state && state.items.length && state.canOpen) {
+                            const container = input.closest('form')?.querySelector('[data-search-suggestions]');
+                            container?.classList.remove('hidden');
+                        }
+                    });
+
+                    input.addEventListener('blur', () => {
+                        window.setTimeout(() => closeSuggestions(input), 150);
+                    });
+
+                    input.form?.addEventListener('submit', () => closeSuggestions(input));
+                };
+
+                searchInputs.forEach(attachHandlers);
+            };
+
+            const getGridColumnsCount = (gridEl) => {
+                const style = window.getComputedStyle(gridEl);
+                const gap = parseFloat(style.columnGap) || 0;
+                const card = gridEl.querySelector('.tn-product-card');
+                if (!card) {
+                    return 1;
+                }
+                const gridWidth = gridEl.getBoundingClientRect().width;
+                const cardWidth = card.getBoundingClientRect().width;
+                return Math.max(1, Math.floor((gridWidth + gap) / (cardWidth + gap)));
+            };
+
+            const initRowsPagination = () => {
+                const form = document.querySelector('form.tn-filters');
+                const grid = document.querySelector('.tn-products-grid');
+                const rowsSelect = document.getElementById('catalog-rows');
+                const limitInput = form?.querySelector('input[name="limit"]');
+                const pageInput = form?.querySelector('input[name="page"]');
+
+                if (!form || !grid || !rowsSelect || !limitInput || !pageInput) {
+                    return;
+                }
+
+                const applyRows = () => {
+                    const rows = parseInt(rowsSelect.value, 10) || 10;
+                    const columns = getGridColumnsCount(grid);
+                    const computedLimit = Math.max(1, rows * Math.max(1, columns));
+                    limitInput.value = String(computedLimit);
+                    pageInput.value = '1';
+                    form.requestSubmit();
+                };
+
+                rowsSelect.addEventListener('change', applyRows);
+            };
+
+            document.addEventListener('DOMContentLoaded', () => {
+                initSwipers();
+                initCatalogSuggestion();
+                initRowsPagination();
+            });
+        </script>
+    {% endblock %}
 </body>
 </html>

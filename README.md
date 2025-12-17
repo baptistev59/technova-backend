@@ -7,6 +7,7 @@ Bienvenue dans l’API officielle du projet TechNova Marketplace, une plateforme
 
 Sommaire
 --------
+
 - [Stack & modules clés](#stack--modules-clés)
 - [Endpoints disponibles](#endpoints-disponibles)
 - [Installation locale (dev)](#installation-locale-dev)
@@ -19,6 +20,7 @@ Sommaire
 
 Stack & modules clés
 --------------------
+
 - **Symfony 7.3 (full attributes)** – Architecture modulaire, domaines `User`, `Vendor`, `Product`, `Order`, …  
 - **Base PostgreSQL** – Doctrine ORM 3, migrations versionnées.  
 - **Authentification** – LexikJWTAuthenticationBundle (login JSON → JWT).  
@@ -32,6 +34,7 @@ Stack & modules clés
 
 Endpoints disponibles
 ---------------------
+
 | Méthode | Route                | Description                                             | Auth |
 |---------|----------------------|---------------------------------------------------------|------|
 | GET     | `/api/test`          | Vérifie l’uptime de l’API (log dans monolog).           | Publique |
@@ -47,6 +50,12 @@ Endpoints disponibles
 | GET     | `/api/products/{slug}` | Fiche produit détaillée (prix, variantes, images, avis).         | Publique |
 | GET     | `/api/docs`          | Swagger UI (documentation interactive).                 | Publique (à protéger en prod) |
 
+## API Vendeur
+
+- Nouvelle documentation détaillée : [`docs/vendor-api-endpoints.md`](docs/vendor-api-endpoints.md) (shop/profile, produits, commandes, upload de média).  
+- Ces routes requièrent `Authorization: Bearer <jwt>` avec `ROLE_VENDOR` et s’appuient sur les profils `ImageProfile` (logo/shop_banner/product_image/avatars).
+- Ajoute ces appels à la collection Postman (`postman/technova-api.postman_collection.json`) quand tu travailleras sur le front vendeur.
+
 **Query params utiles (`/api/products`)**
 
 | Paramètre | Exemple | Description |
@@ -59,7 +68,9 @@ Endpoints disponibles
 
 Pages Twig (catalogue)
 ----------------------
+
 - `/` : accueil + sections “Nouveautés” et “Produits à la une”.
+- Les carrousels “tn-carousel” (home, vitrine boutique, dashboard vendeur) utilisent Swiper + attribut `data-swiper-visible` pour afficher trois slides simultanés ; ils affichent jusqu’à 10 produits, en complétant les slides manquants et en conservant une UX identique sur toutes les pages.
 - `/catalogue` : listing avec filtres catégorie/marque/prix/texte + tri (soumission automatique au changement ou via Entrée).
 - `/panier` + `/commande` : panier interactif puis checkout récapitulatif avant création de la commande + page de succès.
 - `/mon-compte/commandes` : historique de commandes + détail par référence.
@@ -67,26 +78,32 @@ Pages Twig (catalogue)
 - Confirmation d’une commande déclenche un e-mail (HTML + texte) envoyé via le SMTP configuré (`MAILER_DSN`).
 - `/produit/{slug}` : fiche produit (images, caractéristiques, options, variantes).
 - `/panier` : récapitulatif du panier stocké côté session (ajout/suppression/vidage) — accès réservé aux clients connectés.
+- La recherche catalogue et globale utilise un dropdown custom sans historique : suggestions provenant uniquement des noms et mots clés produits, filtrées côté serveur, fermeture sur Enter ou blur, annulation des fetchs en cours et pagination dynamique calculée `rows × columns` grâce au JS commun (`base.html.twig`).
 
 Espace compte (Twig + API)
 --------------------------
+
 - `/inscription` : formulaire Tailwind qui appelle directement `POST /api/register`.  
   Après validation l’utilisateur est automatiquement connecté (ID + JWT stockés en session) puis redirigé vers `/mon-compte/profil`.
 - `/connexion` : formulaire Symfony (`LoginType`) branché sur `App\Security\LoginFormAuthenticator` (firewall `main`). L’utilisateur est authentifié via `Security`, la session Symfony est ouverte (remember-me disponible) et un JWT Lexik est toujours regénéré pour alimenter les pages Twig (`viewer_user()` s’appuie désormais sur `Security` quand c’est possible).  
 - `/mon-compte/profil` : page composée de deux formulaires (`ProfileType`, `AddressType`) pour compléter les informations personnelles, préférences marketing et adresse principale.  
 - `/api/profile` (GET/POST/DELETE) : endpoints jumeaux utilisés par le front Twig, protégés par le firewall JWT (`DELETE` anonymise le compte).
+- **Uploads** : les fichiers (logos, bannières, visuels produits) ne sont plus traités dans chaque controller. Ils passent tous par `ImageProfile` / `ImageUploader` (WebP, redimensionnement, backgrounds uniformes) et utilisent les profils `shop_banner`, `shop_logo`, `product_image` ou `avatar`.
 
 Espace vendeur (Sprint 4A)
 --------------------------
+
 - Accessible aux comptes vendeurs (`ROLE_VENDOR`) pour la consultation/modification de la boutique.  
 - Menu profil → **Mon espace vendeur** → `/mon-espace-vendeur/boutique`.
 - `ShopType` (Twig) permet de créer la boutique : nom, description, email de contact, politiques SAV + upload optionnel d’un logo/bannière (stockés dans `public/uploads/shops`).
+- Le traitement des uploads y est orchestré par le service `App\Image\ImageUploader` avec les profils `shop_banner` / `shop_logo`, le reste de la logique (déplacement, création de répertoires) étant totalement centralisé.
 - Le slug est généré automatiquement (unique) et la boutique est liée au profil `Vendor` du user.
 - Si une boutique existe déjà, la page affiche les informations en attendant les US d’édition / gestion.
 - Un client peut créer sa boutique : lors de la soumission du formulaire, un profil `Vendor` est créé/associé et le rôle `ROLE_VENDOR` est ajouté automatiquement. Les vendeurs existants ne voient que la page de gestion.
 
 Bundles & packs groupés
 -----------------------
+
 - L’onglet **Pack de produits** de la fiche vendeur (`templates/vendor/product/form.html.twig`) permet de composer un bundle à partir de produits simples/variables existants, de rendre certains composants obligatoires et de définir une remise globale (champ `bundleDiscountPercent`).  
 - Côté client (`templates/catalog/product_show.html.twig`), la section “Configure ton pack” repose sur `bundleComposer` (Alpine). Chaque composant peut être configuré plusieurs fois avec des variantes différentes, une modale affiche la fiche produit et le prix/stock de la configuration sélectionnée.  
 - Le bloc résumé au-dessus du bouton “Ajouter au panier” indique :
@@ -99,6 +116,7 @@ Bundles & packs groupés
 
 Installation locale (dev)
 -------------------------
+
 Prérequis : PHP 8.2+, Composer 2, PostgreSQL 16, Node (facultatif pour assets).
 
 ```bash
@@ -116,7 +134,9 @@ symfony serve -d               # ou php -S localhost:8000 -t public
 
 Authentification JWT & Postman
 ------------------------------
+
 ### Login
+
 1. `POST /api/login` avec JSON :
    ```json
    { "email": "user@example.com", "password": "password" }
@@ -133,6 +153,7 @@ Authentification JWT & Postman
 4. Dans vos requêtes protégées, utilisez l’en‑tête `Authorization: Bearer {{jwt_token}}`.
 
 ### Inscription client
+
 `POST /api/register` accepte :
 ```json
 {
@@ -145,11 +166,13 @@ Authentification JWT & Postman
 La réponse retourne directement un token et les informations du compte créé, ce qui permet de connecter l’utilisateur immédiatement après son inscription.
 
 ### Garder la session ouverte
+
 - Les tokens expirent après `JWT_TOKEN_TTL` secondes (par défaut 86400 s = 24 h, configurable via l’ENV).
 - Appelez `POST /api/token/refresh` avec le JWT actuel pour en obtenir un nouveau (`{ "token": "...", "expiresIn": 3600 }`).  
 - Le front peut automatiser cette requête pour prolonger la session tant que l’utilisateur est actif.
 
 ### Paiement Stripe (Checkout)
+
 - Le bouton “Payer en ligne (Stripe)” sur `/commande` crée une session Stripe Checkout avec les lignes du panier.  
 - URLs : `success_url` → `/commande/confirmee/{reference}?session_id=...` et `cancel_url` → `/commande/annulee/{reference}`.  
 - Lors du retour Stripe, l’utilisateur voit l’état de la commande (paiement confirmé ou en attente).  
@@ -168,6 +191,7 @@ stripe listen --forward-to http://127.0.0.1:8000/stripe/webhook
 ```
 
 ### Tests automatisés (Postman / Newman)
+
 - La collection `postman/technova-api.postman_collection.json` couvre : `/api/test`, `/api/login`, `/api/me`, `/api/products`, `/api/cart`, `/api/token/refresh`, `/api/profile`.
 - L’environnement `postman/local.postman_environment.json` contient les variables utilisées (email/mot de passe, infos de profil, etc.).
 - Le script `./scripts/postman-tests.sh` lance `newman` avec la collection + l’environnement.  
@@ -179,12 +203,14 @@ stripe listen --forward-to http://127.0.0.1:8000/stripe/webhook
 
 Documentation API (Swagger)
 ---------------------------
+
 - UI locale : <http://localhost:8000/api/docs>  
 - JSON : <http://localhost:8000/api/docs.json>  
 Swagger est public par défaut (firewall `docs`). Pensez à restreindre son accès en prod (auth HTTP ou IP allowlist) si les endpoints sont sensibles.
 
 Déploiement Alwaysdata (prod)
 -----------------------------
+
 1. **Manager Alwaysdata**
    - Créez un site web pointant sur `/home/technova/www/technova-backend/public`.
    - Forcez PHP 8.2 (web + SSH) et Composer 2.
@@ -237,15 +263,18 @@ Déploiement Alwaysdata (prod)
 
 Scripts utiles
 --------------
+
 - `php bin/console app:create-admin` – Create/update admin interactif.
 - `php bin/console doctrine:fixtures:load` – (quand des fixtures seront ajoutées).
 - `php bin/console make:migration` – Génère les migrations lors des évolutions du schéma.
 - `php bin/console cache:clear --env=prod --no-warmup` – À utiliser après toute modification de config en prod.
 - `npm run optimize-images` – Convertit les images `public/images/**/*.{png,jpg}` en WebP via `sharp` (utile avant un push pour réduire le poids des médias).
 - `bash scripts/api-smoke.sh https://technova.alwaysdata.net` – Smoke-test API (curl + jq requis, URL optionnelle).
+- `bash scripts/setup-test-db.sh` – Crée `technova_test`, applique les migrations et recharge les fixtures avant de lancer les tests PHPUnit (`APP_ENV=test`). Doctrine ajoute automatiquement `_test` au nom.
 
 Tests automatisés
 -----------------
+
 - **Stack** : PHPUnit 11 + WebTestCase.  
 - **Couverture actuelle** :
   - `tests/Unit/UserRegistrationServiceTest` vérifie la création de compte et la validation côté `UserRegistrationService`.
@@ -259,6 +288,7 @@ Tests automatisés
 
 Tests API (Newman/Postman)
 --------------------------
+
 - Les scénarios sont décrits dans `postman/technova-api.postman_collection.json` + l’environnement `postman/local.postman_environment.json`.  
 - On peut les éditer via Postman si besoin, mais l’exécution se fait désormais exclusivement via Newman (CLI).  
 - Avant lancement : renseignez `baseUrl`, `loginEmail` et `loginPassword`. La requête catalogue se charge de remplir `sampleProductSlug` et `cartProductId` avec un produit publié.
@@ -271,6 +301,7 @@ Tests API (Newman/Postman)
 
 Bonnes pratiques / sécurité
 ---------------------------
+
 - Ne versionnez jamais `config/jwt/*.pem` ni `.env.local.php`.  
 - Après chaque changement de passphrase, régénérez les clés :  
   `rm config/jwt/*.pem && php bin/console lexik:jwt:generate-keypair`.  
@@ -281,6 +312,7 @@ Bonnes pratiques / sécurité
 
 Design / UI
 -----------
+
 - Maquettes (Figma/PDF) : `docs/maquettes.pdf`
 - Synthèse palette/typo/composants : `docs/design-system.md`
 - Pages Twig alignées sur ces maquettes : `/`, `/catalogue`, `/produit/{slug}`
@@ -289,10 +321,13 @@ Design / UI
 
 Comptes de démo
 ---------------
+
 - **Admin** : `admin@test.fr` / `123456`
 - **Vendeurs** : `vendor01@technova.test` → `vendor10@technova.test` / `Vendor#0X`
+- **Endpoints vendor** : `GET|POST|PUT /api/vendor/shop` gèrent la boutique (logo/bannière via `ImageUploader`, policies, contact) et `GET|PUT /api/vendor/profile` expose les coordonnées du vendeur. Voir `docs/vendor-api-endpoints.md` pour les payloads et Swagger.
 - **Clients** : `lena.client@technova.test` / `Client#01`, `maxime.client@technova.test` / `Client#02`, `nora.client@technova.test` / `Client#03`
 
-🚀 Bon déploiement !
+🚀 Bon déploiement
 --------------------
+
 Pour toute question ou pour la soutenance, suivez également le journal `docs/DEPLOYMENT_ALWAYS_DATA.md` qui retrace toutes les actions réalisées (nettoyage des clés, génération des envs, résolution d’incidents, etc.).

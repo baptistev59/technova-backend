@@ -1,0 +1,160 @@
+{% extends 'base.html.twig' %}
+
+{% import _self as macros %}
+
+{% block title %}{{ shop.name }} · Boutique TechNova{% endblock %}
+
+{% macro shopProductCard(product, shop) %}
+    {% set mainImage = product.images|first %}
+    <article class="tn-product-card h-full flex flex-col">
+        <div class="tn-product-card__media">
+            <img src="{{ mainImage ? asset(mainImage.url) : asset('assets/images/product-placeholder.svg') }}" alt="{{ mainImage ? mainImage.alt : 'Visuel produit' }}">
+        </div>
+        <div class="mt-4">
+            <h3 class="tn-product-card__title" title="{{ product.name }}">{{ product.name }}</h3>
+            {% if product.shortDescription %}
+                <p class="text-sm text-slate-500 mt-2 line-clamp-3">{{ product.shortDescription }}</p>
+            {% endif %}
+            <div class="tn-product-card__meta mt-3">
+                <span>{{ product.brand ? product.brand.name : shop.name }}</span>
+                <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
+            </div>
+        </div>
+        <div class="mt-2 text-xs text-blue-600">
+            <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
+        </div>
+        <div class="tn-product-card__cta mt-auto">
+            <a class="btn btn-primary w-full" href="{{ path('product_show', { slug: product.slug }) }}">Découvrir</a>
+        </div>
+    </article>
+{% endmacro %}
+
+{% block body %}
+    <section class="tn-hero">
+        <div class="tn-hero__text">
+            <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Boutique partenaire</p>
+            <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">{{ shop.name }}</h1>
+            <p class="text-slate-500 mt-3 leading-relaxed">
+                {% if shop.description %}
+                    {{ shop.description }}
+                {% else %}
+                    Explorez la sélection exclusive du vendeur {{ shop.name }} sur TechNova.
+                {% endif %}
+            </p>
+            <div class="tn-hero__actions">
+                <a href="{{ path('shop_catalog', { slug: shop.slug }) }}" class="btn btn-primary">Parcourir le catalogue</a>
+                <a href="mailto:{{ shop.contactEmail }}" class="btn btn-outline">Contacter le vendeur</a>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
+                <span class="inline-flex items-center gap-2">
+                    <strong class="text-slate-900">{{ latestProducts|length }}</strong> Nouveautés
+                </span>
+                <span class="inline-flex items-center gap-2">
+                    <strong class="text-slate-900">{{ featuredProducts|length }}</strong> Sélection à la une
+                </span>
+            </div>
+        </div>
+        <div class="tn-hero__visual
+                    w-full
+                    h-[180px]
+                    sm:h-[240px]
+                    md:h-[320px]
+                    lg:h-[400px]
+                    overflow-hidden
+                    rounded-3xl
+                    bg-slate-100
+                    flex items-center justify-center">
+            {% if shop.banner %}
+                <img
+                    src="{{ asset(shop.banner) }}"
+                    alt="{{ shop.name }}"
+                    class="max-h-full max-w-full object-contain"
+                >
+            {% else %}
+                <span class="text-4xl font-semibold text-slate-400">
+                    {{ shop.name|slice(0,2)|upper }}
+                </span>
+            {% endif %}
+        </div>
+
+    </section>
+
+    {% set carouselLimit = 10 %}
+    <section class="tn-section">
+        <div class="tn-section__header">
+            <h2>Nouveautés de la boutique</h2>
+            <a href="{{ path('shop_catalog', { slug: shop.slug }) }}" class="text-sm text-slate-500 underline">Voir tout le catalogue</a>
+        </div>
+        {% set latestSlides = latestProducts|slice(0, carouselLimit) %}
+        {% set latestMissingSlides = max([0, carouselLimit - latestSlides|length]) %}
+        {% if latestProducts %}
+            <div class="swiper tn-carousel" data-swiper-init data-swiper-visible="5">
+                <div class="swiper-wrapper">
+                    {% for product in latestSlides %}
+                        <div class="swiper-slide p-3">
+                            {{ macros.shopProductCard(product, shop) }}
+                        </div>
+                    {% endfor %}
+                    {% if latestMissingSlides and latestSlides %}
+                        {% for i in 0..(latestMissingSlides - 1) %}
+                            <div class="swiper-slide p-3">
+                                {% set fallbackProduct = latestSlides[(i) % latestSlides|length] %}
+                                {{ macros.shopProductCard(fallbackProduct, shop) }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="swiper-pagination"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-button-next"></div>
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">Aucune nouveauté publiée pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="tn-section">
+        <div class="tn-section__header">
+            <h2>Produits à la une</h2>
+        </div>
+        {% set featuredSlides = featuredProducts|slice(0, carouselLimit) %}
+        {% set featuredMissingSlides = max([0, carouselLimit - featuredSlides|length]) %}
+        {% if featuredProducts %}
+            <div class="swiper tn-carousel" data-swiper-init data-swiper-visible="5">
+                <div class="swiper-wrapper">
+                    {% for product in featuredSlides %}
+                        <div class="swiper-slide p-3">
+                            {{ macros.shopProductCard(product, shop) }}
+                        </div>
+                    {% endfor %}
+                    {% if featuredMissingSlides and featuredSlides %}
+                        {% for i in 0..(featuredMissingSlides - 1) %}
+                            <div class="swiper-slide p-3">
+                                {% set fallbackProduct = featuredSlides[(i) % featuredSlides|length] %}
+                                {{ macros.shopProductCard(fallbackProduct, shop) }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="swiper-pagination"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-button-next"></div>
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">Aucun produit mis en avant.</p>
+        {% endif %}
+    </section>
+
+    <section class="tn-section">
+        <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-5">
+            <h3 class="text-xl font-semibold text-slate-900">À propos de {{ shop.name }}</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">
+                {{ shop.description ?: 'Maison partenaire TechNova, cette boutique sélectionne des produits testés par nos experts.' }}
+            </p>
+            <div class="flex flex-wrap gap-3">
+                <a class="btn btn-outline" href="{{ path('app_vendor_shop_new') }}">Créer / modifier ma boutique</a>
+                <a class="btn btn-primary" href="{{ path('shop_catalog', { slug: shop.slug }) }}">Voir le catalogue complet</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

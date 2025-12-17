@@ -13,7 +13,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ShopRepository::class)]
-#[ORM\Table(name: 'shop', uniqueConstraints: [new ORM\UniqueConstraint(name: 'UNIQ_SHOP_SLUG', columns: ['slug'])])]
+#[ORM\Table(name: 'shop')]
+#[ORM\UniqueConstraint(name: 'UNIQ_SHOP_SLUG', columns: ['slug'])]
 #[ORM\HasLifecycleCallbacks]
 class Shop
 {

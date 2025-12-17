@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Product;
 use App\Entity\Shop;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -33,6 +34,157 @@ class ProductRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Retourne une suggestion de noms de produits pour l'autocomplétion.
+     *
+     * @return string[]
+     */
+    public function findNameSuggestions(int $limit = 30): array
+    {
+        $rows = $this->createQueryBuilder('p')
+            ->select('DISTINCT p.name AS name')
+            ->orderBy('p.name', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): string => (string) $row['name'], $rows);
+    }
+
+    /**
+     * Retourne les noms de produits qui contiennent la chaîne fournie.
+     *
+     * @return string[]
+     */
+    public function findNamesContaining(string $query, int $limit = 40): array
+    {
+        if ($query === '') {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('p')
+            ->select('DISTINCT p.name AS name, p.keywords AS keywords')
+            ->andWhere('(LOWER(p.name) LIKE :query OR LOWER(p.keywords) LIKE :query)')
+            ->andWhere('p.isPublished = :published')
+            ->setParameter('query', '%' . mb_strtolower($query) . '%')
+            ->setParameter('published', true)
+            ->orderBy('p.name', 'ASC')
+            ->setMaxResults($limit);
+
+        $rows = $qb->getQuery()->getScalarResult();
+
+        $suggestions = [];
+        foreach ($rows as $row) {
+            $name = (string) ($row['name'] ?? '');
+            if ($name !== '') {
+                $suggestions[] = $name;
+            }
+
+            $keywords = (string) ($row['keywords'] ?? '');
+            if ($keywords !== '') {
+                $tokens = preg_split('/[\s,;]+/', $keywords);
+                foreach ($tokens as $token) {
+                    $token = trim($token);
+                    if ($token !== '') {
+                        $suggestions[] = $token;
+                    }
+                }
+            }
+        }
+
+        $queryNormalized = mb_strtolower($query);
+        $unique = array_values(array_unique(array_filter($suggestions, static fn (string $value) => $value !== '' && str_contains(mb_strtolower($value), $queryNormalized)), SORT_STRING));
+        return array_slice($unique, 0, $limit);
+    }
+
+    /**
+     * Retourne les derniers produits publiés pour une boutique donnée.
+     *
+     * @return Product[]
+     */
+    public function findLatestPublishedForShop(Shop $shop, int $limit = 10): array
+    {
+        $ids = $this->fetchShopProductIds(
+            $shop,
+            ['p.createdAt' => 'DESC'],
+            $limit,
+            [
+                ['field' => 'p.isPublished', 'value' => true],
+            ]
+        );
+        return $this->loadProductsByIdsWithRelations($ids);
+    }
+
+    public function findFeaturedPublishedForShop(Shop $shop, int $limit = 10): array
+    {
+        $ids = $this->fetchShopProductIds(
+            $shop,
+            ['p.updatedAt' => 'DESC'],
+            $limit,
+            [
+                ['field' => 'p.isPublished', 'value' => true],
+                ['field' => 'p.isFeatured', 'value' => true],
+            ]
+        );
+        return $this->loadProductsByIdsWithRelations($ids);
+    }
+
+    private function fetchShopProductIds(Shop $shop, array $orderings, int $limit, array $conditions = []): array
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->select('p.id')
+            ->andWhere('p.shop = :shop')
+            ->setParameter('shop', $shop);
+
+        foreach ($conditions as $index => $condition) {
+            $paramKey = 'cond_' . $index;
+            $qb->andWhere($condition['field'] . ' = :' . $paramKey)
+               ->setParameter($paramKey, $condition['value']);
+        }
+
+        foreach ($orderings as $field => $direction) {
+            $qb->addOrderBy($field, $direction);
+        }
+
+        $qb->setMaxResults($limit);
+
+        $result = $qb->getQuery()->getScalarResult();
+        return array_map(static fn (array $row): int => (int) $row['id'], $result);
+    }
+
+    private function loadProductsByIdsWithRelations(array $ids): array
+{
+    if ($ids === []) {
+        return [];
+    }
+
+    $qb = $this->createQueryBuilder('p')
+        ->select('DISTINCT p')
+        ->leftJoin('p.images', 'img')
+        ->addSelect('img')
+        ->leftJoin('p.brand', 'b')
+        ->addSelect('b')
+        ->andWhere('p.id IN (:ids)')
+        ->setParameter('ids', $ids);
+
+    // CASE pour l’ordre
+    $case = 'CASE';
+    foreach ($ids as $index => $id) {
+        $param = 'order_' . $index;
+        $case .= ' WHEN p.id = :' . $param . ' THEN ' . $index;
+        $qb->setParameter($param, $id);
+    }
+    $case .= ' ELSE ' . count($ids) . ' END';
+
+    // 👇 OBLIGATOIRE pour PostgreSQL
+    $qb
+        ->addSelect($case . ' AS HIDDEN sort_order')
+        ->addOrderBy('sort_order', 'ASC');
+
+    return $qb->getQuery()->getResult();
+}
+
 
     /**
      * Sélectionne les produits mis à la une.
@@ -65,7 +217,7 @@ class ProductRepository extends ServiceEntityRepository
      * } $filters
      * @return Product[]
      */
-    public function filterBy(array $filters): array
+    private function createFilterQueryBuilder(array $filters, bool &$hasSearchOrdering = null): QueryBuilder
     {
         $qb = $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')
@@ -73,9 +225,10 @@ class ProductRepository extends ServiceEntityRepository
             ->leftJoin('p.brand', 'b')
             ->addSelect('b')
             ->andWhere('p.isPublished = :published')
-            ->setParameter('published', true)
-            ->orderBy('p.createdAt', 'DESC');
+            ->setParameter('published', true);
+
         $hasSearchOrdering = false;
+        $orderMethod = 'orderBy';
 
         if (!empty($filters['category'])) {
             $qb->andWhere('c.slug = :category')
@@ -85,6 +238,16 @@ class ProductRepository extends ServiceEntityRepository
         if (!empty($filters['brand'])) {
             $qb->andWhere('b.slug = :brand')
                 ->setParameter('brand', $filters['brand']);
+        }
+
+        if (!empty($filters['shop']) && $filters['shop'] instanceof Shop) {
+            $qb->andWhere('p.shop = :shopFilter')
+                ->setParameter('shopFilter', $filters['shop']);
+        }
+
+        if (!empty($filters['shop']) && $filters['shop'] instanceof Shop) {
+            $qb->andWhere('p.shop = :shopFilter')
+                ->setParameter('shopFilter', $filters['shop']);
         }
 
         if (isset($filters['minPrice']) && is_numeric($filters['minPrice'])) {
@@ -102,30 +265,30 @@ class ProductRepository extends ServiceEntityRepository
             if ($normalized !== '') {
                 $terms = array_values(array_filter(explode(' ', $normalized)));
                 if ($terms !== []) {
-                    $orExpressions = [];
                     $scoreParts = [];
 
                     foreach ($terms as $index => $term) {
                         $param = 'term_' . $index;
                         $condition = sprintf(
-                            '(LOWER(p.name) LIKE :%1$s OR LOWER(p.shortDescription) LIKE :%1$s)',
+                            '(LOWER(p.name) LIKE :%1$s OR LOWER(p.shortDescription) LIKE :%1$s OR LOWER(p.keywords) LIKE :%1$s)',
                             $param
                         );
-                        $orExpressions[] = $condition;
                         $scoreParts[] = sprintf('CASE WHEN %s THEN 1 ELSE 0 END', $condition);
+                        $qb->andWhere($condition);
                         $qb->setParameter($param, '%' . $term . '%');
                     }
 
-                    $qb->andWhere(implode(' OR ', $orExpressions));
-                    $qb->addSelect('(' . implode(' + ', $scoreParts) . ') AS HIDDEN relevance');
-                    $qb->addOrderBy('relevance', 'DESC');
-                    $hasSearchOrdering = true;
+                    if ($scoreParts !== []) {
+                        $qb->addSelect('(' . implode(' + ', $scoreParts) . ') AS HIDDEN relevance');
+                        $qb->addOrderBy('relevance', 'DESC');
+                        $hasSearchOrdering = true;
+                        $orderMethod = 'addOrderBy';
+                    }
                 }
             }
         }
 
         $sort = $filters['sort'] ?? 'newest';
-        $orderMethod = $hasSearchOrdering ? 'addOrderBy' : 'orderBy';
         match ($sort) {
             'price_asc' => $qb->{$orderMethod}('p.price', 'ASC'),
             'price_desc' => $qb->{$orderMethod}('p.price', 'DESC'),
@@ -133,7 +296,39 @@ class ProductRepository extends ServiceEntityRepository
             default => $qb->{$orderMethod}('p.createdAt', 'DESC'),
         };
 
+        return $qb;
+    }
+
+    public function filterBy(array $filters): array
+    {
+        $qb = $this->createFilterQueryBuilder($filters, $hasSearchOrdering);
         return $qb->getQuery()->getResult();
+    }
+
+    public function filterByPaginated(array $filters, int $page, int $limit): array
+    {
+        $qb = $this->createFilterQueryBuilder($filters, $hasSearchOrdering);
+        $countQb = clone $qb;
+        $total = (int) $countQb
+            ->select('COUNT(DISTINCT p.id)')
+            ->resetDQLPart('orderBy')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $perPage = max(1, $limit);
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = max(1, min($page, $pages));
+
+        $qb->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
+        return [
+            'items' => $qb->getQuery()->getResult(),
+            'total' => $total,
+            'page' => $page,
+            'pages' => $pages,
+            'per_page' => $perPage,
+        ];
     }
 
     /**

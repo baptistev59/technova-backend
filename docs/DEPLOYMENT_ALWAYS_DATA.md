@@ -5,11 +5,13 @@ Ce document synthétise toutes les manipulations réalisées pour préparer et d
 ---
 
 ## 1. Nettoyage du dépôt (local)
+
 - Suppression des clés JWT versionnées (`config/jwt/private.pem`, `config/jwt/public.pem`) et des scripts de debug `public/info.php`, `public/env.php`.
 - Mise à jour de `.gitignore` pour exclure toutes les clés (`*.pem`, `*.key`, `*.crt`).
 - Ajout d’un README bilingue dans `config/jwt/` rappelant d’exécuter `php bin/console lexik:jwt:generate-keypair`.
 
 ## 2. Configuration Alwaysdata – Variables d’environnement
+
 - Valeurs courantes (via *Configuration → Variables d’environnement*) :
   - `APP_ENV=prod`, `APP_DEBUG=0`
   - `APP_SECRET` = généré via `openssl rand -hex 32`
@@ -28,6 +30,7 @@ Ce document synthétise toutes les manipulations réalisées pour préparer et d
   - `DEFAULT_URI=https://technova.alwaysdata.net`
 
 ## 3. Installation sur l’hébergement via SSH
+
 ```bash
 cd ~/www/technova-backend
 composer install --no-dev --optimize-autoloader
@@ -37,6 +40,7 @@ php bin/console app:create-admin --env=prod
 ```
 
 ## 4. Incidents rencontrés & résolutions
+
 | Date | Commande | Symptôme | Résolution / Statut |
 |------|----------|----------|---------------------|
 | 29/11 | `composer install --no-dev --optimize-autoloader` | `Environment variable not found: "DEFAULT_URI"` + warning Doctrine `report_fields_where_declared` | Ajouter `DEFAULT_URI` dans les variables Alwaysdata (ex. `https://technova.alwaysdata.net`). Warning Doctrine simplement informatif. |
@@ -53,6 +57,7 @@ php bin/console app:create-admin --env=prod
 | 05/12 | `npm run dev` (asset-map) | `Could not find package "catalog-filters" / syntax error controllers.json` | Vérifier `assets/controllers.json` après ajout d’une entrée Stimulus ; la tâche échoue en cas d’erreur JSON ou d’entrée inexistante. |
 
 ## 5. Prochaines actions
+
 1. **Variables** : déclarer `DEFAULT_URI=https://technova.alwaysdata.net` dans Alwaysdata, vérifier les valeurs d’`APP_SECRET` et `JWT_PASSPHRASE`.
 2. **Installation** : relancer `composer install --no-dev --optimize-autoloader` (devrait passer une fois la variable ajoutée).
 3. **Migrations** : le dossier `~/www/technova-backend/migrations/` est vide sur Alwaysdata (voir commande `ls migrations/`). Vérifier que les fichiers sont bien suivis en Git localement puis pousser/puller depuis le serveur (`git pull origin master`). Sur base neuve, nettoyer le schéma via le manager si des tables subsistent avant d’exécuter `php bin/console doctrine:migrations:migrate --no-interaction --env=prod`. Supprimer toute migration dupliquée directement sur le serveur.
@@ -62,17 +67,20 @@ php bin/console app:create-admin --env=prod
 7. **Stripe** : exécuter `stripe listen --forward-to https://technova.alwaysdata.net/stripe/webhook` lors des tests ou configurer un webhook HTTPS dans le Dashboard (événement `checkout.session.completed`).
 
 ## 6. GitHub Actions – `deploy-alwaysdata.yml`
+
 - Déclenchement : `push` sur `master`.  
 - Étapes principales :
   1. `actions/checkout` récupère le code.
   2. `rsync` copie les sources vers Alwaysdata en excluant `.git`, `.github`, `var/`, `vendor/`.
   3. Via `appleboy/ssh-action`, le serveur exécute :
+
      ```bash
      composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
      php bin/console lexik:jwt:generate-keypair --no-interaction # si les clés n'existent pas
      php bin/console doctrine:migrations:migrate --no-interaction --env=prod
      php bin/console cache:clear --env=prod --no-warmup
      ```
+
 - Secrets GitHub à renseigner :
   - `SSH_REMOTE_HOST`, `SSH_REMOTE_PORT`
   - `SSH_REMOTE_USER`
@@ -83,6 +91,7 @@ php bin/console app:create-admin --env=prod
 > Pense à enrichir ce fichier dès que tu réalises une nouvelle opération (tests, corrections, incidents). Ce sera ta trace pour la soutenance.
 
 ## 7. Synchroniser la base Alwaysdata avec la base locale
+
 - Script utilitaire : `scripts/sync-demo-db.sh`. Il :
   1. Dump la base locale (pg_dump).
   2. Transfère le fichier via `scp` sur le serveur.
@@ -93,13 +102,16 @@ php bin/console app:create-admin --env=prod
   - `REMOTE_SSH` (ex. `technova@ssh-technova.alwaysdata.net`), `REMOTE_DB_NAME`, `REMOTE_DB_USER`, `REMOTE_DB_HOST`
   - `REMOTE_DB_PASSWORD` (injecté dans `PGPASSWORD` lors de la restauration)
 - Exemple :
+
   ```bash
   export REMOTE_DB_PASSWORD="***"
   bash scripts/sync-demo-db.sh
   ```
+
 - Cette méthode remplace `doctrine:fixtures:load` en prod : la base est réalimentée ponctuellement à partir du dump local puis laissée “vivre” pour la démo.
 
 ## 8. Logs & monitoring
+
 - Depuis décembre 2025, le handler Monolog prod (`config/packages/monolog.yaml`) écrit dans un `rotating_file` (`var/log/prod.log`) conservant les 30 derniers fichiers (`max_files: 30`).
 - Les logs applicatifs restent accessibles via Alwaysdata (`~/logs/php-*.log`) mais cette rotation locale permet de télécharger rapidement un pack complet si besoin.
 - Les endpoints `/api/test` et `/api/test-audit` sont utiles pour vérifier que l’écriture des logs fonctionne après un déploiement.

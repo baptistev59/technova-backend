@@ -5,20 +5,24 @@ namespace App\Controller\Web;
 use App\Entity\Address;
 use App\Entity\AttributeDefinition;
 use App\Entity\AttributeValueDefinition;
+use App\Entity\Category;
+use App\Entity\CustomerOrder;
 use App\Entity\Product;
 use App\Entity\ProductAttribute;
 use App\Entity\ProductAttributeSelection;
 use App\Entity\ProductAttributeValue;
-use App\Entity\ProductImage;
 use App\Entity\ProductBundleItem;
+use App\Entity\ProductImage;
 use App\Entity\ProductVariant;
 use App\Entity\Shop;
 use App\Entity\User;
-use App\Entity\Category;
 use App\Entity\Vendor;
 use App\Form\Vendor\ShopType;
 use App\Form\Vendor\ProductType;
+use App\Image\ImageProfileRegistry;
+use App\Image\ImageUploader;
 use App\Repository\AttributeDefinitionRepository;
+use App\Repository\CustomerOrderRepository;
 use App\Repository\ShopRepository;
 use App\Repository\UserRepository;
 use App\Repository\ProductRepository;
@@ -28,7 +32,6 @@ use App\Security\ViewerAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -37,6 +40,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Throwable;
 
 #[Route('/mon-espace-vendeur')]
@@ -52,7 +56,10 @@ class VendorShopController extends AbstractController
         private readonly ProductRepository $productRepository,
         private readonly CategoryRepository $categoryRepository,
         private readonly BrandRepository $brandRepository,
-        private readonly AttributeDefinitionRepository $attributeDefinitionRepository
+        private readonly AttributeDefinitionRepository $attributeDefinitionRepository,
+        private readonly CustomerOrderRepository $orderRepository,
+        private readonly ImageUploader $imageUploader,
+        #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {
     }
 
@@ -75,48 +82,123 @@ class VendorShopController extends AbstractController
         }
 
         if ($existingShop instanceof Shop && !$editMode) {
+            $dashboardOrders = $this->orderRepository->paginateForShop($existingShop, 1, 5);
+            $shopProductMap = $this->mapShopProductIds($existingShop, $dashboardOrders['orders'] ?? []);
+
+            $statusCounts = array_merge([
+                CustomerOrder::STATUS_PENDING => 0,
+                CustomerOrder::STATUS_PAID => 0,
+                CustomerOrder::STATUS_SHIPPED => 0,
+                CustomerOrder::STATUS_CANCELLED => 0,
+            ], $dashboardOrders['statusCounts'] ?? []);
+
+            $metrics = [
+                'totalOrders' => $dashboardOrders['total'] ?? 0,
+                'pendingOrders' => $statusCounts[CustomerOrder::STATUS_PENDING] ?? 0,
+                'paidOrders' => ($statusCounts[CustomerOrder::STATUS_PAID] ?? 0) + ($statusCounts[CustomerOrder::STATUS_SHIPPED] ?? 0),
+                'revenue' => (float) ($dashboardOrders['revenue'] ?? 0.0),
+            ];
+
+            $statCards = [
+                ['label' => 'Commandes totales', 'value' => $metrics['totalOrders'], 'trend' => 'Depuis l’ouverture', 'icon' => '🧾'],
+                ['label' => 'En attente', 'value' => $metrics['pendingOrders'], 'trend' => 'Statut pending', 'icon' => '⏳'],
+                ['label' => 'Payées / expédiées', 'value' => $metrics['paidOrders'], 'trend' => 'Commandes validées', 'icon' => '✅'],
+                ['label' => 'Revenus cumulés', 'value' => number_format($metrics['revenue'], 2, ',', ' ') . ' €', 'trend' => 'Cumul boutique', 'icon' => '💶'],
+            ];
+
+            $ordersPreview = [];
+            foreach ($dashboardOrders['orders'] ?? [] as $order) {
+                $lines = [];
+                $lineTotal = 0.0;
+                $quantity = 0;
+                foreach ($order->getItems() as $item) {
+                    if (!isset($shopProductMap[$item->getProductId()])) {
+                        continue;
+                    }
+                    $lineAmount = (float) $item->getLineTotal();
+                    $lines[] = [
+                        'name' => $item->getProductName(),
+                        'quantity' => $item->getQuantity(),
+                        'lineTotal' => $lineAmount,
+                    ];
+                    $lineTotal += $lineAmount;
+                    $quantity += $item->getQuantity();
+                }
+                if ($lines === []) {
+                    continue;
+                }
+                $ordersPreview[] = [
+                    'entity' => $order,
+                    'lines' => array_slice($lines, 0, 3),
+                    'moreLines' => max(0, count($lines) - 3),
+                    'lineTotal' => $lineTotal,
+                    'quantity' => $quantity,
+                ];
+            }
+
+            $today = new \DateTimeImmutable('today');
+            $dailyStart = $today->modify('-29 days');
+            $monthlyStart = $today->modify('first day of this month')->modify('-11 months');
+            $trendStart = $dailyStart < $monthlyStart ? $dailyStart : $monthlyStart;
+            $ordersHistory = $this->orderRepository->findShopOrdersSince($existingShop, $trendStart);
+            $validatedStatuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+
+            $dailyTrend = [];
+            for ($i = 0; $i < 30; ++$i) {
+                $date = $dailyStart->modify(sprintf('+%d days', $i));
+                $dailyTrend[$date->format('Y-m-d')] = [
+                    'label' => $date->format('d/m'),
+                    'value' => 0,
+                ];
+            }
+
+            $monthlyTrend = [];
+            for ($i = 0; $i < 12; ++$i) {
+                $month = $monthlyStart->modify(sprintf('+%d months', $i));
+                $monthlyTrend[$month->format('Y-m')] = [
+                    'label' => ucfirst($month->format('M Y')),
+                    'value' => 0.0,
+                ];
+            }
+
+            foreach ($ordersHistory as $historyRow) {
+                $createdAt = $historyRow['createdAt'];
+                $lineTotal = $historyRow['total'];
+                $status = $historyRow['status'];
+                $dayKey = $createdAt->format('Y-m-d');
+                if (isset($dailyTrend[$dayKey])) {
+                    $dailyTrend[$dayKey]['value'] += 1;
+                }
+                $monthKey = $createdAt->format('Y-m');
+                if (isset($monthlyTrend[$monthKey]) && in_array($status, $validatedStatuses, true)) {
+                    $monthlyTrend[$monthKey]['value'] += $lineTotal;
+                }
+            }
+
+            $dailyMax = max(array_column($dailyTrend, 'value')) ?: 1;
+            $monthlyMax = max(array_column($monthlyTrend, 'value')) ?: 1;
+
+            $dailyTrend = array_map(static function (array $point) use ($dailyMax) {
+                $point['percent'] = $dailyMax > 0 ? (int) round(($point['value'] / $dailyMax) * 100) : 0;
+                return $point;
+            }, $dailyTrend);
+            $monthlyTrend = array_map(static function (array $point) use ($monthlyMax) {
+                $point['percent'] = $monthlyMax > 0 ? (int) round(($point['value'] / $monthlyMax) * 100) : 0;
+                return $point;
+            }, $monthlyTrend);
+            $latestProducts = $this->productRepository->findLatestPublishedForShop(shop: $existingShop, limit: 10);
+
             return $this->render('vendor/shop/existing.html.twig', [
-
-                // MENU VENDEUR (contient active)
-                'vendor_nav' => [
-                    ['label' => 'Accueil', 'icon' => '🏠', 'active' => true, 'path' => 'app_vendor_shop_new'],
-                    ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => false, 'path' => 'app_vendor_products'],
-                    ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
-                    ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
-                    ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
-                    ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-                ],
-
-                // STATS DU DASHBOARD (pas d'active ici)
-                'stats' => [
-                    [
-                        'label' => 'Ventes du jour',
-                        'value' => '33',
-                        'trend' => '+8% cette semaine',
-                        'icon'  => '🛒',
-                    ],
-                    [
-                        'label' => 'Revenus',
-                        'value' => '1 240 €',
-                        'trend' => '+12% cette semaine',
-                        'icon'  => '💶',
-                    ],
-                    [
-                        'label' => 'Commandes en cours',
-                        'value' => '14',
-                        'trend' => '+3% cette semaine',
-                        'icon'  => '📦',
-                    ],
-                    [
-                        'label' => 'Produits actifs',
-                        'value' => '56',
-                        'trend' => 'Stable',
-                        'icon'  => '🏬',
-                    ],
-                ],
-
+                'vendor_nav' => $this->buildVendorNav('app_vendor_shop_new'),
                 'shop' => $existingShop,
                 'attributeStats' => $this->buildAttributeStats($existingShop),
+                'stats' => $statCards,
+                'orders_preview' => $ordersPreview,
+                'orders_metrics' => $metrics,
+                'status_badges' => $this->orderStatusBadges(),
+                'sales_trend' => array_values($dailyTrend),
+                'revenue_trend' => array_values($monthlyTrend),
+                'latest_products' => $latestProducts,
             ]);
         }
 
@@ -291,14 +373,7 @@ class VendorShopController extends AbstractController
             'name_desc' => 'Nom (Z-A)',
         ];
 
-        $vendorNav = [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => false, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => true, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
+        $vendorNav = $this->buildVendorNav('app_vendor_products');
 
         $productIds = array_map(static fn (Product $product) => $product->getId(), $products);
 
@@ -357,6 +432,330 @@ class VendorShopController extends AbstractController
         return $this->render('vendor/shop/terms.html.twig', [
             'form' => $form->createView(),
         ]);
+    }
+
+    #[Route('/commandes', name: 'app_vendor_orders', methods: ['GET'])]
+    public function orders(Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $user = $this->resolveViewer($request);
+        $vendor = $user->getVendor();
+
+        if (!$vendor) {
+            $this->addFlash('warning', 'Crée d’abord ta boutique pour consulter tes commandes.');
+
+            return $this->redirectToRoute('app_vendor_shop_new');
+        }
+
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
+        if (!$shop instanceof Shop) {
+            $this->addFlash('warning', 'Publie ta boutique pour commencer à recevoir des commandes.');
+
+            return $this->redirectToRoute('app_vendor_shop_new');
+        }
+
+        $page = max(1, (int) $request->query->get('page', 1));
+        $perPageOptions = [10, 25, 50];
+        $perPage = (int) $request->query->get('limit', 10);
+        if (!in_array($perPage, $perPageOptions, true)) {
+            $perPage = 10;
+        }
+        $statusParam = (string) $request->query->get('status', '');
+        $allowedStatusKeys = array_keys($this->orderStatusBadges());
+        $statusFilter = in_array($statusParam, $allowedStatusKeys, true) ? $statusParam : null;
+
+        $result = $this->orderRepository->paginateForShop($shop, $page, $perPage, $statusFilter);
+        $orders = $result['orders'];
+        $shopProductMap = $this->mapShopProductIds($shop, $orders);
+
+        $orderViews = [];
+        $pageRevenue = 0.0;
+        foreach ($orders as $order) {
+            $lines = [];
+            $subtotal = 0.0;
+            $quantity = 0;
+            foreach ($order->getItems() as $item) {
+                if (!isset($shopProductMap[$item->getProductId()])) {
+                    continue;
+                }
+                $lineAmount = (float) $item->getLineTotal();
+                $lines[] = [
+                    'name' => $item->getProductName(),
+                    'quantity' => $item->getQuantity(),
+                    'lineTotal' => $lineAmount,
+                ];
+                $subtotal += $lineAmount;
+                $quantity += $item->getQuantity();
+            }
+
+            $pageRevenue += $subtotal;
+
+            $orderViews[] = [
+                'entity' => $order,
+                'lines' => $lines,
+                'lineTotal' => $subtotal,
+                'quantity' => $quantity,
+                'customer' => $this->resolveOrderCustomerName($order),
+            ];
+        }
+
+        $statusCounts = array_merge([
+            CustomerOrder::STATUS_PENDING => 0,
+            CustomerOrder::STATUS_PAID => 0,
+            CustomerOrder::STATUS_SHIPPED => 0,
+            CustomerOrder::STATUS_CANCELLED => 0,
+        ], $result['statusCounts'] ?? []);
+
+        $metrics = [
+            'totalOrders' => $result['overallTotal'] ?? $result['total'],
+            'pendingOrders' => $statusCounts[CustomerOrder::STATUS_PENDING] ?? 0,
+            'paidOrders' => ($statusCounts[CustomerOrder::STATUS_PAID] ?? 0) + ($statusCounts[CustomerOrder::STATUS_SHIPPED] ?? 0),
+            'revenue' => (float) ($result['revenue'] ?? 0.0),
+            'pageRevenue' => $pageRevenue,
+        ];
+
+        return $this->render('vendor/order/index.html.twig', [
+            'shop' => $shop,
+            'orders' => $orderViews,
+            'metrics' => $metrics,
+            'pagination' => [
+                'page' => $result['page'],
+                'pages' => $result['pages'],
+                'total' => $result['total'],
+                'per_page' => $perPage,
+            ],
+            'status_badges' => $this->orderStatusBadges(),
+            'status_filter' => $statusFilter,
+            'per_page' => $perPage,
+            'per_page_options' => $perPageOptions,
+            'vendor_nav' => $this->buildVendorNav('app_vendor_orders'),
+        ]);
+    }
+
+    #[Route('/statistiques', name: 'app_vendor_stats', methods: ['GET'])]
+    public function stats(Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $user = $this->resolveViewer($request);
+        $vendor = $user->getVendor();
+
+        if (!$vendor) {
+            $this->addFlash('warning', 'Crée ta boutique pour consulter tes statistiques.');
+
+            return $this->redirectToRoute('app_vendor_shop_new');
+        }
+
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
+        if (!$shop instanceof Shop) {
+            $this->addFlash('warning', 'Publie ta boutique pour accéder aux statistiques.');
+
+            return $this->redirectToRoute('app_vendor_shop_new');
+        }
+
+        $statusMeta = [
+            CustomerOrder::STATUS_PENDING => ['label' => 'En attente', 'color' => '#f97316', 'fill' => 'rgba(249,115,22,0.12)'],
+            CustomerOrder::STATUS_PAID => ['label' => 'Payée', 'color' => '#10b981', 'fill' => 'rgba(16,185,129,0.12)'],
+            CustomerOrder::STATUS_SHIPPED => ['label' => 'Expédiée', 'color' => '#0ea5e9', 'fill' => 'rgba(14,165,233,0.12)'],
+            CustomerOrder::STATUS_CANCELLED => ['label' => 'Annulée', 'color' => '#ef4444', 'fill' => 'rgba(239,68,68,0.12)'],
+        ];
+        $realStatuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+
+        $today = new \DateTimeImmutable('today');
+        $dailyStart = $today->modify('-29 days');
+        $monthlyStart = $today->modify('first day of this month')->modify('-11 months');
+        $trendStart = $dailyStart < $monthlyStart ? $dailyStart : $monthlyStart;
+        $ordersHistory = $this->orderRepository->findShopOrdersSince($shop, $trendStart);
+
+        $dailyLabels = [];
+        $dailyKeyIndex = [];
+        for ($i = 0; $i < 30; ++$i) {
+            $date = $dailyStart->modify(sprintf('+%d days', $i));
+            $dailyLabels[] = $date->format('d/m');
+            $dailyKeyIndex[$date->format('Y-m-d')] = $i;
+        }
+
+        $monthlyLabels = [];
+        $monthlyKeyIndex = [];
+        for ($i = 0; $i < 12; ++$i) {
+            $month = $monthlyStart->modify(sprintf('+%d months', $i));
+            $monthlyLabels[] = $month->format('m/Y');
+            $monthlyKeyIndex[$month->format('Y-m')] = $i;
+        }
+
+        $dailyStatusSeries = [];
+        foreach ($statusMeta as $code => $meta) {
+            $dailyStatusSeries[$code] = array_fill(0, count($dailyLabels), 0);
+        }
+        $dailyRevenueReal = array_fill(0, count($dailyLabels), 0.0);
+        $dailyRevenueCancelled = array_fill(0, count($dailyLabels), 0.0);
+        $monthlySalesCounts = array_fill(0, count($monthlyLabels), 0);
+        $monthlyRevenueTotals = array_fill(0, count($monthlyLabels), 0.0);
+
+        foreach ($ordersHistory as $historyRow) {
+            $createdAt = $historyRow['createdAt'];
+            $total = $historyRow['total'];
+            $status = $historyRow['status'];
+
+            $dayKey = $createdAt->format('Y-m-d');
+            if (isset($dailyKeyIndex[$dayKey], $dailyStatusSeries[$status])) {
+                $dailyStatusSeries[$status][$dailyKeyIndex[$dayKey]] += 1;
+            }
+
+            $monthKey = $createdAt->format('Y-m');
+            if (isset($monthlyKeyIndex[$monthKey]) && in_array($status, $realStatuses, true)) {
+                $monthIndex = $monthlyKeyIndex[$monthKey];
+                $monthlySalesCounts[$monthIndex] += 1;
+                $monthlyRevenueTotals[$monthIndex] += $total;
+            }
+
+            if (isset($dailyKeyIndex[$dayKey])) {
+                $dayIndex = $dailyKeyIndex[$dayKey];
+                if (in_array($status, $realStatuses, true)) {
+                    $dailyRevenueReal[$dayIndex] += $total;
+                } elseif ($status === CustomerOrder::STATUS_CANCELLED) {
+                    $dailyRevenueCancelled[$dayIndex] += $total;
+                }
+            }
+        }
+
+        $dailyStatusChart = [
+            'labels' => $dailyLabels,
+            'datasets' => [],
+        ];
+        foreach ($statusMeta as $code => $meta) {
+            $dailyStatusChart['datasets'][] = [
+                'label' => $meta['label'],
+                'data' => $dailyStatusSeries[$code],
+                'borderColor' => $meta['color'],
+                'backgroundColor' => $meta['fill'],
+                'borderWidth' => 2,
+                'tension' => 0.35,
+                'pointRadius' => 0,
+                'fill' => false,
+            ];
+        }
+
+        $monthlySalesChart = [
+            'labels' => $monthlyLabels,
+            'datasets' => [[
+                'label' => 'Ventes confirmées',
+                'data' => $monthlySalesCounts,
+                'backgroundColor' => 'rgba(59,130,246,0.75)',
+                'borderRadius' => 6,
+                'borderSkipped' => false,
+            ]],
+        ];
+
+        $dailyRevenueChart = [
+            'labels' => $dailyLabels,
+            'datasets' => [
+                [
+                    'label' => 'Revenus validés',
+                    'data' => $dailyRevenueReal,
+                    'backgroundColor' => 'rgba(16,185,129,0.85)',
+                    'borderRadius' => 6,
+                    'stack' => 'revenue',
+                ],
+                [
+                    'label' => 'Commandes annulées',
+                    'data' => $dailyRevenueCancelled,
+                    'backgroundColor' => 'rgba(248,113,113,0.7)',
+                    'borderRadius' => 6,
+                    'stack' => 'revenue',
+                ],
+            ],
+        ];
+
+        $monthlyRevenueChart = [
+            'labels' => $monthlyLabels,
+            'datasets' => [[
+                'label' => 'Revenus validés',
+                'data' => $monthlyRevenueTotals,
+                'backgroundColor' => 'rgba(99,102,241,0.85)',
+                'borderRadius' => 6,
+                'borderSkipped' => false,
+            ]],
+        ];
+
+        return $this->render('vendor/stats/index.html.twig', [
+            'shop' => $shop,
+            'vendor_nav' => $this->buildVendorNav('app_vendor_stats'),
+            'daily_status_chart' => $dailyStatusChart,
+            'monthly_sales_chart' => $monthlySalesChart,
+            'daily_revenue_chart' => $dailyRevenueChart,
+            'monthly_revenue_chart' => $monthlyRevenueChart,
+        ]);
+    }
+
+    #[Route('/commandes/{id}/statut', name: 'app_vendor_orders_update', methods: ['POST'])]
+    public function updateOrderStatus(CustomerOrder $order, Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $user = $this->resolveViewer($request);
+        $vendor = $user->getVendor();
+        if (!$vendor) {
+            throw $this->createAccessDeniedException('Crée d’abord ta boutique.');
+        }
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
+        if (!$shop) {
+            throw $this->createAccessDeniedException('Publie ta boutique pour gérer les commandes.');
+        }
+
+        if (!$this->orderBelongsToShop($order, $shop)) {
+            throw $this->createAccessDeniedException('Commande introuvable pour cette boutique.');
+        }
+
+        if (!$this->isCsrfTokenValid('vendor_order_status_'.$order->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
+        $target = (string) $request->request->get('status');
+        $current = $order->getStatus();
+        $successMessage = null;
+
+        $allowed = match ($target) {
+            CustomerOrder::STATUS_PAID => $current === CustomerOrder::STATUS_PENDING,
+            CustomerOrder::STATUS_SHIPPED => $current === CustomerOrder::STATUS_PAID,
+            CustomerOrder::STATUS_CANCELLED => in_array($current, [CustomerOrder::STATUS_PENDING, CustomerOrder::STATUS_PAID], true),
+            default => false,
+        };
+
+        if (!$allowed) {
+            $this->addFlash('error', 'Transition de statut non autorisée.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
+        if ($target === CustomerOrder::STATUS_PAID) {
+            $order
+                ->setStatus(CustomerOrder::STATUS_PAID)
+                ->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
+            $successMessage = 'Commande marquée comme payée.';
+        } elseif ($target === CustomerOrder::STATUS_SHIPPED) {
+            $order->setStatus(CustomerOrder::STATUS_SHIPPED);
+            $successMessage = 'Commande marquée comme expédiée.';
+        } elseif ($target === CustomerOrder::STATUS_CANCELLED) {
+            $order->setStatus(CustomerOrder::STATUS_CANCELLED);
+            $successMessage = 'Commande annulée.';
+        }
+
+        $this->entityManager->flush();
+        if ($successMessage) {
+            $this->addFlash('success', $successMessage);
+        }
+
+        return $this->redirectToRoute('app_vendor_orders');
     }
 
     #[Route('/produits/nouveau', name: 'app_vendor_product_new', methods: ['GET', 'POST'])]
@@ -454,14 +853,7 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_products');
         }
 
-        $vendorNav = [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => false, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => true, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
+        $vendorNav = $this->buildVendorNav('app_vendor_products');
 
         return $this->render('vendor/product/form.html.twig', [
             'form' => $form->createView(),
@@ -555,14 +947,7 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_products');
         }
 
-        $vendorNav = [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => false, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => true, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => false, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => false],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
+        $vendorNav = $this->buildVendorNav('app_vendor_products');
 
         return $this->render('vendor/product/form.html.twig', [
             'form' => $form->createView(),
@@ -1515,6 +1900,81 @@ class VendorShopController extends AbstractController
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildVendorNav(string $activeRoute): array
+    {
+        return [
+            ['label' => 'Accueil', 'icon' => '🏠', 'active' => 'app_vendor_shop_new' === $activeRoute, 'path' => 'app_vendor_shop_new'],
+            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
+            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
+            ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
+            ['label' => 'Statistiques', 'icon' => '📊', 'active' => 'app_vendor_stats' === $activeRoute, 'path' => 'app_vendor_stats'],
+            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
+        ];
+    }
+
+    /**
+     * @param array<int, CustomerOrder> $orders
+     * @return array<int, true>
+     */
+    private function mapShopProductIds(Shop $shop, array $orders): array
+    {
+        $productIds = [];
+        foreach ($orders as $order) {
+            foreach ($order->getItems() as $item) {
+                $productIds[] = $item->getProductId();
+            }
+        }
+
+        $productIds = array_values(array_unique(array_filter($productIds, static fn ($id) => is_int($id) || ctype_digit((string) $id))));
+        if ($productIds === []) {
+            return [];
+        }
+
+        $rows = $this->productRepository->createQueryBuilder('p')
+            ->select('p.id')
+            ->where('p.shop = :shop')
+            ->andWhere('p.id IN (:ids)')
+            ->setParameter('shop', $shop)
+            ->setParameter('ids', $productIds)
+            ->getQuery()
+            ->getScalarResult();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row['id']] = true;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return array<string, array{label:string, class:string}>
+     */
+    private function orderStatusBadges(): array
+    {
+        return [
+            CustomerOrder::STATUS_PENDING => [
+                'label' => 'En attente',
+                'class' => 'bg-amber-50 text-amber-700 border border-amber-200',
+            ],
+            CustomerOrder::STATUS_PAID => [
+                'label' => 'Payée',
+                'class' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+            ],
+            CustomerOrder::STATUS_SHIPPED => [
+                'label' => 'Expédiée',
+                'class' => 'bg-sky-50 text-sky-700 border border-sky-200',
+            ],
+            CustomerOrder::STATUS_CANCELLED => [
+                'label' => 'Annulée',
+                'class' => 'bg-rose-50 text-rose-700 border border-rose-200',
+            ],
+        ];
+    }
+
+    /**
      * @return array{attributes:int, values:int, variants:int}
      */
     private function buildAttributeStats(?Shop $shop): array
@@ -1550,6 +2010,33 @@ class VendorShopController extends AbstractController
             'values' => $valueCount,
             'variants' => $variantCount,
         ];
+    }
+
+    private function orderBelongsToShop(CustomerOrder $order, Shop $shop): bool
+    {
+        $productIds = [];
+        foreach ($order->getItems() as $item) {
+            $productIds[] = $item->getProductId();
+        }
+        if ($productIds === []) {
+            return false;
+        }
+
+        $productIds = array_values(array_unique(array_filter($productIds, static fn ($id) => is_int($id) || ctype_digit((string) $id))));
+        if ($productIds === []) {
+            return false;
+        }
+
+        $count = (int) $this->productRepository->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->where('p.shop = :shop')
+            ->andWhere('p.id IN (:ids)')
+            ->setParameter('shop', $shop)
+            ->setParameter('ids', $productIds)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
     }
 
     private function resolveViewer(Request $request): User
@@ -1679,12 +2166,6 @@ class VendorShopController extends AbstractController
             return;
         }
 
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/products';
-        $filesystem = new Filesystem();
-        if (!$filesystem->exists($uploadDir)) {
-            $filesystem->mkdir($uploadDir, 0775);
-        }
-
         $maxPosition = 0;
         foreach ($product->getImages() as $image) {
             $maxPosition = max($maxPosition, $image->getPosition());
@@ -1697,7 +2178,7 @@ class VendorShopController extends AbstractController
                 }
             }
 
-            $image = $this->createProductImageFromFile($product, $mainUpload, $uploadDir);
+            $image = $this->createProductImageFromFile($product, $mainUpload);
             $image->setIsMain(true);
             $image->setPosition(0);
             $product->addImage($image);
@@ -1705,7 +2186,7 @@ class VendorShopController extends AbstractController
         }
 
         foreach ($galleryUploads as $file) {
-            $image = $this->createProductImageFromFile($product, $file, $uploadDir);
+            $image = $this->createProductImageFromFile($product, $file);
             $image->setPosition(++$maxPosition);
             $product->addImage($image);
         }
@@ -1727,17 +2208,16 @@ class VendorShopController extends AbstractController
         return $file;
     }
 
-    private function createProductImageFromFile(Product $product, UploadedFile $file, string $uploadDir): ProductImage
+    private function createProductImageFromFile(Product $product, UploadedFile $file): ProductImage
     {
-        $mimeType = $file->getMimeType();
-        $fileSize = $file->getSize();
-        $filename = sprintf('product-%s.%s', uniqid(), $file->guessExtension() ?: 'bin');
-        $file->move($uploadDir, $filename);
+        $relativePath = $this->imageUploader->upload($file, ImageProfileRegistry::get('product_image'));
+        $absolutePath = $this->projectDir . '/public/' . ltrim($relativePath, '/');
+        $fileSize = is_file($absolutePath) ? filesize($absolutePath) : null;
 
         $image = new ProductImage();
         $image->setProduct($product);
-        $image->setUrl('uploads/products/' . $filename);
-        $image->setMimeType($mimeType ?: null);
+        $image->setUrl($relativePath);
+        $image->setMimeType('image/webp');
         $image->setFileSize($fileSize ?: null);
         $image->setTitle($product->getName());
         $image->setAlt($product->getName());
@@ -1747,26 +2227,16 @@ class VendorShopController extends AbstractController
 
     private function handleUploads(Shop $shop, mixed $logoFile, mixed $bannerFile): void
     {
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/shops';
-        $filesystem = new Filesystem();
-        if (!$filesystem->exists($uploadDir)) {
-            $filesystem->mkdir($uploadDir, 0775);
-        }
-
         $logoUpload = $this->normalizeUploadedFile($logoFile);
         if ($logoUpload instanceof UploadedFile) {
             $this->deleteUploadFile($shop->getLogo());
-            $filename = sprintf('shop-logo-%s.%s', uniqid(), $logoUpload->guessExtension() ?: 'bin');
-            $logoUpload->move($uploadDir, $filename);
-            $shop->setLogo('uploads/shops/' . $filename);
+            $shop->setLogo($this->imageUploader->upload($logoUpload, ImageProfileRegistry::get('shop_logo')));
         }
 
         $bannerUpload = $this->normalizeUploadedFile($bannerFile);
         if ($bannerUpload instanceof UploadedFile) {
             $this->deleteUploadFile($shop->getBanner());
-            $filename = sprintf('shop-banner-%s.%s', uniqid(), $bannerUpload->guessExtension() ?: 'bin');
-            $bannerUpload->move($uploadDir, $filename);
-            $shop->setBanner('uploads/shops/' . $filename);
+            $shop->setBanner($this->imageUploader->upload($bannerUpload, ImageProfileRegistry::get('shop_banner')));
         }
     }
 

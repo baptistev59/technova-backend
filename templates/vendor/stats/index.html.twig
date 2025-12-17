@@ -1,0 +1,151 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% block title %}Statistiques boutique — {{ shop.name }}{% endblock %}
+
+{% block vendor_content %}
+    <div>
+        <p class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase mb-2">Technova</p>
+        <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Statistiques & performances</h1>
+        <p class="text-slate-500 mt-3">Vue consolidée de tes commandes pour la boutique <strong>{{ shop.name }}</strong> (données filtrées sur ton shop uniquement).</p>
+    </div>
+
+    <section class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <header class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Ventes par statut</h2>
+            <p class="text-sm text-slate-500">30 jours glissants — une ligne par statut de commande.</p>
+        </header>
+        <div class="relative h-64">
+            <canvas id="dailyStatusChart" class="w-full h-full"></canvas>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <header class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Ventes confirmées</h2>
+            <p class="text-sm text-slate-500">Nombre de commandes payées/expédiées par mois (12 mois glissants).</p>
+        </header>
+        <div class="relative h-64">
+            <canvas id="monthlySalesChart" class="w-full h-full"></canvas>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <header class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Revenus quotidiens</h2>
+            <p class="text-sm text-slate-500">Comparaison revenus validés vs commandes annulées — 30 jours glissants.</p>
+        </header>
+        <div class="relative h-64">
+            <canvas id="dailyRevenueChart" class="w-full h-full"></canvas>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <header class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Revenus mensuels</h2>
+            <p class="text-sm text-slate-500">Revenus confirmés par mois sur les 12 derniers mois.</p>
+        </header>
+        <div class="relative h-64">
+            <canvas id="monthlyRevenueChart" class="w-full h-full"></canvas>
+        </div>
+    </section>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dailyStatus = {{ daily_status_chart|json_encode|raw }};
+            const monthlySales = {{ monthly_sales_chart|json_encode|raw }};
+            const dailyRevenue = {{ daily_revenue_chart|json_encode|raw }};
+            const monthlyRevenue = {{ monthly_revenue_chart|json_encode|raw }};
+
+            const currency = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+            const axisColor = '#cbd5f5';
+
+            const dailyStatusCtx = document.getElementById('dailyStatusChart');
+            if (dailyStatusCtx && dailyStatus.labels?.length) {
+                new Chart(dailyStatusCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dailyStatus.labels,
+                        datasets: dailyStatus.datasets.map(dataset => ({
+                            ...dataset,
+                            fill: dataset.fill ?? false,
+                        })),
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom', labels: { usePointStyle: true } },
+                            tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.parsed.y ?? 0} commande${context.parsed.y > 1 ? 's' : ''}` } },
+                        },
+                        scales: {
+                            x: { ticks: { color: axisColor, maxRotation: 0 }, grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { color: axisColor }, grid: { color: '#f1f5f9' } },
+                        },
+                    },
+                });
+            }
+
+            const monthlySalesCtx = document.getElementById('monthlySalesChart');
+            if (monthlySalesCtx && monthlySales.labels?.length) {
+                new Chart(monthlySalesCtx, {
+                    type: 'bar',
+                    data: monthlySales,
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => `${ctx.parsed.y ?? 0} vente${ctx.parsed.y > 1 ? 's' : ''}` } },
+                        },
+                        scales: {
+                            x: { ticks: { color: axisColor, maxRotation: 0 }, grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { color: axisColor }, grid: { color: '#f1f5f9' } },
+                        },
+                    },
+                });
+            }
+
+            const dailyRevenueCtx = document.getElementById('dailyRevenueChart');
+            if (dailyRevenueCtx && dailyRevenue.labels?.length) {
+                new Chart(dailyRevenueCtx, {
+                    type: 'bar',
+                    data: dailyRevenue,
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { usePointStyle: true } },
+                            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${currency.format(ctx.parsed.y ?? 0)}` } },
+                        },
+                        responsive: true,
+                        scales: {
+                            x: { stacked: true, ticks: { color: axisColor }, grid: { display: false } },
+                            y: { stacked: true, beginAtZero: true, ticks: { color: axisColor }, grid: { color: '#f1f5f9' } },
+                        },
+                    },
+                });
+            }
+
+            const monthlyRevenueCtx = document.getElementById('monthlyRevenueChart');
+            if (monthlyRevenueCtx && monthlyRevenue.labels?.length) {
+                new Chart(monthlyRevenueCtx, {
+                    type: 'bar',
+                    data: monthlyRevenue,
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => currency.format(ctx.parsed.y ?? 0) } },
+                        },
+                        scales: {
+                            x: { ticks: { color: axisColor, maxRotation: 0 }, grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { color: axisColor }, grid: { color: '#f1f5f9' } },
+                        },
+                    },
+                });
+            }
+        });
+    </script>
+{% endblock %}

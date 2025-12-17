@@ -44,28 +44,49 @@
         <h2>Nouveautés</h2>
         <a href="{{ path('catalog_index') }}">Voir tout</a>
     </div>
-    <div class="tn-products-grid">
-        {% for product in latestProducts %}
-            <article class="tn-product-card">
-                {% set mainImage = product.images|first %}
-                {% if mainImage %}
-                    <img src="{{ mainImage.url }}" alt="{{ mainImage.alt }}">
-                {% else %}
-                    <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut">
-                {% endif %}
-                <h3>{{ product.name }}</h3>
-                <div class="tn-product-card__meta">
-                    <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
-                    <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
-                </div>
-                <div class="tn-product-card__cta">
-                    <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
-                </div>
-            </article>
-        {% else %}
-            <p>Aucun produit récent n'est disponible.</p>
-        {% endfor %}
-    </div>
+    <p class="tn-section__hint">Une sélection de 10 nouveautés, mise à jour chaque jour.</p>
+    {% if latestProducts|length %}
+        <div class="swiper tn-carousel" data-swiper-init>
+            <div class="swiper-wrapper">
+                {% for product in latestProducts|slice(0, 10) %}
+                    <div class="swiper-slide p-3 h-auto">
+                        <article class="tn-product-card tn-product-card--carousel h-full flex flex-col">
+                            <div class="tn-product-card__media">
+                            {% set mainImage = product.images|first %}
+                            <img
+                                src="{{ mainImage ? mainImage.url : asset('assets/images/product-placeholder.svg') }}"
+                                alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
+                            >
+                            </div>
+
+                            <h3 class="tn-product-card__title" title="{{ product.name }}">{{ product.name }}</h3>
+
+                            <div class="tn-product-card__meta">
+                                <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
+                                <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
+                            </div>
+                            <div class="mt-2 text-xs text-blue-600">
+                                <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
+                            </div>
+                            <div class="mt-2 text-xs text-blue-600">
+                                <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
+                            </div>
+
+                            <div class="tn-product-card__cta mt-auto">
+                            <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
+                            </div>
+                        </article>
+                    </div>
+
+                {% endfor %}
+            </div>
+            <div class="swiper-pagination"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+        </div>
+    {% else %}
+        <p>Aucun produit récent n'est disponible.</p>
+    {% endif %}
 </section>
 
 {# Sélection "à la une" alimentée via isFeatured #}
@@ -74,28 +95,42 @@
         <h2>Produits à la une</h2>
         <a href="{{ path('catalog_index', { sort: 'price_desc' }) }}">Découvrir la sélection</a>
     </div>
-    <div class="tn-products-grid">
-        {% for product in featuredProducts %}
-            <article class="tn-product-card">
-                {% set mainImage = product.images|first %}
-                {% if mainImage %}
-                    <img src="{{ mainImage.url }}" alt="{{ mainImage.alt }}">
-                {% else %}
-                    <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut">
-                {% endif %}
-                <h3>{{ product.name }}</h3>
-                <div class="tn-product-card__meta">
-                    <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
-                    <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
-                </div>
-                <div class="tn-product-card__cta">
-                    <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
-                </div>
-            </article>
-        {% else %}
-            <p>Aucun produit à la une pour le moment.</p>
-        {% endfor %}
-    </div>
+    <p class="tn-section__hint">10 choix exclusifs mis à jour quotidiennement.</p>
+    {% if featuredProducts|length %}
+        <div class="swiper tn-carousel" data-swiper-init>
+            <div class="swiper-wrapper">
+                {% for product in featuredProducts|slice(0, 10) %}
+                    <div class="swiper-slide p-3 h-auto">
+                        <article class="tn-product-card tn-product-card--carousel h-full flex flex-col">
+                            <div class="tn-product-card__media">
+                            {% set mainImage = product.images|first %}
+                            <img
+                                src="{{ mainImage ? mainImage.url : asset('assets/images/product-placeholder.svg') }}"
+                                alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
+                            >
+                            </div>
+
+                            <h3 class="tn-product-card__title tn-title--clamp2" title="{{ product.name }}">{{ product.name }}</h3>
+
+                            <div class="tn-product-card__meta">
+                            <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
+                            <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
+                            </div>
+
+                            <div class="tn-product-card__cta mt-auto">
+                            <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
+                            </div>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="swiper-pagination"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+        </div>
+    {% else %}
+        <p>Aucun produit à la une pour le moment.</p>
+    {% endif %}
 </section>
 
 {# Bandeau promotionnel inspiré de la maquette #}

@@ -194,35 +194,40 @@
                 </div>
             </div>
         {% else %}
-            <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {% for product in latest_products %}
-                    {% set mainImage = product.images|first %}
-                    <article class="tn-product-card w-full h-[320px] flex flex-col items-center text-center">
-                        {% if mainImage and mainImage.url %}
-                            <img src="{{ asset(mainImage.url) }}" alt="{{ mainImage.alt ?: product.name }}" class="h-40 w-full rounded-xl object-cover bg-slate-100">
-                        {% else %}
-                            <div class="h-40 w-full rounded-xl bg-slate-100"></div>
-                        {% endif %}
-                        <div class="w-full space-y-1 pt-3">
-                            <p class="font-semibold text-slate-900 truncate">{{ product.name }}</p>
-                            <p class="text-[10px] uppercase tracking-[0.4em] text-slate-400">{{ product.isPublished() ? 'Publié' : 'Brouillon' }}</p>
-                            <p class="text-xs text-slate-500">Créé le {{ product.createdAt ? product.createdAt|date('d/m/Y') : '—' }}</p>
-                            <p class="text-2xl font-semibold text-slate-900">{{ product.price|number_format(2, ',', ' ') }} €</p>
+            <div class="swiper tn-carousel" data-swiper-init data-swiper-visible="3">
+                <div class="swiper-wrapper">
+                    {% for product in latest_products|slice(0, 10) %}
+                        {% set mainImage = product.images|first %}
+                        <div class="swiper-slide p-3 h-auto">
+                            <article class="tn-product-card tn-product-card--carousel h-full flex flex-col">
+                                <div class="tn-product-card__media">
+                                    <img
+                                        src="{{ mainImage ? asset(mainImage.url) : asset('assets/images/product-placeholder.svg') }}"
+                                        alt="{{ mainImage ? mainImage.alt : product.name }}"
+                                    >
+                                </div>
+                                <div class="mt-4">
+                                    <h3 class="tn-product-card__title" title="{{ product.name }}">{{ product.name }}</h3>
+                                    {% if product.shortDescription %}
+                                        <p class="text-sm text-slate-500 mt-2 line-clamp-3">{{ product.shortDescription }}</p>
+                                    {% endif %}
+                                    <div class="tn-product-card__meta mt-3">
+                                        <span>{{ product.brand ? product.brand.name : shop.name }}</span>
+                                        <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
+                                    </div>
+                                </div>
+                                <div class="tn-product-card__cta mt-auto">
+                                    <a class="btn btn-primary w-full" href="{{ path('product_show', { slug: product.slug }) }}">Découvrir</a>
+                                </div>
+                            </article>
                         </div>
-                        <div class="tn-product-card__cta w-full mt-auto">
-                            <a href="{{ path('app_vendor_product_edit', { id: product.id }) }}" class="btn btn-outline btn-sm w-full">Modifier</a>
-                        </div>
-                    </article>
-                {% endfor %}
-            </div>
-            <div class="text-right">
-                <a href="{{ path('app_vendor_products') }}" class="btn btn-ghost btn-sm">Voir tous les produits</a>
+                    {% endfor %}
+                </div>
+                <div class="swiper-pagination"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-button-next"></div>
             </div>
         {% endif %}
-    </div>
-
-    <div class="text-sm text-slate-500 text-center">
-        Besoin de modifier ta boutique ? Les écrans d’édition arrivent dans ce sprint. Merci pour ta patience. 🙏
     </div>
 {% endblock %}
 

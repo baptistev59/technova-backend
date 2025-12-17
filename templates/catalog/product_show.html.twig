@@ -143,6 +143,14 @@
         <p class="text-xs text-slate-500 mt-1"
            x-show="$store.variantState && $store.variantState.message"
            x-text="$store.variantState ? $store.variantState.message : ''"></p>
+        <div class="mt-4 text-sm text-blue-600">
+            {% if product.shop %}
+                <span class="text-xs uppercase tracking-[0.3em] text-slate-400">Boutique</span>
+                <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="block font-semibold hover:underline">
+                    {{ product.shop.name }}
+                </a>
+            {% endif %}
+        </div>
         {% if product.shortDescription %}
             <p>{{ product.shortDescription }}</p>
         {% elseif product.description %}

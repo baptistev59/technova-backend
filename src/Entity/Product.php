@@ -11,8 +11,20 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use OpenApi\Attributes as OA;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
+#[OA\Schema(
+    schema: 'Product',
+    properties: [
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'shortDescription', type: 'string', nullable: true),
+        new OA\Property(property: 'description', type: 'string', nullable: true),
+        new OA\Property(property: 'price', type: 'number', format: 'float'),
+        new OA\Property(property: 'isPublished', type: 'boolean'),
+    ],
+    required: ['name', 'price', 'isPublished']
+)]
 #[ORM\Table(name: 'product', uniqueConstraints: [new ORM\UniqueConstraint(name: 'UNIQ_PRODUCT_SLUG', columns: ['slug'])])]
 #[ORM\HasLifecycleCallbacks]
 class Product
