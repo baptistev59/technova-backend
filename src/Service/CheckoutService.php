@@ -11,6 +11,8 @@ use App\Entity\User;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Workflow\WorkflowInterface;
 
 /**
  * Convertit un panier en commande persistée.
@@ -23,6 +25,8 @@ class CheckoutService
         private readonly OrderMailer $orderMailer,
         private readonly ProductRepository $productRepository,
         private readonly ProductVariantRepository $productVariantRepository,
+        #[Autowire(service: 'state_machine.customer_order')]
+        private readonly WorkflowInterface $orderWorkflow,
     ) {
     }
 
@@ -71,21 +75,32 @@ class CheckoutService
         $this->entityManager->flush();
     }
 
-    public function finalizePayment(CustomerOrder $order, ?string $paymentIntentId = null): void
+    public function finalizePayment(CustomerOrder $order, ?string $paymentIntentId = null, array $context = []): void
     {
-        $order
-            ->setStatus(CustomerOrder::STATUS_PAID)
-            ->setPaidAt(new \DateTimeImmutable())
-            ->setPaymentIntentId($paymentIntentId);
+        if (!$this->orderWorkflow->can($order, 'pay')) {
+            return;
+        }
+
+        $order->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
+        $order->setPaymentIntentId($paymentIntentId);
+        $this->orderWorkflow->apply($order, 'pay', array_merge([
+            'triggered_by' => 'checkout:finalize',
+        ], $context));
 
         $this->decrementStockFromOrder($order);
         $this->entityManager->flush();
         $this->orderMailer->sendConfirmation($order);
     }
 
-    public function cancelOrder(CustomerOrder $order): void
+    public function cancelOrder(CustomerOrder $order, array $context = []): void
     {
-        $order->setStatus(CustomerOrder::STATUS_CANCELLED);
+        if (!$this->orderWorkflow->can($order, 'cancel')) {
+            return;
+        }
+
+        $this->orderWorkflow->apply($order, 'cancel', array_merge([
+            'triggered_by' => 'checkout:cancel',
+        ], $context));
         $this->entityManager->flush();
     }
 

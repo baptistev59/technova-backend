@@ -117,6 +117,14 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - Etape suivante : ajouter un mini CRUD côté vendeur pour modifier les statuts (`pending` → `paid`, `paid` → `shipped`) et annuler la commande si nécessaire (`cancelled`).
 - À planifier : génération/chargement du bon de livraison et impression de la facture directement depuis la fiche commande vendeur.
 
+## 18. Documents commerciaux PDF
+
+- Créer un service `OrderDocumentGenerator` (Twig → PDF via Dompdf/Laminas) pour produire facture + bon de livraison à partir des commandes, en respectant le layout TechNova.
+- Persister chaque document (`order_document` / `media`) avec type, référence, UUID, URL, date de génération et hash pour validation ultérieure.
+- Exposer `GET /api/vendor/orders/{id}/documents` pour lister les documents existants et `POST` pour en générer un nouveau (retourne `id`, `type`, `url`, `base64` si nécessaire).
+- Ajouter une action “Télécharger PDF” sur le dashboard vendeur et un bouton “Imprimer” côté client.
+- Prévoir un système d’expiration/rotation (facultatif) et stocker les fichiers dans `public/uploads/documents` (ou bucket S3 plus tard).
+
 ## 17. Expérience publique & recherche
 
 - Les carrousels `tn-carousel` (home, vitrine, dashboard vendeur) sont désormais stylés de façon uniforme : 10 slides produits avec trois visibles, navigation/fallback, et un attribut `data-swiper-visible` pour piloter la vue.

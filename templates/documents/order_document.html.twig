@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ type.label() }} — {{ order.reference }}</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1f2937; margin: 0; padding: 2rem; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .badge { border-radius: 999px; padding: 0.35rem 1rem; background: #2563eb; color: white; font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        th, td { border-bottom: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; }
+        .total { font-size: 1.25rem; font-weight: 600; text-align: right; margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>{{ type.label() }} — {{ order.reference }}</h1>
+            <p>Client : {{ order.owner.firstname ?? order.owner.email }} {{ order.owner.lastname ?? '' }}</p>
+            <p>Adresse e-mail : {{ order.owner.email }}</p>
+            <p>Numéro de commande : {{ order.reference }}</p>
+            {% set address = order.billingAddress %}
+            <p>
+                {{ address.addressLine1 }}<br>
+                {% if address.addressLine2 %}{{ address.addressLine2 }}<br>{% endif %}
+                {{ address.postalCode }} {{ address.city }}<br>
+                {{ address.country }}
+            </p>
+            <p>Date : {{ order.createdAt|date('d/m/Y H:i') }}</p>
+        </div>
+        <span class="badge">{{ type.label() }}</span>
+    </header>
+
+    <section>
+        <h2>Détails de commande</h2>
+        <table>
+            <thead>
+                <tr><th>Produit</th><th>Qté</th><th>Prix ligne</th></tr>
+            </thead>
+            <tbody>
+                {% for item in order.items %}
+                    <tr>
+                        <td>{{ item.productName }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.lineTotal|number_format(2, ',', ' ') }} €</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="total">Total : {{ order.totalAmount|number_format(2, ',', ' ') }} €</p>
+    </section>
+
+    <section>
+        <h2>Livraison</h2>
+        {% set address = order.shippingAddress %}
+        <p>
+            {{ address.addressLine1 }}<br>
+            {% if address.addressLine2 %}{{ address.addressLine2 }}<br>{% endif %}
+            {{ address.postalCode }} {{ address.city }}<br>
+            {{ address.country }}
+        </p>
+    </section>
+
+    <footer>
+        <p>© TechNova Marketplace — {{ "now"|date("Y") }}</p>
+    </footer>
+</body>
+</html>

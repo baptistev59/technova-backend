@@ -41,6 +41,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Workflow\WorkflowInterface;
 use Throwable;
 
 #[Route('/mon-espace-vendeur')]
@@ -60,6 +61,8 @@ class VendorShopController extends AbstractController
         private readonly CustomerOrderRepository $orderRepository,
         private readonly ImageUploader $imageUploader,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
+        #[Autowire(service: 'state_machine.customer_order')]
+        private readonly WorkflowInterface $orderWorkflow,
     ) {
     }
 
@@ -721,34 +724,34 @@ class VendorShopController extends AbstractController
         }
 
         $target = (string) $request->request->get('status');
-        $current = $order->getStatus();
-        $successMessage = null;
-
-        $allowed = match ($target) {
-            CustomerOrder::STATUS_PAID => $current === CustomerOrder::STATUS_PENDING,
-            CustomerOrder::STATUS_SHIPPED => $current === CustomerOrder::STATUS_PAID,
-            CustomerOrder::STATUS_CANCELLED => in_array($current, [CustomerOrder::STATUS_PENDING, CustomerOrder::STATUS_PAID], true),
-            default => false,
+        $transition = match ($target) {
+            CustomerOrder::STATUS_PAID => 'pay',
+            CustomerOrder::STATUS_SHIPPED => 'ship',
+            CustomerOrder::STATUS_CANCELLED => 'cancel',
+            default => null,
         };
 
-        if (!$allowed) {
+        if (!$transition || !$this->orderWorkflow->can($order, $transition)) {
             $this->addFlash('error', 'Transition de statut non autorisée.');
 
             return $this->redirectToRoute('app_vendor_orders');
         }
 
-        if ($target === CustomerOrder::STATUS_PAID) {
-            $order
-                ->setStatus(CustomerOrder::STATUS_PAID)
-                ->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
-            $successMessage = 'Commande marquée comme payée.';
-        } elseif ($target === CustomerOrder::STATUS_SHIPPED) {
-            $order->setStatus(CustomerOrder::STATUS_SHIPPED);
-            $successMessage = 'Commande marquée comme expédiée.';
-        } elseif ($target === CustomerOrder::STATUS_CANCELLED) {
-            $order->setStatus(CustomerOrder::STATUS_CANCELLED);
-            $successMessage = 'Commande annulée.';
+        if ($transition === 'pay') {
+            $order->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
         }
+
+        $this->orderWorkflow->apply($order, $transition, [
+            'triggered_by' => sprintf('vendor_dashboard:%s', $user->getUserIdentifier()),
+            'payload' => ['shop_id' => $shop->getId()],
+        ]);
+
+        $successMessage = match ($transition) {
+            'pay' => 'Commande marquée comme payée.',
+            'ship' => 'Commande marquée comme expédiée.',
+            'cancel' => 'Commande annulée.',
+            default => 'Statut mis à jour.',
+        };
 
         $this->entityManager->flush();
         if ($successMessage) {
@@ -2010,6 +2013,32 @@ class VendorShopController extends AbstractController
             'values' => $valueCount,
             'variants' => $variantCount,
         ];
+    }
+
+    private function resolveOrderCustomerName(CustomerOrder $order): string
+    {
+        $owner = $order->getOwner();
+        if ($owner instanceof User) {
+            $fullName = trim(sprintf('%s %s', $owner->getFirstname() ?? '', $owner->getLastname() ?? ''));
+            if ($fullName !== '') {
+                return $fullName;
+            }
+
+            if ($owner->getEmail()) {
+                return (string) $owner->getEmail();
+            }
+        }
+
+        $shipping = $order->getShippingAddress();
+        if (!empty($shipping['label'])) {
+            return (string) $shipping['label'];
+        }
+
+        if (!empty($shipping['addressLine1'])) {
+            return (string) $shipping['addressLine1'];
+        }
+
+        return 'Client TechNova';
     }
 
     private function orderBelongsToShop(CustomerOrder $order, Shop $shop): bool

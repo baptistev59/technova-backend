@@ -83,7 +83,11 @@ class StripeWebhookController extends AbstractController
         }
 
         $order->setPaymentSessionId($sessionId);
-        $this->checkoutService->finalizePayment($order, is_string($paymentIntent) ? $paymentIntent : null);
+        $this->checkoutService->finalizePayment(
+            $order,
+            is_string($paymentIntent) ? $paymentIntent : null,
+            ['triggered_by' => 'stripe:webhook']
+        );
     }
 
     private function handleSessionExpired(array $session): void
@@ -102,7 +106,7 @@ class StripeWebhookController extends AbstractController
             return;
         }
 
-        $this->checkoutService->cancelOrder($order);
+        $this->checkoutService->cancelOrder($order, ['triggered_by' => 'stripe:webhook']);
     }
 
     private function isValidSignature(string $payload, string $header, string $secret): bool

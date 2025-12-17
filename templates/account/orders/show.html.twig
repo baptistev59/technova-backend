@@ -66,9 +66,18 @@
         </p>
     </div>
 
-    <div class="flex flex-wrap gap-3">
-        <a class="btn btn-outline" href="{{ path('app_account_orders') }}">Retour aux commandes</a>
-        <a class="btn btn-primary" href="{{ path('catalog_index') }}">Continuer mes achats</a>
-    </div>
+        <div class="flex flex-wrap gap-3">
+            <button
+                type="button"
+                class="btn btn-outline"
+                data-order-doc
+                data-order-id="{{ order.id }}"
+                data-type="invoice"
+            >
+                Imprimer la facture
+            </button>
+            <a class="btn btn-outline" href="{{ path('app_account_orders') }}">Retour aux commandes</a>
+            <a class="btn btn-primary" href="{{ path('catalog_index') }}">Continuer mes achats</a>
+        </div>
 </section>
 {% endblock %}

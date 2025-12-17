@@ -1,0 +1,25 @@
+framework:
+    workflows:
+        customer_order:
+            type: 'state_machine'
+            supports:
+                - App\Entity\CustomerOrder
+            marking_store:
+                type: 'method'
+                property: 'status'
+            initial_marking: pending
+            places:
+                - pending
+                - paid
+                - shipped
+                - cancelled
+            transitions:
+                pay:
+                    from: pending
+                    to: paid
+                ship:
+                    from: paid
+                    to: shipped
+                cancel:
+                    from: [pending, paid]
+                    to: cancelled

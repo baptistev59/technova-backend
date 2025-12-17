@@ -82,9 +82,27 @@ Avant d’exécuter `php bin/phpunit`, lance `bash scripts/setup-test-db.sh`. Le
 
 ### POST `/api/vendor/media`
 
-* Upload générique (logo/bannière/visuel). Corps multipart `file`, `profile` (nom de profil `shop_banner`, `product_image`, `avatar`).
-* Utiliser `ImageUploader` et retourner `{ path, width, height }`.
+* Upload générique (logo/bannière/visuel). Corps multipart `file`, `profile` (nom de profil `shop_banner`, `shop_logo`, `product_image`, `avatar`).
+* Chaque upload est persisté dans la table `media` (`id`, `vendor_id`, `profile`, `path`, `width`, `height`, `mimeType`, timestamps) pour être ré-exploité lors des appels suivants (association à une boutique, un produit, etc.).
+* Réponse 201 :
+  ```json
+  {
+    "id": 123,
+    "profile": "product_image",
+    "path": "uploads/products/product_image-abcd.webp",
+    "url": "/uploads/products/product_image-abcd.webp",
+    "width": 1200,
+    "height": 1200,
+    "mimeType": "image/webp"
+  }
+  ```
+* Les profils sont strictement validés via `ImageProfileRegistry` et l’upload échoue avec `422` si `profile` ou `file` est manquant / invalide.
 
+### Documents PDF `/api/vendor/orders/{id}/documents`
+
+* `GET` : liste les documents générés pour la commande (id, type, url, hash, date).
+* `POST` : génère un nouveau PDF (`invoice` ou `delivery`) via `OrderDocumentGenerator`, persiste l’entité `order_document` et retourne `{ id, type, url, hash, generatedAt }`.
+* Les documents sont stockés dans `public/uploads/documents` et peuvent être téléchargés depuis le dashboard vendeur ou partagés en back-office.
 ## 5. Commandes vendeur
 
 ### GET `/api/vendor/orders`

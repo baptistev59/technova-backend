@@ -1,0 +1,11 @@
+<h2 style="font-family:Arial,sans-serif;color:#111827;">Bonjour {{ order.owner.firstname ?? order.owner.email }},</h2>
+<p style="font-family:Arial,sans-serif;color:#374151;">
+    Ta commande <strong>{{ order.reference }}</strong> vient de passer à l’étape <strong>{{ subject_label }}</strong>.
+</p>
+<p style="font-family:Arial,sans-serif;color:#374151;">
+    Tu peux suivre son évolution depuis ton espace client TechNova.
+</p>
+<p style="font-family:Arial,sans-serif;color:#374151;">
+    <a href="{{ baseUrl }}/mon-compte/commandes" style="color:#2563eb;">Voir mes commandes</a>
+</p>
+<p style="font-family:Arial,sans-serif;color:#6b7280;">À bientôt,<br>L’équipe TechNova</p>

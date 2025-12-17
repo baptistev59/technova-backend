@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Entity\Category;
 use App\Entity\CustomerOrder;
 use App\Entity\CustomerOrderItem;
+use App\Entity\Media;
 use App\Entity\Product;
 use App\Entity\Shop;
 use App\Entity\User;
@@ -84,10 +85,17 @@ final class VendorApiControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         $payload = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertArrayHasKey('id', $payload);
+        self::assertIsInt($payload['id']);
+        self::assertSame('shop_banner', $payload['profile']);
         self::assertSame(1920, $payload['width']);
         self::assertSame(1080, $payload['height']);
         self::assertSame('image/webp', $payload['mimeType']);
         self::assertIsString($payload['path']);
+        $media = $this->manager->getRepository(Media::class)->find($payload['id']);
+        self::assertNotNull($media);
+        self::assertSame($payload['path'], $media->getPath());
+        self::assertSame($payload['profile'], $media->getProfile());
         $this->uploadedPaths[] = $payload['path'];
     }
 
@@ -240,13 +248,24 @@ final class VendorApiControllerTest extends WebTestCase
             [],
             $headers
         );
-        self::assertSame($headers['HTTP_AUTHORIZATION'], $this->client->getRequest()->headers->get('Authorization'));
-
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(201);
         $payload = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertSame('invoice', $payload['type']);
-        self::assertArrayHasKey('base64', $payload);
-        self::assertNotEmpty(base64_decode($payload['base64']));
+        self::assertArrayHasKey('url', $payload);
+        self::assertArrayHasKey('hash', $payload);
+        self::assertStringContainsString('/uploads/documents/', $payload['url']);
+
+        $this->client->request(
+            'GET',
+            '/api/vendor/orders/'.$orderId.'/documents',
+            [],
+            [],
+            $headers
+        );
+        self::assertResponseIsSuccessful();
+        $list = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertNotEmpty($list);
+        self::assertSame($payload['id'], $list[0]['id']);
     }
 
     private function createVendorContext(): array

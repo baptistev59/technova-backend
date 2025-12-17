@@ -55,6 +55,8 @@ Endpoints disponibles
 - Nouvelle documentation détaillée : [`docs/vendor-api-endpoints.md`](docs/vendor-api-endpoints.md) (shop/profile, produits, commandes, upload de média).  
 - Ces routes requièrent `Authorization: Bearer <jwt>` avec `ROLE_VENDOR` et s’appuient sur les profils `ImageProfile` (logo/shop_banner/product_image/avatars).
 - Ajoute ces appels à la collection Postman (`postman/technova-api.postman_collection.json`) quand tu travailleras sur le front vendeur.
+- `POST /api/vendor/media` centralise les uploads (profils `shop_banner|shop_logo|product_image|avatar`), stocke chaque fichier dans la table `media` et renvoie maintenant `{ id, profile, path, url, width, height, mimeType }` pour que le front puisse lier l’ID à la fiche boutique ou produit.
+- `POST /api/vendor/orders/{id}/documents` et `GET /api/vendor/orders/{id}/documents` gèrent les factures/bon de livraison (PDF, hash, URL, id) via `OrderDocumentGenerator` + table `order_document`. Les boutons “Télécharger PDF” dans le dashboard s’appuient sur ces endpoints.
 
 **Query params utiles (`/api/products`)**
 
@@ -138,23 +140,30 @@ Authentification JWT & Postman
 ### Login
 
 1. `POST /api/login` avec JSON :
+
    ```json
    { "email": "user@example.com", "password": "password" }
    ```
+
 2. Réponse :
+
    ```json
    { "token": "xxx.yyy.zzz" }
    ```
+
 3. Dans Postman, ajoutez dans l’onglet **Tests** :
+
    ```js
    const data = pm.response.json();
    pm.collectionVariables.set("jwt_token", data.token);
    ```
+
 4. Dans vos requêtes protégées, utilisez l’en‑tête `Authorization: Bearer {{jwt_token}}`.
 
 ### Inscription client
 
 `POST /api/register` accepte :
+
 ```json
 {
   "email": "client@test.fr",
@@ -163,6 +172,7 @@ Authentification JWT & Postman
   "lastname": "Martin"
 }
 ```
+
 La réponse retourne directement un token et les informations du compte créé, ce qui permet de connecter l’utilisateur immédiatement après son inscription.
 
 ### Garder la session ouverte
@@ -179,6 +189,7 @@ La réponse retourne directement un token et les informations du compte créé, 
 - Webhook `/stripe/webhook` : Stripe envoie `checkout.session.completed`, on vérifie la signature (`STRIPE_WEBHOOK_SECRET`) puis on bascule la commande en `paid` et on envoie l’e-mail.
 
 Variables à déclarer (`.env.local` + Alwaysdata) :
+
 ```
 STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_PUBLISHABLE_KEY=pk_test_xxx      # optionnel (exposé côté front)
@@ -186,6 +197,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx         # récupéré via Stripe CLI ou Dashboar
 ```
 
 Webhook en local (Stripe CLI) :
+
 ```bash
 stripe listen --forward-to http://127.0.0.1:8000/stripe/webhook
 ```
@@ -196,6 +208,7 @@ stripe listen --forward-to http://127.0.0.1:8000/stripe/webhook
 - L’environnement `postman/local.postman_environment.json` contient les variables utilisées (email/mot de passe, infos de profil, etc.).
 - Le script `./scripts/postman-tests.sh` lance `newman` avec la collection + l’environnement.  
   Assure-toi que le serveur Symfony tourne (`symfony serve -d` ou équivalent) avant d’exécuter :
+
   ```bash
   ./scripts/postman-tests.sh                                    # utilise newman global si dispo
   ./scripts/postman-tests.sh <collection> <env> --reporters cli  # options avancées
@@ -215,6 +228,7 @@ Déploiement Alwaysdata (prod)
    - Créez un site web pointant sur `/home/technova/www/technova-backend/public`.
    - Forcez PHP 8.2 (web + SSH) et Composer 2.
 2. **Variables d’environnement** (Configuration → Variables d’environnement) :
+
    ```
    APP_ENV=prod
    APP_DEBUG=0
@@ -225,13 +239,15 @@ Déploiement Alwaysdata (prod)
    JWT_PASSPHRASE=<même valeur que celle utilisée pour lexik:jwt:generate-keypair>
    JWT_TOKEN_TTL=86400
    CORS_ALLOW_ORIGIN=https://technova.alwaysdata.net
+
   MAILER_DSN=smtp://technova@alwaysdata.net:xxxxx@smtp-technova.alwaysdata.net:587
   MAILER_FROM="TechNova <technova@alwaysdata.net>"
   MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
-  DEFAULT_URI=https://technova.alwaysdata.net
+  DEFAULT_URI=<https://technova.alwaysdata.net>
   STRIPE_SECRET_KEY=sk_live_xxx
   STRIPE_PUBLISHABLE_KEY=pk_live_xxx
   STRIPE_WEBHOOK_SECRET=whsec_xxx
+
   ```
 3. **Première installation via SSH** :
    ```bash
@@ -243,22 +259,27 @@ Déploiement Alwaysdata (prod)
    php bin/console doctrine:migrations:migrate --no-interaction --env=prod
    php bin/console app:create-admin --env=prod   # crée admin@test.fr ou équivalent
    ```
+
 4. **Compilation des envs pour les workflows** :  
    Toujours sur Alwaysdata, générez le cache des variables :
+
    ```bash
    composer dump-env prod
    php bin/console cache:clear --env=prod --no-warmup
    ```
+
    Cela crée `.env.local.php` (non versionné) contenant les variables ; toutes les commandes (cron, GitHub Actions) utiliseront automatiquement les bons secrets.
 5. **Automatisation GitHub Actions** (`.github/workflows/deploy-alwaysdata.yml`) :
    - Secrets requis : `SSH_REMOTE_HOST`, `SSH_REMOTE_PORT`, `SSH_REMOTE_USER`, `SSH_PRIVATE_KEY`, `DEPLOY_PATH`.
    - Le workflow rsync le code, puis exécute sur Alwaysdata :
+
      ```bash
      composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
      php bin/console lexik:jwt:generate-keypair --no-interaction    # génère si absent
      php bin/console doctrine:migrations:migrate --no-interaction --env=prod
      php bin/console cache:clear --env=prod --no-warmup
      ```
+
    - Grâce à `composer dump-env prod`, les commandes voient `DATABASE_URL` et `JWT_*` sans avoir à exporter les variables dans le workflow.
 
 Scripts utiles
@@ -280,10 +301,12 @@ Tests automatisés
   - `tests/Unit/UserRegistrationServiceTest` vérifie la création de compte et la validation côté `UserRegistrationService`.
   - `tests/Functional/TestApiControllerTest` boot le kernel et s’assure que `/api/test` répond correctement (JSON + statut 200).
 - **Exécution** :
+
   ```bash
   ./vendor/bin/phpunit        # Linux/WSL/macOS
   vendor\bin\phpunit.bat      # Windows
   ```
+
   La configuration est centralisée dans `phpunit.dist.xml` et la bootstrap `tests/bootstrap.php` charge l’autoloader + `.env`.
 
 Tests API (Newman/Postman)
@@ -293,10 +316,12 @@ Tests API (Newman/Postman)
 - On peut les éditer via Postman si besoin, mais l’exécution se fait désormais exclusivement via Newman (CLI).  
 - Avant lancement : renseignez `baseUrl`, `loginEmail` et `loginPassword`. La requête catalogue se charge de remplir `sampleProductSlug` et `cartProductId` avec un produit publié.
 - Commande standard :
+
   ```bash
   ./scripts/postman-tests.sh                                    # utilise newman global si dispo
   ./scripts/postman-tests.sh <collection> <env> --reporters cli  # options avancées
   ```
+
   Le script choisit automatiquement `newman` (global) ou `npx --yes newman` en fallback.
 
 Bonnes pratiques / sécurité

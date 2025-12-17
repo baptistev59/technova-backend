@@ -114,8 +114,8 @@
                                     Client inconnu
                                 {% endif %}
                             </p>
-                            <div class="flex flex-wrap items-center gap-2">
-                                {% if order.status == STATUS_PENDING %}
+                        <div class="flex flex-wrap items-center gap-2">
+                            {% if order.status == STATUS_PENDING %}
                                     <form method="post"
                                           action="{{ path('app_vendor_orders_update', {id: order.id}) }}"
                                           onsubmit="return confirm('Marquer cette commande comme payée ?');">
@@ -128,7 +128,7 @@
                                         <input type="hidden" name="status" value="{{ STATUS_CANCELLED }}">
                                         <button class="btn btn-outline btn-sm text-red-600 border-red-200" type="submit">Annuler</button>
                                     </form>
-                                {% elseif order.status == STATUS_PAID %}
+                            {% elseif order.status == STATUS_PAID %}
                                     <form method="post"
                                           action="{{ path('app_vendor_orders_update', {id: order.id}) }}"
                                           onsubmit="return confirm('Marquer cette commande comme expédiée ?');">
@@ -136,13 +136,22 @@
                                         <input type="hidden" name="status" value="{{ STATUS_SHIPPED }}">
                                         <button class="btn btn-outline btn-sm" type="submit">Marquer expédiée</button>
                                     </form>
-                                    <form method="post" action="{{ path('app_vendor_orders_update', {id: order.id}) }}" onsubmit="return confirm('Annuler cette commande ?');">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('vendor_order_status_' ~ order.id) }}">
-                                        <input type="hidden" name="status" value="{{ STATUS_CANCELLED }}">
-                                        <button class="btn btn-outline btn-sm text-red-600 border-red-200" type="submit">Annuler</button>
-                                    </form>
-                                {% endif %}
-                            </div>
+                                <form method="post" action="{{ path('app_vendor_orders_update', {id: order.id}) }}" onsubmit="return confirm('Annuler cette commande ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('vendor_order_status_' ~ order.id) }}">
+                                    <input type="hidden" name="status" value="{{ STATUS_CANCELLED }}">
+                                    <button class="btn btn-outline btn-sm text-red-600 border-red-200" type="submit">Annuler</button>
+                                </form>
+                            {% endif %}
+                            <button
+                                type="button"
+                                class="btn btn-link btn-sm"
+                                data-order-doc
+                                data-order-id="{{ order.id }}"
+                                data-type="delivery"
+                            >
+                                Bon de livraison
+                            </button>
+                        </div>
                         </div>
                         <div>
                             <p class="text-xs uppercase tracking-[0.25em] text-slate-400 mb-2">Articles vendus</p>

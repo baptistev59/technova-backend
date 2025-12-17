@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Entity\CustomerOrderStatusHistory;
 use App\Entity\Traits\Timestampable;
 use App\Repository\CustomerOrderRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -61,9 +62,13 @@ class CustomerOrder
     #[ORM\OneToMany(mappedBy: 'customerOrder', targetEntity: CustomerOrderItem::class, cascade: ['persist'], orphanRemoval: true)]
     private Collection $items;
 
+    #[ORM\OneToMany(mappedBy: 'orderEntity', targetEntity: CustomerOrderStatusHistory::class, cascade: ['persist'], orphanRemoval: true)]
+    private Collection $statusHistory;
+
     public function __construct()
     {
         $this->items = new ArrayCollection();
+        $this->statusHistory = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -79,6 +84,33 @@ class CustomerOrder
     public function setReference(string $reference): self
     {
         $this->reference = $reference;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, CustomerOrderStatusHistory>
+     */
+    public function getStatusHistory(): Collection
+    {
+        return $this->statusHistory;
+    }
+
+    public function addStatusHistory(CustomerOrderStatusHistory $history): self
+    {
+        if (!$this->statusHistory->contains($history)) {
+            $this->statusHistory->add($history);
+            $history->setOrder($this);
+        }
+
+        return $this;
+    }
+
+    public function removeStatusHistory(CustomerOrderStatusHistory $history): self
+    {
+        if ($this->statusHistory->removeElement($history) && $history->getOrder() === $this) {
+            $history->setOrder(null);
+        }
 
         return $this;
     }

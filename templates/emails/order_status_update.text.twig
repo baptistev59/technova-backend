@@ -1,0 +1,8 @@
+Bonjour {{ order.owner.firstname ?? order.owner.email }},
+
+Ta commande {{ order.reference }} vient de passer à l’étape {{ subject_label }}.
+Tu peux suivre son évolution depuis ton espace client :
+{{ baseUrl }}/mon-compte/commandes
+
+À bientôt,
+L’équipe TechNova

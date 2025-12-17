@@ -10,7 +10,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CategoryRepository::class)]
-#[ORM\Table(name: 'category', uniqueConstraints: [new ORM\UniqueConstraint(name: 'UNIQ_CATEGORY_SLUG', columns: ['slug'])])]
+#[ORM\Table(name: 'category')]
+#[ORM\UniqueConstraint(name: 'UNIQ_CATEGORY_SLUG', columns: ['slug'])]
 class Category
 {
     #[ORM\Id]

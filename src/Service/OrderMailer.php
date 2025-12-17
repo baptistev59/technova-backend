@@ -3,6 +3,11 @@
 namespace App\Service;
 
 use App\Entity\CustomerOrder;
+use App\Entity\OrderDocument;
+use App\Enum\DocumentType;
+use App\Repository\OrderDocumentRepository;
+use App\Service\OrderDocumentGenerator;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Mailer\MailerInterface;
@@ -14,6 +19,9 @@ class OrderMailer
     public function __construct(
         private readonly MailerInterface $mailer,
         private readonly ParameterBagInterface $params,
+        private readonly OrderDocumentGenerator $documentGenerator,
+        private readonly OrderDocumentRepository $documentRepository,
+        private readonly EntityManagerInterface $entityManager,
         private readonly ?string $mailerFrom = null
     ) {
     }
@@ -31,10 +39,7 @@ class OrderMailer
             ? Address::create($this->mailerFrom)
             : new Address('no-reply@technova.local', 'TechNova');
 
-        $baseUrl = rtrim(
-            $this->params->has('router.default_uri') ? (string) $this->params->get('router.default_uri') : ($_ENV['DEFAULT_URI'] ?? 'https://technova.local'),
-            '/'
-        );
+        $baseUrl = $this->resolveBaseUrl();
 
         $publicDir = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public';
 
@@ -95,6 +100,90 @@ class OrderMailer
             'baseUrl' => $baseUrl,
         ]);
 
+        $document = $this->ensureInvoiceDocument($order, $baseUrl);
+        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public/' . ltrim($document->getPath(), '/');
+        if (is_file($absolute)) {
+            $emailMessage->attachFromPath($absolute, sprintf('facture-%s.pdf', $order->getReference()), 'application/pdf');
+        }
+
         $this->mailer->send($emailMessage);
+    }
+
+    public function sendStatusUpdate(CustomerOrder $order, string $transition): void
+    {
+        $owner = $order->getOwner();
+        $email = $owner?->getEmail();
+        if (!$owner || !$email) {
+            return;
+        }
+
+        $labels = [
+            'pay' => 'paiement confirmé',
+            'ship' => 'commande expédiée',
+            'cancel' => 'commande annulée',
+        ];
+
+        $subjectLabel = $labels[$transition] ?? 'mise à jour';
+
+        $fromAddress = $this->mailerFrom
+            ? Address::create($this->mailerFrom)
+            : new Address('no-reply@technova.local', 'TechNova');
+
+        $baseUrl = $this->resolveBaseUrl();
+
+        $emailMessage = (new TemplatedEmail())
+            ->from($fromAddress)
+            ->to($email)
+            ->subject(sprintf('TechNova — %s (%s)', ucfirst($subjectLabel), $order->getReference()))
+            ->htmlTemplate('emails/order_status_update.html.twig')
+            ->textTemplate('emails/order_status_update.text.twig')
+            ->context([
+                'order' => $order,
+                'transition' => $transition,
+                'status' => $order->getStatus(),
+                'subject_label' => $subjectLabel,
+                'baseUrl' => $baseUrl,
+            ]);
+
+        $document = $this->ensureInvoiceDocument($order);
+        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public/' . ltrim($document->getPath(), '/');
+        if (is_file($absolute)) {
+            $emailMessage->attachFromPath($absolute, sprintf('facture-%s.pdf', $order->getReference()), 'application/pdf');
+        }
+
+        $document = $this->ensureInvoiceDocument($order, $baseUrl);
+        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public/' . ltrim($document->getPath(), '/');
+        if (is_file($absolute)) {
+            $emailMessage->attachFromPath($absolute, sprintf('facture-%s.pdf', $order->getReference()), 'application/pdf');
+        }
+
+        $this->mailer->send($emailMessage);
+    }
+
+    private function ensureInvoiceDocument(CustomerOrder $order, string $baseUrl): OrderDocument
+    {
+        $existing = $this->documentRepository->findOneBy([
+            'order' => $order,
+            'type' => DocumentType::INVOICE->value,
+        ]);
+        if ($existing instanceof OrderDocument) {
+            return $existing;
+        }
+
+        $document = $this->documentGenerator->generate($order, DocumentType::INVOICE, $baseUrl);
+        $this->entityManager->persist($document);
+        $this->entityManager->flush();
+
+        return $document;
+    }
+
+    private function resolveBaseUrl(): string
+    {
+        $base = $this->params->has('router.default_uri') ? (string) $this->params->get('router.default_uri') : '';
+        if ($base !== '') {
+            return rtrim($base, '/');
+        }
+
+        return rtrim($_ENV['DEFAULT_URI'] ?? 'https://technova.local', '/');
     }
 }

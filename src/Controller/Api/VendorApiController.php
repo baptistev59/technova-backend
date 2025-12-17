@@ -3,17 +3,25 @@
 namespace App\Controller\Api;
 
 use App\Entity\CustomerOrder;
+use App\Entity\Media;
 use App\Entity\Product;
+use App\Entity\ProductAttribute;
+use App\Entity\ProductAttributeValue;
+use App\Entity\ProductImage;
+use App\Entity\ProductVariant;
 use App\Entity\Shop;
 use App\Entity\Vendor;
+use App\Enum\DocumentType;
 use App\Form\Vendor\ProductType;
 use App\Form\Vendor\ShopProfileType;
 use App\Form\Vendor\VendorProfileType;
 use App\Image\ImageProfileRegistry;
 use App\Image\ImageUploader;
 use App\Repository\CustomerOrderRepository;
+use App\Repository\OrderDocumentRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ShopRepository;
+use App\Service\OrderDocumentGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Nelmio\ApiDocBundle\Annotation\Security;
 use OpenApi\Attributes as OA;
@@ -28,6 +36,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Workflow\WorkflowInterface;
 
 #[Route('/api/vendor', name: 'api_vendor_')]
 #[OA\Tag(name: 'Vendor')]
@@ -38,10 +48,14 @@ final class VendorApiController extends AbstractController
         private readonly ShopRepository $shopRepository,
         private readonly ProductRepository $productRepository,
         private readonly CustomerOrderRepository $orderRepository,
+        private readonly OrderDocumentRepository $documentRepository,
+        private readonly OrderDocumentGenerator $documentGenerator,
         private readonly EntityManagerInterface $entityManager,
         private readonly FormFactoryInterface $formFactory,
         private readonly ImageUploader $imageUploader,
         private readonly SluggerInterface $slugger,
+        #[Autowire(service: 'state_machine.customer_order')]
+        private readonly WorkflowInterface $orderWorkflow,
     ) {
     }
 
@@ -108,16 +122,16 @@ final class VendorApiController extends AbstractController
         $shop = new Shop();
         $shop->setOwner($vendor);
         $form = $this->formFactory->create(ShopProfileType::class, $shop);
-        $form->handleRequest($request);
-        if (!$form->isSubmitted() || !$form->isValid()) {
+        $form->submit($request->request->all(), true);
+        if (!$form->isValid()) {
             return $this->json(['errors' => $this->normalizeErrors($form)], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->generateShopSlug($shop);
         $this->handleShopUploads(
             $shop,
-            $form->get('logoFile')->getData(),
-            $form->get('bannerFile')->getData()
+            $request->files->get('logoFile'),
+            $request->files->get('bannerFile')
         );
 
         $this->entityManager->persist($shop);
@@ -156,16 +170,16 @@ final class VendorApiController extends AbstractController
     {
         $shop = $this->getShop();
         $form = $this->formFactory->create(ShopProfileType::class, $shop);
-        $form->handleRequest($request);
-        if (!$form->isSubmitted() || !$form->isValid()) {
+        $form->submit($request->request->all(), false);
+        if (!$form->isValid()) {
             return $this->json(['errors' => $this->normalizeErrors($form)], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->generateShopSlug($shop);
         $this->handleShopUploads(
             $shop,
-            $form->get('logoFile')->getData(),
-            $form->get('bannerFile')->getData()
+            $request->files->get('logoFile'),
+            $request->files->get('bannerFile')
         );
 
         $this->entityManager->flush();
@@ -221,7 +235,7 @@ final class VendorApiController extends AbstractController
         parameters: [
             new OA\Parameter(name: 'perPage', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: ['published', 'draft'])),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Liste paginée'),
@@ -239,14 +253,10 @@ final class VendorApiController extends AbstractController
         }
 
         $pagination = $this->productRepository->filterByPaginated($filters, $page, $limit);
+        $items = array_map(fn (Product $product) => $this->serializeProduct($product), $pagination['items']);
+
         return $this->json([
-            'items' => array_map(static fn ($product) => [
-                'id' => $product->getId(),
-                'name' => $product->getName(),
-                'slug' => $product->getSlug(),
-                'status' => $product->isPublished() ? 'published' : 'draft',
-                'price' => $product->getPrice(),
-            ], $pagination['items']),
+            'items' => $items,
             'total' => $pagination['total'],
             'page' => $pagination['page'],
             'perPage' => $pagination['per_page'],
@@ -280,17 +290,16 @@ final class VendorApiController extends AbstractController
         $product = new Product();
         $product->setShop($shop);
 
-        $form = $this->formFactory->create(ProductType::class, $product);
-        $form->submit($request->toArray());
-        if (!$form->isValid()) {
-            return $this->json(['errors' => $this->normalizeErrors($form)], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+        $result = $this->hydrateProductFromRequest($product, $request, true);
+        if (!$result['valid']) {
+            return $this->json(['errors' => $result['errors']], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->generateProductSlug($product);
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 
-        return $this->json(['id' => $product->getId()], JsonResponse::HTTP_CREATED);
+        return $this->json($this->serializeProduct($product), JsonResponse::HTTP_CREATED);
     }
 
     #[Route('/products/{id}', name: 'products_get', methods: ['GET'])]
@@ -309,13 +318,7 @@ final class VendorApiController extends AbstractController
             throw $this->createNotFoundException('Produit introuvable.');
         }
 
-        return $this->json([
-            'id' => $product->getId(),
-            'name' => $product->getName(),
-            'slug' => $product->getSlug(),
-            'price' => $product->getPrice(),
-            'isPublished' => $product->isPublished(),
-        ]);
+        return $this->json($this->serializeProduct($product));
     }
 
     #[Route('/products/{id}', name: 'products_update', methods: ['PUT', 'PATCH'])]
@@ -346,16 +349,15 @@ final class VendorApiController extends AbstractController
             throw $this->createNotFoundException('Produit introuvable.');
         }
 
-        $form = $this->formFactory->create(ProductType::class, $product);
-        $form->submit($request->toArray(), false);
-        if (!$form->isValid()) {
-            return $this->json(['errors' => $this->normalizeErrors($form)], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+        $result = $this->hydrateProductFromRequest($product, $request, false);
+        if (!$result['valid']) {
+            return $this->json(['errors' => $result['errors']], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->generateProductSlug($product);
         $this->entityManager->flush();
 
-        return $this->json(['id' => $product->getId()]);
+        return $this->json($this->serializeProduct($product));
     }
 
     #[Route('/products/{id}', name: 'products_delete', methods: ['DELETE'])]
@@ -403,7 +405,8 @@ final class VendorApiController extends AbstractController
     )]
     public function uploadMedia(Request $request): JsonResponse
     {
-        $this->getShop(); // vérifie que le vendeur dispose d’une boutique
+        $shop = $this->getShop(); // vérifie que le vendeur dispose d’une boutique
+        $vendor = $shop->getOwner() ?? $this->requireVendor();
         $profileKey = (string) ($request->request->get('profile') ?? '');
         if ($profileKey === '') {
             return $this->json(['error' => 'Profil requis (shop_banner, shop_logo, product_image, avatar).'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
@@ -422,12 +425,25 @@ final class VendorApiController extends AbstractController
 
         $relativePath = $this->imageUploader->upload($file, $profile);
 
+        $media = (new Media())
+            ->setVendor($vendor)
+            ->setProfile($profile->name)
+            ->setPath($relativePath)
+            ->setWidth($profile->width)
+            ->setHeight($profile->height)
+            ->setMimeType('image/webp');
+
+        $this->entityManager->persist($media);
+        $this->entityManager->flush();
+
         return $this->json([
-            'path' => $relativePath,
-            'url' => '/' . ltrim($relativePath, '/'),
-            'width' => $profile->width,
-            'height' => $profile->height,
-            'mimeType' => 'image/webp',
+            'id' => $media->getId(),
+            'profile' => $media->getProfile(),
+            'path' => $media->getPath(),
+            'url' => '/' . ltrim((string) $media->getPath(), '/'),
+            'width' => $media->getWidth(),
+            'height' => $media->getHeight(),
+            'mimeType' => $media->getMimeType(),
         ], JsonResponse::HTTP_CREATED);
     }
 
@@ -495,8 +511,9 @@ final class VendorApiController extends AbstractController
     {
         $shop = $this->getShop();
         $order = $this->findOrderForShop($shop, $id);
-        $payload = json_decode($request->getContent() ?: '{}', true);
-        if (!is_array($payload)) {
+        try {
+            $payload = json_decode($request->getContent() ?: '{}', true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
             $payload = [];
         }
         $target = (string) ($payload['status'] ?? '');
@@ -504,28 +521,25 @@ final class VendorApiController extends AbstractController
             return $this->json(['error' => 'Statut cible invalide.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        $current = $order->getStatus();
-        $allowed = match ($target) {
-            CustomerOrder::STATUS_PAID => $current === CustomerOrder::STATUS_PENDING,
-            CustomerOrder::STATUS_SHIPPED => $current === CustomerOrder::STATUS_PAID,
-            CustomerOrder::STATUS_CANCELLED => in_array($current, [CustomerOrder::STATUS_PENDING, CustomerOrder::STATUS_PAID], true),
-            CustomerOrder::STATUS_PENDING => false,
-            default => false,
+        $transition = match ($target) {
+            CustomerOrder::STATUS_PAID => 'pay',
+            CustomerOrder::STATUS_SHIPPED => 'ship',
+            CustomerOrder::STATUS_CANCELLED => 'cancel',
+            default => null,
         };
 
-        if (!$allowed) {
+        if (!$transition || !$this->orderWorkflow->can($order, $transition)) {
             return $this->json(['error' => 'Transition de statut non autorisée.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        if ($target === CustomerOrder::STATUS_PAID) {
-            $order
-                ->setStatus(CustomerOrder::STATUS_PAID)
-                ->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
-        } elseif ($target === CustomerOrder::STATUS_SHIPPED) {
-            $order->setStatus(CustomerOrder::STATUS_SHIPPED);
-        } elseif ($target === CustomerOrder::STATUS_CANCELLED) {
-            $order->setStatus(CustomerOrder::STATUS_CANCELLED);
+        if ($transition === 'pay') {
+            $order->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
         }
+
+        $this->orderWorkflow->apply($order, $transition, [
+            'triggered_by' => sprintf('vendor_api:%s', $this->getUser()?->getUserIdentifier() ?? 'unknown'),
+            'payload' => ['shop_id' => $shop->getId()],
+        ]);
 
         $this->entityManager->flush();
 
@@ -546,35 +560,57 @@ final class VendorApiController extends AbstractController
                     ]
                 )
             )
-        )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Document généré'),
+            new OA\Response(response: 400, description: 'Type invalide'),
+        ]
     )]
     public function generateDocument(int $id, Request $request): JsonResponse
     {
         $shop = $this->getShop();
         $order = $this->findOrderForShop($shop, $id);
-        $type = (string) $request->request->get('type', 'invoice');
-        if (!in_array($type, ['invoice', 'delivery'], true)) {
+        $typeRaw = (string) ($request->request->get('type', 'invoice'));
+
+        try {
+            $type = DocumentType::from($typeRaw);
+        } catch (\ValueError) {
             return $this->json(['error' => 'Type de document invalide.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        $content = sprintf(
-            "Document: %s\nCommande #%s\nMontant: %s %s\nStatut: %s\nGénéré le: %s",
-            strtoupper($type),
-            $order->getReference() ?? $order->getId(),
-            $order->getTotalAmount(),
-            $order->getCurrency(),
-            $order->getStatus(),
-            (new \DateTimeImmutable())->format('Y-m-d H:i:s')
-        );
+        $document = $this->documentGenerator->generate($order, $type, $request->getSchemeAndHttpHost());
+        $this->entityManager->persist($document);
+        $this->entityManager->flush();
 
         return $this->json([
-            'id' => $order->getId(),
-            'reference' => $order->getReference(),
-            'type' => $type,
-            'filename' => sprintf('%s-%s.txt', $type, $order->getReference() ?? $order->getId()),
-            'mimeType' => 'text/plain',
-            'base64' => base64_encode($content),
-        ]);
+            'id' => $document->getId(),
+            'type' => $document->getType()->value,
+            'url' => $document->getUrl(),
+            'hash' => $document->getHash(),
+            'generatedAt' => $document->getUpdatedAt()?->format(\DateTimeImmutable::ATOM),
+        ], JsonResponse::HTTP_CREATED);
+    }
+
+    #[Route('/orders/{id}/documents', name: 'orders_documents_list', methods: ['GET'])]
+    #[OA\Get(
+        summary: 'Liste les documents générés pour une commande',
+        responses: [
+            new OA\Response(response: 200, description: 'Liste des documents'),
+        ]
+    )]
+    public function listDocuments(int $id): JsonResponse
+    {
+        $shop = $this->getShop();
+        $order = $this->findOrderForShop($shop, $id);
+        $documents = $this->documentRepository->findBy(['order' => $order], ['createdAt' => 'DESC']);
+
+        return $this->json(array_map(static fn (OrderDocument $document) => [
+            'id' => $document->getId(),
+            'type' => $document->getType()->value,
+            'url' => $document->getUrl(),
+            'hash' => $document->getHash(),
+            'generatedAt' => $document->getUpdatedAt()?->format(\DateTimeImmutable::ATOM),
+        ], $documents));
     }
 
     private function normalizeErrors(FormInterface $form): array
@@ -720,6 +756,263 @@ final class VendorApiController extends AbstractController
             'logo' => $shop->getLogo(),
             'banner' => $shop->getBanner(),
         ];
+    }
+
+    private function serializeProduct(Product $product): array
+    {
+        $mainImage = null;
+        foreach ($product->getImages() as $image) {
+            if ($image->isMain()) {
+                $mainImage = $image;
+                break;
+            }
+        }
+
+        return [
+            'id' => $product->getId(),
+            'name' => $product->getName(),
+            'slug' => $product->getSlug(),
+            'shortDescription' => $product->getShortDescription(),
+            'description' => $product->getDescription(),
+            'price' => $product->getPrice(),
+            'promoPrice' => $product->getPromoPrice(),
+            'stock' => $product->getStock(),
+            'status' => $product->isPublished() ? 'published' : 'draft',
+            'type' => $product->getType(),
+            'keywords' => $product->getKeywords(),
+            'mainImage' => $mainImage ? $this->serializeImage($mainImage) : null,
+            'gallery' => array_map([$this, 'serializeImage'], $product->getImages()->toArray()),
+            'variants' => array_map([$this, 'serializeVariant'], $product->getVariants()->toArray()),
+            'attributes' => array_map([$this, 'serializeAttribute'], $product->getAttributes()->toArray()),
+        ];
+    }
+
+    private function serializeImage(ProductImage $image): array
+    {
+        return [
+            'id' => $image->getId(),
+            'url' => '/' . ltrim($image->getUrl(), '/'),
+            'alt' => $image->getAlt(),
+            'caption' => $image->getCaption(),
+            'isMain' => $image->isMain(),
+            'mimeType' => $image->getMimeType(),
+            'position' => $image->getPosition(),
+        ];
+    }
+
+    private function serializeVariant(ProductVariant $variant): array
+    {
+        return [
+            'id' => $variant->getId(),
+            'sku' => $variant->getSku(),
+            'barcode' => $variant->getBarcode(),
+            'price' => $variant->getPrice(),
+            'promoPrice' => $variant->getPromoPrice(),
+            'stock' => $variant->getStock(),
+            'isAvailable' => $variant->isAvailable(),
+            'image' => $variant->getImagePath() ? '/' . ltrim($variant->getImagePath(), '/') : null,
+            'configuration' => $variant->getConfiguration(),
+            'metadata' => $variant->getMetadata(),
+        ];
+    }
+
+    private function serializeAttribute(ProductAttribute $attribute): array
+    {
+        return [
+            'id' => $attribute->getId(),
+            'name' => $attribute->getName(),
+            'slug' => $attribute->getSlug(),
+            'inputType' => $attribute->getInputType(),
+            'values' => array_map(function (ProductAttributeValue $value) {
+                return [
+                    'id' => $value->getId(),
+                    'value' => $value->getValue(),
+                    'slug' => $value->getSlug(),
+                    'colorHex' => $value->getColorHex(),
+                ];
+            }, $attribute->getValues()->toArray()),
+        ];
+    }
+
+    private function hydrateProductFromRequest(Product $product, Request $request, bool $clearMissing): array
+    {
+        $form = $this->formFactory->create(ProductType::class, $product);
+        $form->submit($request->toArray(), $clearMissing);
+        if (!$form->isValid()) {
+            return ['valid' => false, 'errors' => $this->normalizeErrors($form)];
+        }
+
+        $this->handleProductImagesUpload(
+            $product,
+            $this->normalizeUploadedFile($request->files->get('mainImageFile')),
+            $this->normalizeGalleryUploads($request->files->get('galleryFiles'))
+        );
+
+        $this->applyProductVariants($product, $request->toArray()['variants'] ?? []);
+        $this->applyProductAttributes($product, $request->toArray()['attributes'] ?? []);
+
+        return ['valid' => true, 'errors' => []];
+    }
+
+    private function handleProductImagesUpload(Product $product, ?UploadedFile $mainImage, array $galleryFiles): void
+    {
+        if (!$mainImage && $galleryFiles === []) {
+            return;
+        }
+
+        foreach ($product->getImages() as $existing) {
+            if ($mainImage && $existing->isMain()) {
+                $existing->setIsMain(false);
+            }
+        }
+
+        if ($mainImage instanceof UploadedFile) {
+            $image = $this->createProductImageFromFile($product, $mainImage);
+            $image->setIsMain(true);
+            $image->setPosition(0);
+            $product->addImage($image);
+        }
+
+        $position = 1;
+        foreach ($galleryFiles as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+            $image = $this->createProductImageFromFile($product, $file);
+            $image->setPosition($position++);
+            $product->addImage($image);
+        }
+    }
+
+    /**
+     * @param iterable<mixed> $files
+     * @return UploadedFile[]
+     */
+    private function normalizeGalleryUploads(iterable|null $files): array
+    {
+        if (!is_iterable($files)) {
+            return [];
+        }
+
+        $uploads = [];
+        foreach ($files as $file) {
+            $normalized = $this->normalizeUploadedFile($file);
+            if ($normalized instanceof UploadedFile) {
+                $uploads[] = $normalized;
+            }
+        }
+
+        return $uploads;
+    }
+
+    private function applyProductVariants(Product $product, mixed $variants): void
+    {
+        foreach ($product->getVariants()->toArray() as $existing) {
+            $product->removeVariant($existing);
+        }
+
+        if (!is_iterable($variants)) {
+            return;
+        }
+
+        foreach ($variants as $variantData) {
+            if (!is_array($variantData)) {
+                continue;
+            }
+
+            $variant = new ProductVariant();
+            if (isset($variantData['sku'])) {
+                $variant->setSku((string) $variantData['sku']);
+            }
+            if (isset($variantData['barcode'])) {
+                $variant->setBarcode((string) $variantData['barcode']);
+            }
+            if (isset($variantData['price'])) {
+                $variant->setPrice((float) $variantData['price']);
+            }
+            if (isset($variantData['promoPrice'])) {
+                $variant->setPromoPrice((float) $variantData['promoPrice']);
+            }
+            if (isset($variantData['stock'])) {
+                $variant->setStock((int) $variantData['stock']);
+            }
+            if (isset($variantData['isAvailable'])) {
+                $variant->setIsAvailable((bool) $variantData['isAvailable']);
+            }
+            $variant->setConfiguration($variantData['configuration'] ?? null);
+            $variant->setMetadata($variantData['metadata'] ?? null);
+            if (!empty($variantData['image'])) {
+                $variant->setImagePath((string) $variantData['image']);
+            }
+
+            $product->addVariant($variant);
+        }
+    }
+
+    private function applyProductAttributes(Product $product, mixed $attributes): void
+    {
+        foreach ($product->getAttributes()->toArray() as $existing) {
+            $product->removeAttribute($existing);
+        }
+
+        if (!is_iterable($attributes)) {
+            return;
+        }
+
+        foreach ($attributes as $attributeData) {
+            if (!is_array($attributeData) || empty($attributeData['name'])) {
+                continue;
+            }
+
+            $attribute = new ProductAttribute();
+            $attribute->setName((string) $attributeData['name']);
+            $attribute->setSlug((string) ($attributeData['slug'] ?? $this->slugger->slug($attribute->getName())->lower()));
+            if (!empty($attributeData['inputType'])) {
+                $attribute->setInputType((string) $attributeData['inputType']);
+            }
+            if (isset($attributeData['position'])) {
+                $attribute->setPosition((int) $attributeData['position']);
+            }
+
+            $values = $attributeData['values'] ?? [];
+            if (is_iterable($values)) {
+                foreach ($values as $valueData) {
+                    if (!is_array($valueData) || empty($valueData['value'])) {
+                        continue;
+                    }
+
+                    $value = new ProductAttributeValue();
+                    $value->setValue((string) $valueData['value']);
+                    $value->setSlug((string) ($valueData['slug'] ?? $this->slugger->slug($value->getValue())->lower()));
+                    $value->setColorHex($valueData['colorHex'] ?? null);
+                    $attribute->addValue($value);
+                }
+            }
+
+            $product->addAttribute($attribute);
+        }
+    }
+
+    private function normalizeUploadedFile(mixed $file): ?UploadedFile
+    {
+        if (!$file instanceof UploadedFile || !$file->isValid()) {
+            return null;
+        }
+
+        return $file;
+    }
+
+    private function createProductImageFromFile(Product $product, UploadedFile $file): ProductImage
+    {
+        $relativePath = $this->imageUploader->upload($file, ImageProfileRegistry::get('product_image'));
+        $image = new ProductImage();
+        $image->setProduct($product);
+        $image->setUrl($relativePath);
+        $image->setMimeType('image/webp');
+        $image->setAlt($product->getName() ?? '');
+        $image->setTitle($product->getName() ?? '');
+
+        return $image;
     }
 
     private function serializeVendor(Vendor $vendor): array
