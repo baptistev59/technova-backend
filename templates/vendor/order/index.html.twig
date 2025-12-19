@@ -168,6 +168,21 @@
                             </div>
                         </div>
                     </div>
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Messagerie commande</h3>
+                        <div class="tn-conversation-panel" data-order-id="{{ order.id }}" data-api-base="/api/vendor/conversations">
+                            <div class="space-y-2 max-h-40 overflow-y-auto" data-conversation-messages>
+                                <p class="text-sm text-slate-400">Chargement…</p>
+                            </div>
+                            <form class="space-y-2" data-conversation-form>
+                                <textarea name="content" rows="2" class="tn-textarea w-full resize-none" placeholder="Répondre au client…" required></textarea>
+                                <div class="flex items-center justify-between">
+                                    <p class="text-xs text-red-500" data-conversation-status></p>
+                                    <button class="btn btn-primary btn-sm" type="submit">Envoyer</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </details>
             {% endfor %}
         </div>

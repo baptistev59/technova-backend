@@ -25,8 +25,8 @@ class OrderDocument
     private ?CustomerOrder $order = null;
 
 
-    #[ORM\Column(type: Types::STRING, length: 30)]
-    private string $type;
+    #[ORM\Column(enumType: DocumentType::class)]
+    private DocumentType $type;
 
     #[ORM\Column(length: 255)]
     private string $path;
@@ -56,13 +56,12 @@ class OrderDocument
 
     public function getType(): DocumentType
     {
-        return DocumentType::from($this->type);
+        return $this->type;
     }
 
     public function setType(DocumentType $type): self
     {
-        $this->type = $type->value;
-
+        $this->type = $type;
         return $this;
     }
 

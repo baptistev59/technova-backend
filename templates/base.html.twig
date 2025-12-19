@@ -456,6 +456,141 @@
                 });
             });
         </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const jwtMeta = document.querySelector('meta[name="technova-jwt"]');
+                const bearer = jwtMeta?.getAttribute('content')?.trim();
+                if (!bearer) {
+                    return;
+                }
+
+                const panels = document.querySelectorAll('.tn-conversation-panel[data-order-id][data-api-base]');
+                if (!panels.length) {
+                    return;
+                }
+
+                const headers = {
+                    'Authorization': `Bearer ${bearer}`,
+                    'Accept': 'application/json',
+                };
+
+                const formatDate = (value) => {
+                    if (!value) {
+                        return '';
+                    }
+                    const date = new Date(value);
+                    return date.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+                };
+
+                panels.forEach((panel) => {
+                    const orderId = panel.dataset.orderId;
+                    const apiBase = panel.dataset.apiBase;
+                    const messagesEl = panel.querySelector('[data-conversation-messages]');
+                    const formEl = panel.querySelector('[data-conversation-form]');
+                    const statusEl = panel.querySelector('[data-conversation-status]');
+                    const textarea = formEl?.querySelector('textarea[name="content"]');
+
+                    const renderMessages = (messages) => {
+                        if (!messagesEl) {
+                            return;
+                        }
+                        messagesEl.innerHTML = '';
+                        if (!messages.length) {
+                            const empty = document.createElement('p');
+                            empty.className = 'text-sm text-slate-400';
+                            empty.textContent = 'Aucun message pour le moment.';
+                            messagesEl.appendChild(empty);
+                            return;
+                        }
+                        messages.forEach((message) => {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm';
+
+                            const header = document.createElement('p');
+                            header.className = 'text-[0.65rem] uppercase tracking-[0.35em] text-slate-400 mb-1';
+                            header.textContent = `${message.authorName} · ${formatDate(message.createdAt)}`;
+
+                            const content = document.createElement('p');
+                            content.className = 'text-sm text-slate-700';
+                            content.textContent = message.content;
+
+                            wrapper.appendChild(header);
+                            wrapper.appendChild(content);
+                            messagesEl.appendChild(wrapper);
+                        });
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    };
+
+                    const loadMessages = () => {
+                        if (!messagesEl) {
+                            return;
+                        }
+                        messagesEl.innerHTML = '<p class="text-sm text-slate-400">Chargement…</p>';
+                        fetch(`${apiBase}/${orderId}`, { headers })
+                            .then((response) => {
+                                if (!response.ok) {
+                                    throw new Error('Impossible de charger');
+                                }
+                                return response.json();
+                            })
+                            .then((payload) => {
+                                renderMessages(payload.messages || []);
+                                if (statusEl) {
+                                    statusEl.textContent = '';
+                                }
+                            })
+                            .catch(() => {
+                                if (statusEl) {
+                                    statusEl.textContent = 'Impossible de charger la conversation.';
+                                }
+                            });
+                    };
+
+                    formEl?.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        const content = textarea?.value.trim() ?? '';
+                        if (!content) {
+                            if (statusEl) {
+                                statusEl.textContent = 'Le message ne peut pas être vide.';
+                            }
+                            return;
+                        }
+                        textarea.disabled = true;
+                        fetch(`${apiBase}/${orderId}/messages`, {
+                            method: 'POST',
+                            headers: {
+                                ...headers,
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: new URLSearchParams({ content }),
+                        })
+                            .then((response) => {
+                                if (!response.ok) {
+                                    throw new Error('Erreur');
+                                }
+                                return response.json();
+                            })
+                            .then(() => {
+                                textarea.value = '';
+                                if (statusEl) {
+                                    statusEl.textContent = '';
+                                }
+                                loadMessages();
+                            })
+                            .catch(() => {
+                                if (statusEl) {
+                                    statusEl.textContent = 'Impossible d’envoyer le message.';
+                                }
+                            })
+                            .finally(() => {
+                                textarea.disabled = false;
+                            });
+                    });
+
+                    loadMessages();
+                });
+            });
+        </script>
     {% endblock %}
 </body>
 </html>

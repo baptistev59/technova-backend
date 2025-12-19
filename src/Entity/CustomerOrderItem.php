@@ -33,6 +33,9 @@ class CustomerOrderItem
     #[ORM\Column]
     private int $quantity = 1;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $shopId = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $productImage = null;
 
@@ -112,6 +115,18 @@ class CustomerOrderItem
     public function setQuantity(int $quantity): self
     {
         $this->quantity = $quantity;
+
+        return $this;
+    }
+
+    public function getShopId(): ?int
+    {
+        return $this->shopId;
+    }
+
+    public function setShopId(?int $shopId): self
+    {
+        $this->shopId = $shopId;
 
         return $this;
     }

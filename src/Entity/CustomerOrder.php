@@ -5,6 +5,8 @@ namespace App\Entity;
 use App\Entity\CustomerOrderStatusHistory;
 use App\Entity\Traits\Timestampable;
 use App\Repository\CustomerOrderRepository;
+use App\Entity\Conversation;
+use App\Entity\OrderDocument;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -26,7 +28,7 @@ class CustomerOrder
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 40, unique: true)]
+    #[ORM\Column(length: 80, unique: true)]
     private ?string $reference = null;
 
     #[ORM\ManyToOne(inversedBy: 'orders')]
@@ -56,6 +58,9 @@ class CustomerOrder
     #[ORM\Column(length: 120, nullable: true)]
     private ?string $paymentIntentId = null;
 
+    #[ORM\OneToOne(mappedBy: 'order', targetEntity: Conversation::class, cascade: ['persist', 'remove'])]
+    private ?Conversation $conversation = null;
+
     /**
      * @var Collection<int, CustomerOrderItem>
      */
@@ -65,10 +70,17 @@ class CustomerOrder
     #[ORM\OneToMany(mappedBy: 'orderEntity', targetEntity: CustomerOrderStatusHistory::class, cascade: ['persist'], orphanRemoval: true)]
     private Collection $statusHistory;
 
+    #[ORM\OneToMany(mappedBy: 'order', targetEntity: OrderDocument::class, cascade: ['persist'], orphanRemoval: true)]
+    private Collection $documents;
+
+
+
     public function __construct()
     {
         $this->items = new ArrayCollection();
         $this->statusHistory = new ArrayCollection();
+        $this->documents = new ArrayCollection();
+
     }
 
     public function getId(): ?int
@@ -236,6 +248,17 @@ class CustomerOrder
         return $this->items;
     }
 
+    public function getConversation(): ?Conversation
+    {
+        return $this->conversation;
+    }
+
+    public function setConversation(?Conversation $conversation): self
+    {
+        $this->conversation = $conversation;
+        return $this;
+    }
+
     public function addItem(CustomerOrderItem $item): self
     {
         if (!$this->items->contains($item)) {
@@ -256,4 +279,67 @@ class CustomerOrder
 
         return $this;
     }
+
+    public function involvesVendor(Vendor $vendor): bool
+    {
+        $vendorShopIds = array_map(
+            static fn (Shop $shop): int => $shop->getId(),
+            $vendor->getShops()->toArray()
+        );
+
+        foreach ($this->items as $item) {
+            if ($item->getShopId() !== null && in_array($item->getShopId(), $vendorShopIds, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return CustomerOrderItem[]
+     */
+    public function getItemsForShop(Shop $shop): array
+    {
+        $items = [];
+
+        foreach ($this->items as $item) {
+            if ($item->getShopId() === $shop->getId()) {
+                $items[] = $item;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return Collection<int, OrderDocument>
+     */
+    public function getDocuments(): Collection
+    {
+        return $this->documents;
+    }
+
+    public function addDocument(OrderDocument $document): self
+    {
+        if (!$this->documents->contains($document)) {
+            $this->documents->add($document);
+            $document->setOrder($this);
+        }
+
+        return $this;
+    }
+
+    public function removeDocument(OrderDocument $document): self
+    {
+        if ($this->documents->removeElement($document)) {
+            if ($document->getOrder() === $this) {
+                $document->setOrder(null);
+            }
+        }
+
+        return $this;
+    }
+
+
 }

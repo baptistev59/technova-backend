@@ -103,6 +103,14 @@ Avant d’exécuter `php bin/phpunit`, lance `bash scripts/setup-test-db.sh`. Le
 * `GET` : liste les documents générés pour la commande (id, type, url, hash, date).
 * `POST` : génère un nouveau PDF (`invoice` ou `delivery`) via `OrderDocumentGenerator`, persiste l’entité `order_document` et retourne `{ id, type, url, hash, generatedAt }`.
 * Les documents sont stockés dans `public/uploads/documents` et peuvent être téléchargés depuis le dashboard vendeur ou partagés en back-office.
+
+### Messagerie interne (conversations order_id)
+
+* **POST** `/api/vendor/conversations/{orderId}/messages` : le vendeur envoie un message (payload `{ content: string }`). Le service vérifie que la commande appartient au shop et crée/alimente une `Conversation` + un `Message`.
+* **GET** `/api/vendor/conversations/{orderId}` : retourne la conversation (orderId, shopId, messages[]).
+* **POST** `/api/account/conversations/{orderId}/messages` : le client logué envoie un message sur sa commande.
+* **GET** `/api/account/conversations/{orderId}` : lit la conversation côté client (mêmes champs).
+* Les messages sont persistés dans les tables `conversation` (`order_id`, `shop_id`) et `message` (`content`, `author_id`, `created_at`). Chaque message retourne `(id, authorId, authorName, content, createdAt)`.
 ## 5. Commandes vendeur
 
 ### GET `/api/vendor/orders`

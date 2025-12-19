@@ -12,6 +12,7 @@ use App\Entity\Product;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;
+use App\Tests\Functional\Helper\ShopTestHelper;
 use Doctrine\DBAL\Exception\ConnectionException;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -23,6 +24,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class VendorApiControllerTest extends WebTestCase
 {
+    use ShopTestHelper;
+
     private KernelBrowser $client;
     private EntityManagerInterface $manager;
     private JWTTokenManagerInterface $jwtManager;
@@ -68,6 +71,7 @@ final class VendorApiControllerTest extends WebTestCase
     public function testMediaUploadReturnsMetadata(): void
     {
         $context = $this->createVendorContext();
+        $this->manager->flush();
         $token = $this->jwtManager->create($context['user']);
         $headers = $this->prepareAuthHeaders($token);
 
@@ -135,6 +139,7 @@ final class VendorApiControllerTest extends WebTestCase
     public function testUpdateShopAppliesPartialPayload(): void
     {
         $context = $this->createVendorContext();
+        $this->manager->flush();
         $token = $this->jwtManager->create($context['user']);
         $headers = $this->prepareAuthHeaders($token);
 
@@ -162,6 +167,7 @@ final class VendorApiControllerTest extends WebTestCase
     public function testUpdateProfileReturnsSerializedVendor(): void
     {
         $context = $this->createVendorContext();
+        $this->manager->flush();
         $token = $this->jwtManager->create($context['user']);
         $headers = $this->prepareAuthHeaders($token);
 
@@ -192,6 +198,7 @@ final class VendorApiControllerTest extends WebTestCase
     public function testListOrdersIncludesShopItems(): void
     {
         $context = $this->createVendorContext();
+        $this->manager->flush();
         $token = $this->jwtManager->create($context['user']);
         $headers = $this->prepareAuthHeaders($token);
 
@@ -215,6 +222,7 @@ final class VendorApiControllerTest extends WebTestCase
     public function testChangeOrderStatusUpdatesState(): void
     {
         $context = $this->createVendorContext();
+        $this->manager->flush();
         $token = $this->jwtManager->create($context['user']);
         $headers = $this->prepareAuthHeaders($token);
         $orderId = $context['order']->getId();
@@ -237,6 +245,7 @@ final class VendorApiControllerTest extends WebTestCase
     public function testGenerateDocumentReturnsBase64(): void
     {
         $context = $this->createVendorContext();
+        $this->manager->flush();
         $token = $this->jwtManager->create($context['user']);
         $headers = $this->prepareAuthHeaders($token);
         $orderId = $context['order']->getId();
@@ -298,6 +307,9 @@ final class VendorApiControllerTest extends WebTestCase
             ->setIconPath('/images/categories/default.svg');
         $this->manager->persist($category);
 
+        $manager = static::getContainer()->get(EntityManagerInterface::class);
+        $shop = $this->createShopForVendor($manager, $vendor);
+
         $product = (new Product())
             ->setName('Functional Product '.uniqid())
             ->setSlug('functional-product-'.uniqid())
@@ -306,11 +318,18 @@ final class VendorApiControllerTest extends WebTestCase
             ->setStock(10)
             ->setCategory($category)
             ->setShop($shop);
-        $this->manager->persist($product);
-        $this->manager->flush();
+        $manager->persist($product);
+        $manager->flush();
+
+        $reference = sprintf(
+            'ORD-%s-%s',
+            str_replace('::', '-', __METHOD__),
+            bin2hex(random_bytes(4))
+        );
+
 
         $order = (new CustomerOrder())
-            ->setReference('ORDER-'.uniqid())
+            ->setReference($reference)
             ->setStatus(CustomerOrder::STATUS_PENDING)
             ->setCurrency('EUR')
             ->setTotalAmount((string) $product->getPrice())
@@ -322,12 +341,12 @@ final class VendorApiControllerTest extends WebTestCase
         $item = (new CustomerOrderItem())
             ->setProductId($product->getId())
             ->setProductName($product->getName())
+            ->setShopId($shop->getId())
             ->setQuantity(1)
             ->setUnitPrice((string) $product->getPrice())
             ->setLineTotal((string) $product->getPrice())
         ;
         $order->addItem($item);
-        $this->manager->persist($item);
         $this->manager->persist($item);
         $this->manager->flush();
 

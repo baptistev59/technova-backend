@@ -20,11 +20,17 @@
             <p>Adresse e-mail : {{ order.owner.email }}</p>
             <p>Numéro de commande : {{ order.reference }}</p>
             {% set address = order.billingAddress %}
+            {% set line1 = address.addressLine1 ?? address.line1 ?? null %}
+            {% set line2 = address.addressLine2 ?? address.line2 ?? null %}
+            {% set zip   = address.postalCode ?? address.zip ?? null %}
+            {% set city  = address.city ?? null %}
+            {% set country = address.country ?? null %}
             <p>
-                {{ address.addressLine1 }}<br>
-                {% if address.addressLine2 %}{{ address.addressLine2 }}<br>{% endif %}
-                {{ address.postalCode }} {{ address.city }}<br>
-                {{ address.country }}
+                {% if line1 %}{{ line1 }}<br>{% endif %}
+                {% if line2 %}{{ line2 }}<br>{% endif %}
+                {% if zip or city %}{{ zip }} {{ city }}<br>{% endif %}
+                {% if country %}{{ country }}{% endif %}
+
             </p>
             <p>Date : {{ order.createdAt|date('d/m/Y H:i') }}</p>
         </div>
@@ -52,13 +58,16 @@
 
     <section>
         <h2>Livraison</h2>
-        {% set address = order.shippingAddress %}
-        <p>
-            {{ address.addressLine1 }}<br>
-            {% if address.addressLine2 %}{{ address.addressLine2 }}<br>{% endif %}
-            {{ address.postalCode }} {{ address.city }}<br>
-            {{ address.country }}
-        </p>
+        {% set address = order.shippingAddress %}{% set line1 = address.addressLine1 ?? address.line1 ?? null %}
+            {% set line2 = address.addressLine2 ?? address.line2 ?? null %}
+            {% set zip   = address.postalCode ?? address.zip ?? null %}
+            {% set city  = address.city ?? null %}
+            {% set country = address.country ?? null %}
+            <p>
+                {% if line1 %}{{ line1 }}<br>{% endif %}
+                {% if line2 %}{{ line2 }}<br>{% endif %}
+                {% if zip or city %}{{ zip }} {{ city }}<br>{% endif %}
+                {% if country %}{{ country }}{% endif %}
     </section>
 
     <footer>

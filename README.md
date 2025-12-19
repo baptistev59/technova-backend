@@ -57,6 +57,7 @@ Endpoints disponibles
 - Ajoute ces appels à la collection Postman (`postman/technova-api.postman_collection.json`) quand tu travailleras sur le front vendeur.
 - `POST /api/vendor/media` centralise les uploads (profils `shop_banner|shop_logo|product_image|avatar`), stocke chaque fichier dans la table `media` et renvoie maintenant `{ id, profile, path, url, width, height, mimeType }` pour que le front puisse lier l’ID à la fiche boutique ou produit.
 - `POST /api/vendor/orders/{id}/documents` et `GET /api/vendor/orders/{id}/documents` gèrent les factures/bon de livraison (PDF, hash, URL, id) via `OrderDocumentGenerator` + table `order_document`. Les boutons “Télécharger PDF” dans le dashboard s’appuient sur ces endpoints.
+- `POST /api/vendor/conversations/{orderId}/messages` / `GET /api/vendor/conversations/{orderId}` + les variantes `/api/account/...` permettent de créer/consulter une messagerie interne client ↔ vendeur pour chaque commande (`Conversation`, `Message`). Ces endpoints seront repris par le dashboard vendeur et la fiche commande du client (fetch + Alpine + `<meta name="technova-jwt">` pour les JS calls).
 
 **Query params utiles (`/api/products`)**
 

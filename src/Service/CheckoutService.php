@@ -55,6 +55,7 @@ class CheckoutService
                 ->setProductId($product->getId())
                 ->setProductName($product->getName())
                 ->setProductImage($this->resolveProductImage($product))
+                ->setShopId($product->getShop()?->getId())
                 ->setQuantity($cartLine['quantity'])
                 ->setVariantId($variant ? $variant->getId() : null)
                 ->setUnitPrice($this->formatAmount((float) $cartLine['unitPrice']))
