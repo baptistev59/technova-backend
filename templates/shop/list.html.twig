@@ -1,0 +1,108 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Vendeurs | TechNova{% endblock %}
+
+{% block body %}
+<section class="tn-section">
+    <div class="tn-section__header">
+        <div>
+            <h1>Boutiques partenaires</h1>
+            <p class="text-slate-500">{{ pagination.total }} boutique{{ pagination.total > 1 ? 's' }}</p>
+        </div>
+        <form class="tn-filters gap-2 flex-wrap" method="get" action="{{ path('shop_index') }}">
+            <input type="hidden" name="page" value="{{ pagination.page }}">
+
+            <div class="relative max-w-xs w-full">
+                <input
+                    type="search"
+                    name="search"
+                    value="{{ filters.search }}"
+                    placeholder="Rechercher une boutique"
+                    onkeydown="if (event.key === 'Enter') { this.form.requestSubmit(); }"
+                    aria-label="Rechercher une boutique"
+                >
+            </div>
+
+            <input
+                type="text"
+                name="vendor"
+                value="{{ filters.vendor }}"
+                placeholder="Nom du vendeur"
+                onkeydown="if (event.key === 'Enter') { this.form.requestSubmit(); }"
+            >
+
+            <div class="tn-select">
+                <label class="sr-only" for="shop-limit">Boutiques par page</label>
+                <select id="shop-limit" name="limit" onchange="this.form.requestSubmit()">
+                    {% for option in limit_options %}
+                        <option value="{{ option }}" {{ pagination.per_page == option ? 'selected' }}>{{ option }} / page</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Filtrer</button>
+            <a class="btn btn-outline" href="{{ path('shop_index') }}">Réinitialiser</a>
+        </form>
+    </div>
+</section>
+
+<section class="tn-section">
+    <div class="tn-products-grid">
+        {% for shop in shops %}
+            <article class="tn-product-card tn-product-card--compact">
+                <div class="tn-product-card__media">
+                    <img
+                        src="{{ shop.banner ? asset(shop.banner) : asset('assets/images/product-placeholder.svg') }}"
+                        alt="{{ shop.name }}"
+                    >
+                </div>
+
+                <h3 class="tn-product-card__title tn-title--truncate" title="{{ shop.name }}">{{ shop.name }}</h3>
+
+                <p class="tn-product-card__excerpt">
+                    {% if shop.description %}
+                        {% set desc = shop.description %}
+                        {{ desc|length > 140 ? desc|slice(0, 140) ~ '…' : desc }}
+                    {% else %}
+                        Cette boutique n'a pas encore rédigé de présentation.
+                    {% endif %}
+                </p>
+
+                {% set vendorUser = shop.owner and shop.owner.owner ? shop.owner.owner : null %}
+                <div class="tn-product-card__meta">
+                    <span>
+                        {% if vendorUser %}
+                            {{ vendorUser.firstname }} {{ vendorUser.lastname }}
+                        {% elseif shop.owner %}
+                            {{ shop.owner.companyName }}
+                        {% else %}
+                            Vendeur TechNova
+                        {% endif %}
+                    </span>
+                    <strong>{{ shop.products|length }} produit{{ shop.products|length > 1 ? 's' }}</strong>
+                </div>
+
+                <div class="tn-product-card__cta mt-auto flex gap-2">
+                    <a class="btn btn-outline w-full" href="{{ path('shop_catalog', { slug: shop.slug }) }}">Catalogue</a>
+                    <a class="btn btn-primary w-full" href="{{ path('shop_show', { slug: shop.slug }) }}">Voir la boutique</a>
+                </div>
+            </article>
+        {% else %}
+            <p>Aucune boutique n'est disponible pour le moment.</p>
+        {% endfor %}
+    </div>
+
+    {% if pagination.pages > 1 %}
+        {% set base_query = app.request.query.all %}
+        <div class="tn-pagination">
+            <p>{{ pagination.total }} boutique{{ pagination.total > 1 ? 's' : '' }} — page {{ pagination.page }} sur {{ pagination.pages }}</p>
+            <div class="tn-pagination__actions">
+                <a class="tn-pagination__link {% if pagination.page <= 1 %}tn-pagination__link--disabled{% endif %}"
+                   href="{{ path('shop_index', base_query|merge({'page': pagination.page - 1})) }}">Précédent</a>
+                <a class="tn-pagination__link {% if pagination.page >= pagination.pages %}tn-pagination__link--disabled{% endif %}"
+                   href="{{ path('shop_index', base_query|merge({'page': pagination.page + 1})) }}">Suivant</a>
+            </div>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

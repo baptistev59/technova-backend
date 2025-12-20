@@ -46,7 +46,7 @@
     </div>
     <p class="tn-section__hint">Une sélection de 10 nouveautés, mise à jour chaque jour.</p>
     {% if latestProducts|length %}
-        <div class="swiper tn-carousel" data-swiper-init>
+        <div class="swiper tn-carousel" data-swiper-init data-swiper-visible="5">
             <div class="swiper-wrapper">
                 {% for product in latestProducts|slice(0, 10) %}
                     <div class="swiper-slide p-3 h-auto">
@@ -97,7 +97,7 @@
     </div>
     <p class="tn-section__hint">10 choix exclusifs mis à jour quotidiennement.</p>
     {% if featuredProducts|length %}
-        <div class="swiper tn-carousel" data-swiper-init>
+        <div class="swiper tn-carousel" data-swiper-init data-swiper-visible="5">
             <div class="swiper-wrapper">
                 {% for product in featuredProducts|slice(0, 10) %}
                     <div class="swiper-slide p-3 h-auto">

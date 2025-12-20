@@ -1,0 +1,13 @@
+<div class="space-y-3">
+    {% for message in field.value %}
+        <article class="p-3 border border-slate-200 rounded-2xl">
+            <p class="text-sm text-slate-500">
+                {{ message.authorEmail ?? 'Expéditeur inconnu' }}
+                — {{ message.createdAt ? message.createdAt|date('d/m/Y H:i') : 'Date inconnue' }}
+            </p>
+            <p class="mt-2 text-slate-900">{{ message.content }}</p>
+        </article>
+    {% else %}
+        <p class="text-sm text-slate-500">Aucun message pour cette conversation.</p>
+    {% endfor %}
+</div>

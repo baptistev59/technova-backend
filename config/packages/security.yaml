@@ -72,3 +72,6 @@ security:
         # Pages publiques: connexion autorisée
         - { path: ^/connexion, roles: PUBLIC_ACCESS }
         - { path: ^/deconnexion, roles: PUBLIC_ACCESS }
+
+        # Back-office admin (EasyAdmin)
+        - { path: ^/admin, roles: ROLE_ADMIN }

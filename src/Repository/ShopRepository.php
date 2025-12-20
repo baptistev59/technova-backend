@@ -17,4 +17,65 @@ class ShopRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Shop::class);
     }
+
+    /**
+     * Retourne une pagination simple des boutiques publiques.
+     *
+     * @return array{
+     *     items: Shop[],
+     *     total: int,
+     *     page: int,
+     *     pages: int,
+     *     per_page: int
+     * }
+     */
+    public function paginate(int $page, int $limit, array $filters = []): array
+    {
+        $page = max(1, $page);
+        $perPage = max(1, $limit);
+
+        $qb = $this->createQueryBuilder('s')
+            ->leftJoin('s.owner', 'vendor')
+            ->addSelect('vendor')
+            ->leftJoin('vendor.owner', 'vendorUser')
+            ->addSelect('vendorUser')
+            ->orderBy('s.updatedAt', 'DESC');
+
+        if (!empty($filters['search'])) {
+            $qb
+                ->andWhere('LOWER(s.name) LIKE :term OR LOWER(vendor.companyName) LIKE :term')
+                ->setParameter('term', '%' . mb_strtolower($filters['search']) . '%');
+        }
+
+        if (!empty($filters['vendor'])) {
+            $term = '%' . mb_strtolower($filters['vendor']) . '%';
+            $qb
+                ->andWhere('LOWER(vendor.companyName) LIKE :vendorTerm OR LOWER(vendorUser.firstname) LIKE :vendorTerm OR LOWER(vendorUser.lastname) LIKE :vendorTerm OR LOWER(CONCAT(vendorUser.firstname, \' \', vendorUser.lastname)) LIKE :vendorTerm')
+                ->setParameter('vendorTerm', $term);
+        }
+
+        $countQb = clone $qb;
+        $total = (int) $countQb
+            ->select('COUNT(s.id)')
+            ->resetDQLPart('orderBy')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $pages);
+
+        $items = $qb
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+
+        return [
+            'items' => $items,
+            'total' => $total,
+            'page' => $page,
+            'pages' => $pages,
+            'per_page' => $perPage,
+        ];
+    }
 }

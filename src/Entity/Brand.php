@@ -22,6 +22,7 @@ class Brand
     public function __construct()
     {
         $this->products = new ArrayCollection();
+        $this->slug = '';
     }
 
     #[ORM\Id]

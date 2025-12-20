@@ -136,3 +136,10 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 
 - Les carrousels `tn-carousel` (home, vitrine, dashboard vendeur) sont désormais stylés de façon uniforme : 10 slides produits avec trois visibles, navigation/fallback, et un attribut `data-swiper-visible` pour piloter la vue.
 - La recherche catalogue / recherche globale utilise un dropdown custom (pas de datalist ou historique) ; le JS gère l’état, annule les fetchs en cours, ferme sur Enter/submit, et les suggestions proviennent exclusivement des `name` + `keywords` filtrés côté PHP.
+
+## 20. Avis produits vérifiés
+
+- Restreindre l’ajout d’avis aux clients ayant effectivement acheté le produit (commande livrée/complétée).
+- UI front pour consulter les avis (note moyenne, tri, pagination) et formulaire avec modération côté vendeur/staff.
+- API / endpoints pour créer, approuver, masquer un avis et signaler un contenu abusif.
+- Notifier le vendeur de nouveaux avis et permettre au client de modifier/supprimer son retour tant qu’il est en “pending”.

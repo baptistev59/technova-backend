@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Vendor;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -14,6 +15,16 @@ class VendorRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Vendor::class);
+    }
+
+    public function countNewSince(DateTimeImmutable $since): int
+    {
+        return (int) $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->andWhere('v.createdAt >= :since')
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     //    /**

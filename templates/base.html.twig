@@ -58,7 +58,8 @@
 </head>
 <body>
     {% set viewer = viewer_user() %}
-    {% set viewer_is_vendor = viewer and 'ROLE_VENDOR' in viewer.roles %}
+{% set viewer_is_vendor = viewer and 'ROLE_VENDOR' in viewer.roles %}
+{% set viewer_is_admin = viewer and 'ROLE_ADMIN' in viewer.roles %}
     <header class="tn-header">
         <div class="tn-topbar">
             {# En-tête principal disponible sur toutes les pages #}
@@ -67,7 +68,7 @@
             </a>
             <nav class="tn-nav-links">
                 <a href="{{ path('catalog_index') }}">Produits</a>
-                <a href="#">Vendeurs</a>
+                <a href="{{ path('shop_index') }}">Boutiques</a>
                 <a href="#">Aide</a>
             </nav>
             <div class="tn-actions">
@@ -111,6 +112,9 @@
                             <a class="tn-user-menu__item" href="{{ path('app_profile') }}">Mon profil</a>
                             {% if viewer_is_vendor %}
                                 <a class="tn-user-menu__item" href="{{ path('app_vendor_shop_new') }}">Mon espace vendeur</a>
+                            {% endif %}
+                            {% if viewer_is_admin %}
+                                <a class="tn-user-menu__item" href="{{ path('admin_dashboard') }}">Backoffice admin</a>
                             {% endif %}
                             <a class="tn-user-menu__item" href="{{ path('app_account_orders') }}">Mes commandes</a>
                             <a class="tn-user-menu__item" href="{{ path('app_cart_show') }}">Mon panier</a>
@@ -185,6 +189,11 @@
         <script>
             const initSwipers = () => {
                 document.querySelectorAll('[data-swiper-init]').forEach((swiperEl) => {
+
+                    if (swiperEl.swiper) {
+                        return;
+                    }
+
                     const paginationEl = swiperEl.querySelector('.swiper-pagination');
                     const nextEl = swiperEl.querySelector('.swiper-button-next');
                     const prevEl = swiperEl.querySelector('.swiper-button-prev');
@@ -192,19 +201,36 @@
                     const clamp = (value) => Math.min(value, visibleSlides);
 
                     new Swiper(swiperEl, {
-                        loop: true,
+                      
+                        loop: false,
+
                         spaceBetween: 16,
+                        grabCursor: true,
+
                         slidesPerView: clamp(1),
                         slidesPerGroup: clamp(1),
-                        grabCursor: true,
+
+                        observer: true,
+                        observeParents: true,
+                        resizeObserver: true,
+
                         breakpoints: {
-                            640: { slidesPerView: clamp(2), slidesPerGroup: clamp(2) },
-                            768: { slidesPerView: clamp(3), slidesPerGroup: clamp(3) },
+                            640:  { slidesPerView: clamp(2), slidesPerGroup: clamp(2) },
+                            768:  { slidesPerView: clamp(3), slidesPerGroup: clamp(3) },
                             1024: { slidesPerView: clamp(4), slidesPerGroup: clamp(4) },
                             1280: { slidesPerView: clamp(5), slidesPerGroup: clamp(5) },
                         },
-                        pagination: { el: paginationEl, clickable: true, dynamicBullets: true },
-                        navigation: { nextEl, prevEl },
+
+                        pagination: {
+                            el: paginationEl,
+                            clickable: true,
+                            dynamicBullets: true,
+                        },
+
+                        navigation: {
+                            nextEl,
+                            prevEl,
+                        },
                     });
                 });
             };

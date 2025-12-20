@@ -37,6 +37,9 @@ class Vendor
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $website = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $isSuspended = false;
+
     #[ORM\OneToOne(inversedBy: 'vendor', cascade: ['persist', 'remove'])]
     private ?Address $address = null;
 
@@ -128,6 +131,17 @@ class Vendor
     {
         $this->website = $website;
 
+        return $this;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->isSuspended;
+    }
+
+    public function setIsSuspended(bool $isSuspended): self
+    {
+        $this->isSuspended = $isSuspended;
         return $this;
     }
 

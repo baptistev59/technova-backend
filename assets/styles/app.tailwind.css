@@ -22,12 +22,21 @@
     box-sizing: border-box;
 }
 
+/* ======================================================
+   FIX Swiper – empêcher layout shift horizontal
+   ====================================================== */
+
+html{
+  overflow-x: hidden;
+}
+
 body {
     margin: 0;
     font-family: 'Inter', sans-serif;
     color: var(--tn-text);
     background: var(--tn-background);
     line-height: 1.5;
+    overflow-x: hidden;
 }
 
 a {
@@ -853,9 +862,21 @@ img {
     flex-direction: row !important;
 }
 
+
 /* Swiper: toutes les slides ont la même hauteur */
 .tn-carousel .swiper-wrapper {
   align-items: stretch;
+}
+/* Swiper container safe */
+.tn-carousel {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Swiper slide safe */
+.swiper-slide {
+  width: auto !important;
+  max-width: 100%;
 }
 
 .tn-carousel .swiper-slide {

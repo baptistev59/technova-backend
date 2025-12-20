@@ -14,6 +14,34 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class ShopPublicController extends AbstractController
 {
+    #[Route('/boutiques', name: 'shop_index', methods: ['GET'])]
+    public function index(Request $request, ShopRepository $shopRepository): Response
+    {
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limitOptions = [12, 24, 48];
+        $limit = (int) $request->query->get('limit', $limitOptions[0]);
+        if (!in_array($limit, $limitOptions, true)) {
+            $limit = $limitOptions[0];
+        }
+
+        $filterState = [
+            'search' => trim((string) $request->query->get('search', '')),
+            'vendor' => trim((string) $request->query->get('vendor', '')),
+        ];
+
+        $pagination = $shopRepository->paginate($page, $limit, [
+            'search' => $filterState['search'],
+            'vendor' => $filterState['vendor'],
+        ]);
+
+        return $this->render('shop/list.html.twig', [
+            'shops' => $pagination['items'],
+            'pagination' => $pagination,
+            'limit_options' => $limitOptions,
+            'filters' => $filterState,
+        ]);
+    }
+
     #[Route('/boutique/{slug}', name: 'shop_show', methods: ['GET'])]
     public function show(string $slug, ShopRepository $shopRepository, ProductRepository $productRepository): Response
     {

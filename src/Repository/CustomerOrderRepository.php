@@ -20,6 +20,93 @@ class CustomerOrderRepository extends ServiceEntityRepository
         parent::__construct($registry, CustomerOrder::class);
     }
 
+    public function countSince(DateTimeImmutable $since): int
+    {
+        return (int) $this->createQueryBuilder('o')
+            ->select('COUNT(o.id)')
+            ->andWhere('o.createdAt >= :since')
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function sumPaidSince(DateTimeImmutable $since): float
+    {
+        $statuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+
+        return (float) $this->createQueryBuilder('o')
+            ->select('COALESCE(SUM(o.totalAmount), 0)')
+            ->andWhere('o.createdAt >= :since')
+            ->andWhere('o.status IN (:statuses)')
+            ->setParameter('since', $since)
+            ->setParameter('statuses', $statuses)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countAll(): int
+    {
+        return (int) $this->createQueryBuilder('o')
+            ->select('COUNT(o.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countByStatus(string $status): int
+    {
+        return $this->countByStatuses([$status]);
+    }
+
+    public function countByStatuses(array $statuses): int
+    {
+        if ($statuses === []) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('o')
+            ->select('COUNT(o.id)')
+            ->andWhere('o.status IN (:statuses)')
+            ->setParameter('statuses', $statuses)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function sumTotalRevenue(): float
+    {
+        $paid = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+
+        return (float) $this->createQueryBuilder('o')
+            ->select('COALESCE(SUM(o.totalAmount), 0)')
+            ->andWhere('o.status IN (:statuses)')
+            ->setParameter('statuses', $paid)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @return list<CustomerOrder>
+     */
+    public function findLatest(int $limit = 5): array
+    {
+        return $this->createQueryBuilder('o')
+            ->addSelect('owner')
+            ->leftJoin('o.owner', 'owner')
+            ->orderBy('o.createdAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOneByReference(string $reference): ?CustomerOrder
+    {
+        return $this->createQueryBuilder('o')
+            ->andWhere('o.reference = :reference')
+            ->setParameter('reference', $reference)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /**
      * @return array{
      *     orders: array<int, CustomerOrder>,

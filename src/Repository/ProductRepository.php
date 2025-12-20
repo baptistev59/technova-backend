@@ -470,4 +470,14 @@ class ProductRepository extends ServiceEntityRepository
 
         return $qb;
     }
+
+    public function countPublished(): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->andWhere('p.isPublished = :published')
+            ->setParameter('published', true)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

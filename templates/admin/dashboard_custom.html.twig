@@ -1,0 +1,317 @@
+{% extends 'vendor/layout.html.twig' %}
+{% set hide_vendor_sidebar = true %}
+{% set vendor_nav = [] %}
+
+{% block title %}Tableau de bord administrateur — TechNova{% endblock %}
+
+{% block vendor_content %}
+    {% set status_badges = {
+        'paid': { label: 'Payée', class: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
+        'shipped': { label: 'Expédiée', class: 'bg-blue-50 text-blue-700 border border-blue-100' },
+        'pending': { label: 'En attente', class: 'bg-amber-50 text-amber-700 border border-amber-100' },
+        'cancelled': { label: 'Annulée', class: 'bg-rose-50 text-rose-700 border border-rose-100' },
+    } %}
+
+    <div>
+        <p class="text-xs font-semibold tracking-[0.35em] text-slate-400 uppercase mb-2">Technova</p>
+        <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Tableau de bord administrateur</h1>
+        <p class="text-slate-500 mt-3 max-w-4xl">
+            Vue consolidée de la marketplace : mêmes codes graphiques que l’espace vendeur, mais avec l’intégralité des données (commandes, vendeurs, produits).
+        </p>
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+            <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Aujourd’hui</p>
+            <p class="text-2xl font-semibold text-slate-900">{{ orders_today }} commandes monitorées</p>
+            <p class="text-sm text-slate-500">Synchronisation temps réel avec les flux vendeurs.</p>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <a href="{{ links.orders }}" class="btn btn-outline btn-sm whitespace-nowrap">Commandes</a>
+            <a href="{{ links.vendors }}" class="btn btn-outline btn-sm whitespace-nowrap">Vendeurs</a>
+            <a href="{{ links.product_new }}" class="btn btn-primary btn-sm whitespace-nowrap">Créer un produit</a>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-4">
+            <div>
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Recherche ciblée</p>
+                <h2 class="text-xl font-semibold text-slate-900">Trouver une commande / facture</h2>
+                <p class="text-sm text-slate-500">Entre une référence (ex. <code>#TN-2025...</code>) pour agir immédiatement.</p>
+            </div>
+            <form method="get" action="{{ path('admin_dashboard') }}" class="flex gap-3 flex-wrap">
+                <input
+                    type="text"
+                    name="order_reference"
+                    value="{{ search_reference }}"
+                    placeholder="Référence commande"
+                    class="border border-slate-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
+                    required
+                >
+                <button class="btn btn-outline btn-sm whitespace-nowrap" type="submit">Rechercher</button>
+            </form>
+        </div>
+        {% if search_reference is not empty %}
+            {% if searched_order %}
+                {% set vendor = searched_order.owner ? searched_order.owner.vendor : null %}
+                <div class="rounded-2xl border border-blue-100 bg-blue-50/30 p-4 space-y-4">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-900">#{{ searched_order.reference ?? searched_order.id }}</p>
+                            <p class="text-xs text-slate-500">{{ searched_order.owner ? searched_order.owner.email : 'Client invité' }}</p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-wrap md:justify-end">
+                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">{{ searched_order.status|capitalize }}</span>
+                            <p class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ searched_order.totalAmount|number_format(2, ',', ' ') }} €</p>
+                            <form method="post" action="{{ path('admin_order_block', { id: searched_order.id }) }}" class="flex" onsubmit="return confirm('Bloquer cette commande ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('block_order_' ~ searched_order.id) }}">
+                                <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Bloquer</button>
+                            </form>
+                            <form method="post" action="{{ path('admin_order_force_status', { id: searched_order.id }) }}" class="flex items-center gap-2 flex-wrap" onsubmit="return confirm('Forcer ce statut ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('force_status_' ~ searched_order.id) }}">
+                                <select name="new_status" class="border border-slate-200 rounded-full px-3 py-1 text-xs">
+                                    <option value="">Statut…</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="shipped">Shipped</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Forcer</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% if vendor %}
+                        <div class="flex flex-col gap-3 border-t border-blue-100 pt-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Vendeur</p>
+                                <p class="text-sm font-semibold text-slate-900">{{ vendor.companyName ?? '—' }}</p>
+                                <p class="text-xs text-slate-500">{{ vendor.email ?? (vendor.owner ? vendor.owner.email : '') }}</p>
+                                {% if vendor.isSuspended %}
+                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100 mt-2">Suspendu</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex gap-3 flex-wrap">
+                                <a
+                                    href="{{ path('admin_ea', {
+                                        crudAction: 'detail',
+                                        crudControllerFqcn: 'App\\\\Controller\\\\Admin\\\\VendorCrudController',
+                                        entityId: vendor.id
+                                    }) }}"
+                                    class="btn btn-outline btn-sm whitespace-nowrap"
+                                >
+                                    Voir le vendeur
+                                </a>
+                                <form
+                                    method="post"
+                                    action="{{ path(vendor.isSuspended ? 'admin_vendor_activate' : 'admin_vendor_suspend', { id: vendor.id }) }}"
+                                    onsubmit="return confirm('{{ vendor.isSuspended ? 'Réactiver' : 'Suspendre' }} ce vendeur ?');"
+                                >
+                                    <input type="hidden" name="_token" value="{{ csrf_token((vendor.isSuspended ? 'activate_vendor_' : 'suspend_vendor_') ~ vendor.id) }}">
+                                    <button class="btn {{ vendor.isSuspended ? 'btn-primary' : 'btn-danger' }} btn-sm whitespace-nowrap" type="submit">
+                                        {{ vendor.isSuspended ? 'Réactiver le vendeur' : 'Suspendre le vendeur' }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p class="text-sm text-rose-600">Aucune commande trouvée pour la référence « {{ search_reference }} ».</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {% for card in statCards %}
+            <article class="tn-product-card h-[240px] flex flex-col items-center justify-between text-center">
+                <div class="text-3xl">{{ card.icon }}</div>
+                <div class="w-full">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ card.label }}</p>
+                    <p class="text-3xl font-semibold text-slate-900 mt-3">{{ card.value }}</p>
+                </div>
+                <p class="text-xs font-medium text-blue-600">{{ card.trend }}</p>
+            </article>
+        {% endfor %}
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-4">
+            <div>
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Suivi</p>
+                <h2 class="text-xl font-semibold text-slate-900">Dernières commandes marketplace</h2>
+                <p class="text-sm text-slate-500">10 dernières commandes tout vendeur confondu.</p>
+            </div>
+            <a href="{{ links.orders }}" class="btn btn-outline btn-sm">Ouvrir la liste</a>
+        </div>
+        {% if latestOrders %}
+            <div class="space-y-4">
+                {% for order in latestOrders %}
+                    {% set badge = status_badges[order.status] ?? { label: order.status|capitalize, class: 'bg-slate-100 text-slate-600 border border-slate-200' } %}
+                    {% set vendor = order.owner ? order.owner.vendor : null %}
+                    <div class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-4">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900">#{{ order.reference ?? order.id }}</p>
+                                <p class="text-xs text-slate-500">{{ order.owner ? order.owner.email : 'Client invité' }}</p>
+                            </div>
+                            <div class="flex items-center gap-3 flex-wrap md:justify-end">
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{ badge.class }}">{{ badge.label }}</span>
+                                <p class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ order.totalAmount|number_format(2, ',', ' ') }} €</p>
+                                <form method="post" action="{{ path('admin_order_block', { id: order.id }) }}" onsubmit="return confirm('Bloquer cette commande ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('block_order_' ~ order.id) }}">
+                                    <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Bloquer</button>
+                                </form>
+                                <form method="post" action="{{ path('admin_order_force_status', { id: order.id }) }}" class="flex items-center gap-2 flex-wrap" onsubmit="return confirm('Forcer ce statut ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('force_status_' ~ order.id) }}">
+                                    <select name="new_status" class="border border-slate-200 rounded-full px-3 py-1 text-xs">
+                                        <option value="">Statut…</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="shipped">Shipped</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Forcer</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% if vendor %}
+                            <div class="flex flex-col gap-3 border-t border-slate-200 pt-3 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Vendeur</p>
+                                    <p class="text-sm font-semibold text-slate-900">
+                                        {{ vendor.companyName ?? '—' }}
+                                        {% if vendor.isSuspended %}
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100 ml-2">Suspendu</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="text-xs text-slate-500">{{ vendor.email ?? (vendor.owner ? vendor.owner.email : '') }}</p>
+                                </div>
+                                <div class="flex gap-3 flex-wrap md:justify-end">
+                                    <a
+                                        href="{{ path('admin_ea', {
+                                            crudAction: 'detail',
+                                            crudControllerFqcn: 'App\\\\Controller\\\\Admin\\\\VendorCrudController',
+                                            entityId: vendor.id
+                                        }) }}"
+                                        class="btn btn-outline btn-sm whitespace-nowrap"
+                                    >
+                                        Voir le vendeur
+                                    </a>
+                                    <form
+                                        method="post"
+                                        action="{{ path(vendor.isSuspended ? 'admin_vendor_activate' : 'admin_vendor_suspend', { id: vendor.id }) }}"
+                                        onsubmit="return confirm('{{ vendor.isSuspended ? 'Réactiver' : 'Suspendre' }} ce vendeur ?');"
+                                    >
+                                        <input type="hidden" name="_token" value="{{ csrf_token((vendor.isSuspended ? 'activate_vendor_' : 'suspend_vendor_') ~ vendor.id) }}">
+                                        <button class="btn {{ vendor.isSuspended ? 'btn-primary' : 'btn-danger' }} btn-sm whitespace-nowrap" type="submit">
+                                            {{ vendor.isSuspended ? 'Réactiver le vendeur' : 'Suspendre le vendeur' }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-2xl">
+                Aucune commande récente.
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-semibold text-slate-900">Statistiques</h2>
+            <p class="text-sm text-slate-500">Trends consolidés (chart.js).</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-slate-50 rounded-xl px-4 py-6 space-y-4">
+                <p class="text-sm font-medium text-slate-500">Ventes — 7 derniers jours</p>
+                <div class="relative h-24">
+                    <canvas id="salesChart" class="w-full h-full"></canvas>
+                </div>
+            </div>
+            <div class="bg-slate-50 rounded-xl px-4 py-6 space-y-4">
+                <p class="text-sm font-medium text-slate-500">Revenus — 12 derniers mois</p>
+                <div class="relative h-24">
+                    <canvas id="revenueChart" class="w-full h-full"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const salesData = {{ sales_trend|json_encode|raw }};
+            const revenueData = {{ revenue_trend|json_encode|raw }};
+
+            const salesCtx = document.getElementById('salesChart');
+            if (salesCtx && salesData.length) {
+                new Chart(salesCtx, {
+                    type: 'line',
+                    data: {
+                        labels: salesData.map(point => point.label),
+                        datasets: [{
+                            data: salesData.map(point => point.value),
+                            cubicInterpolationMode: 'monotone',
+                            tension: 0.4,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37,99,235,0.12)',
+                            fill: true,
+                            borderWidth: 1.5,
+                            pointRadius: 2.5,
+                            pointBackgroundColor: '#2563eb',
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: true, callbacks: { label: ctx => ctx.parsed.y + ' commandes' } }
+                        },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false, beginAtZero: true, grace: '10%' }
+                        }
+                    }
+                });
+            }
+
+            const revenueCtx = document.getElementById('revenueChart');
+            if (revenueCtx && revenueData.length) {
+                new Chart(revenueCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: revenueData.map(point => point.label),
+                        datasets: [{
+                            data: revenueData.map(point => point.value),
+                            backgroundColor: 'rgba(16,185,129,0.65)',
+                            borderRadius: 4,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: true,
+                                callbacks: { label: ctx => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(ctx.parsed.y) }
+                            }
+                        },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false, beginAtZero: true, grace: '10%' },
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}
