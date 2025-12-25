@@ -2,9 +2,12 @@
 
 namespace App\Security;
 
+use App\Enum\AuditAction;
 use App\Service\AuditLoggerService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
 
@@ -14,7 +17,9 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerI
 class LoginFailureHandler implements AuthenticationFailureHandlerInterface
 {
     public function __construct(
-        private AuditLoggerService $audit
+        private readonly AuditLoggerService $audit,
+        #[Autowire(service: 'monolog.logger.security')]
+        private readonly LoggerInterface $securityLogger
     ) {}
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): JsonResponse
@@ -23,13 +28,17 @@ class LoginFailureHandler implements AuthenticationFailureHandlerInterface
 
         // 🔥 Audit automatique
         $this->audit->log(
-            action: 'LOGIN_FAILURE',
+            action: AuditAction::LoginFailure,
             resource: 'user',
             data: [
                 'email' => $email,
                 'error' => $exception->getMessage(),
             ]
         );
+        $this->securityLogger->warning('Login failure', [
+            'email' => $email,
+            'error' => $exception->getMessage(),
+        ]);
 
         // Réponse standard Lexik
         return new JsonResponse([

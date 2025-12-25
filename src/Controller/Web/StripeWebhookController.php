@@ -3,11 +3,13 @@
 namespace App\Controller\Web;
 
 use App\Entity\CustomerOrder;
+use App\Enum\OrderStatus;
 use App\Repository\CustomerOrderRepository;
 use App\Service\CheckoutService;
 use App\Service\StripePaymentService;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -19,6 +21,7 @@ class StripeWebhookController extends AbstractController
         private readonly StripePaymentService $stripePaymentService,
         private readonly CustomerOrderRepository $orderRepository,
         private readonly CheckoutService $checkoutService,
+        #[Autowire(service: 'monolog.logger.integration')]
         private readonly LoggerInterface $logger
     ) {
     }
@@ -78,7 +81,7 @@ class StripeWebhookController extends AbstractController
             return;
         }
 
-        if ($order->getStatus() === CustomerOrder::STATUS_PAID) {
+        if ($order->getStatusEnum() === OrderStatus::Paid) {
             return;
         }
 
@@ -102,7 +105,7 @@ class StripeWebhookController extends AbstractController
             return;
         }
 
-        if ($order->getStatus() === CustomerOrder::STATUS_PAID) {
+        if ($order->getStatusEnum() === OrderStatus::Paid) {
             return;
         }
 

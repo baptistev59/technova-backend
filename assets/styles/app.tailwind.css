@@ -870,13 +870,12 @@ img {
 /* Swiper container safe */
 .tn-carousel {
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Swiper slide safe */
 .swiper-slide {
-  width: auto !important;
-  max-width: 100%;
+  flex: 0 0 auto;
 }
 
 .tn-carousel .swiper-slide {

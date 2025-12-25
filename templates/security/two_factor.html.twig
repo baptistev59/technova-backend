@@ -1,0 +1,58 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Double authentification{% endblock %}
+
+{% block body %}
+    <section class="max-w-lg mx-auto py-12 px-6">
+        <h1 class="text-2xl font-semibold text-slate-900 mb-4">{{ 'Double authentification'|trans }}</h1>
+        {% if authenticationError %}
+            <div class="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm px-4 py-3 mb-4">
+                {{ authenticationError|trans(authenticationErrorData, 'SchebTwoFactorBundle') }}
+            </div>
+        {% endif %}
+
+        <p class="text-sm text-slate-600 mb-6">
+            {{ 'Saisis le code a usage unique pour confirmer ta connexion.'|trans }}
+        </p>
+
+        <form action="{{ checkPathUrl ? checkPathUrl : path(checkPathRoute) }}" method="post" class="space-y-4">
+            <input
+                id="_auth_code"
+                type="text"
+                name="{{ authCodeParameterName }}"
+                autocomplete="one-time-code"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
+                autofocus
+            />
+
+            {% set is_privileged = app.user and ('ROLE_ADMIN' in app.user.roles or 'ROLE_VENDOR' in app.user.roles) %}
+            {% if displayTrustedOption and not is_privileged %}
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input id="_trusted" type="checkbox" name="{{ trustedParameterName }}">
+                    {{ 'Ne plus demander sur cet appareil'|trans }}
+                </label>
+            {% endif %}
+
+            {% if isCsrfProtectionEnabled %}
+                <input type="hidden" name="{{ csrfParameterName }}" value="{{ csrf_token(csrfTokenId) }}">
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary w-full">
+                {{ 'Valider'|trans }}
+            </button>
+        </form>
+
+        {% if twoFactorProvider is defined and twoFactorProvider == 'email' %}
+            <form method="post" action="{{ path('app_two_factor_resend') }}" class="mt-4">
+                <input type="hidden" name="_token" value="{{ csrf_token('two_factor_resend') }}">
+                <button type="submit" class="btn btn-outline w-full">{{ 'Renvoyer le code'|trans }}</button>
+            </form>
+        {% endif %}
+
+        <p class="text-sm text-slate-500 mt-6">
+            <a href="{{ logoutPath }}" class="underline">{{ 'Annuler'|trans }}</a>
+        </p>
+    </section>
+{% endblock %}

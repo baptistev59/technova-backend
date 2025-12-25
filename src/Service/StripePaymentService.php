@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\CustomerOrder;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -15,6 +16,7 @@ class StripePaymentService
         private readonly ?string $webhookSecret = null,
         private readonly HttpClientInterface $httpClient,
         private readonly string $defaultBaseUrl,
+        #[Autowire(service: 'monolog.logger.payment')]
         private readonly LoggerInterface $logger
     ) {
     }

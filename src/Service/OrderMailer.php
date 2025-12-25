@@ -8,7 +8,9 @@ use App\Enum\DocumentType;
 use App\Repository\OrderDocumentRepository;
 use App\Service\OrderDocumentGenerator;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address;
@@ -22,6 +24,8 @@ class OrderMailer
         private readonly OrderDocumentGenerator $documentGenerator,
         private readonly OrderDocumentRepository $documentRepository,
         private readonly EntityManagerInterface $entityManager,
+        #[Autowire(service: 'monolog.logger.email')]
+        private readonly LoggerInterface $emailLogger,
         private readonly ?string $mailerFrom = null
     ) {
     }
@@ -107,6 +111,10 @@ class OrderMailer
         }
 
         $this->mailer->send($emailMessage);
+        $this->emailLogger->info('Order confirmation email sent', [
+            'order' => $order->getReference(),
+            'email' => $email,
+        ]);
     }
 
     public function sendStatusUpdate(CustomerOrder $order, string $transition): void
@@ -158,6 +166,11 @@ class OrderMailer
         }
 
         $this->mailer->send($emailMessage);
+        $this->emailLogger->info('Order status email sent', [
+            'order' => $order->getReference(),
+            'email' => $email,
+            'transition' => $transition,
+        ]);
     }
 
     private function ensureInvoiceDocument(CustomerOrder $order, string $baseUrl): OrderDocument

@@ -78,4 +78,26 @@ class ShopRepository extends ServiceEntityRepository
             'per_page' => $perPage,
         ];
     }
+
+    /**
+     * Charge les boutiques identifiées et leurs vendeurs pour les statuts admin.
+     *
+     * @param int[] $shopIds
+     *
+     * @return Shop[]
+     */
+    public function findWithVendorByIds(array $shopIds): array
+    {
+        if (empty($shopIds)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('s')
+            ->leftJoin('s.owner', 'vendor')
+            ->addSelect('vendor')
+            ->andWhere('s.id IN (:ids)')
+            ->setParameter('ids', $shopIds)
+            ->getQuery()
+            ->getResult();
+    }
 }

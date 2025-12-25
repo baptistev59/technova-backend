@@ -2,6 +2,7 @@
 
 namespace App\EventSubscriber;
 
+use App\Enum\AuditAction;
 use App\Service\AuditLoggerService;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
@@ -14,7 +15,7 @@ use App\Entity\User;
 class LoginAuditSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private AuditLoggerService $audit
+        private readonly AuditLoggerService $audit
     ) {}
 
     public static function getSubscribedEvents(): array
@@ -42,7 +43,7 @@ class LoginAuditSubscriber implements EventSubscriberInterface
 
         // Journalise l'ID utilisateur + email utilisé
         $this->audit->log(
-            action: 'LOGIN_SUCCESS',
+            action: AuditAction::LoginSuccess,
             resource: 'user',
             resourceId: $resourceId,
             data: [
@@ -69,7 +70,7 @@ class LoginAuditSubscriber implements EventSubscriberInterface
 
         // Ici on n'a pas d'entité User mais on garde le login tenté + le message
         $this->audit->log(
-            action: 'LOGIN_FAILURE',
+            action: AuditAction::LoginFailure,
             resource: 'user',
             data: [
                 'email' => $email,

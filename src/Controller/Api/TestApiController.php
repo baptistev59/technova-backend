@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use OpenApi\Attributes as OA;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -33,7 +34,9 @@ class TestApiController extends AbstractController
             )
         ]
     )]
-    public function index(LoggerInterface $technovaLogger): JsonResponse
+    public function index(
+        #[Autowire(service: 'monolog.logger.integration')] LoggerInterface $technovaLogger
+    ): JsonResponse
     {
         // Permet de vérifier dans les logs qu'un appel a bien été traité
         $technovaLogger->info('Appel réussi sur /api/test depuis React');

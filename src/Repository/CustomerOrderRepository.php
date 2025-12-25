@@ -3,9 +3,11 @@
 namespace App\Repository;
 
 use App\Entity\CustomerOrder;
+use App\Enum\OrderStatus;
 use App\Entity\Product;
 use App\Entity\Shop;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 use DateTimeImmutable;
@@ -30,16 +32,34 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    public function countSinceWithStatuses(DateTimeImmutable $since, array $statuses): int
+    {
+        $statusValues = $this->normalizeStatuses($statuses);
+
+        if ($statusValues === []) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('o')
+            ->select('COUNT(o.id)')
+            ->andWhere('o.createdAt >= :since')
+            ->andWhere('o.status IN (:statuses)')
+            ->setParameter('since', $since)
+            ->setParameter('statuses', $statusValues)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function sumPaidSince(DateTimeImmutable $since): float
     {
-        $statuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+        $statuses = [OrderStatus::Paid, OrderStatus::Shipped];
 
         return (float) $this->createQueryBuilder('o')
             ->select('COALESCE(SUM(o.totalAmount), 0)')
             ->andWhere('o.createdAt >= :since')
             ->andWhere('o.status IN (:statuses)')
             ->setParameter('since', $since)
-            ->setParameter('statuses', $statuses)
+            ->setParameter('statuses', $this->normalizeStatuses($statuses))
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -52,33 +72,35 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function countByStatus(string $status): int
+    public function countByStatus(OrderStatus|string $status): int
     {
         return $this->countByStatuses([$status]);
     }
 
     public function countByStatuses(array $statuses): int
     {
-        if ($statuses === []) {
+        $statusValues = $this->normalizeStatuses($statuses);
+
+        if ($statusValues === []) {
             return 0;
         }
 
         return (int) $this->createQueryBuilder('o')
             ->select('COUNT(o.id)')
             ->andWhere('o.status IN (:statuses)')
-            ->setParameter('statuses', $statuses)
+            ->setParameter('statuses', $statusValues)
             ->getQuery()
             ->getSingleScalarResult();
     }
 
     public function sumTotalRevenue(): float
     {
-        $paid = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+        $paid = [OrderStatus::Paid, OrderStatus::Shipped];
 
         return (float) $this->createQueryBuilder('o')
             ->select('COALESCE(SUM(o.totalAmount), 0)')
             ->andWhere('o.status IN (:statuses)')
-            ->setParameter('statuses', $paid)
+            ->setParameter('statuses', $this->normalizeStatuses($paid))
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -146,21 +168,19 @@ class CustomerOrderRepository extends ServiceEntityRepository
             $statusCounts[(string) $row['status']] = (int) $row['total'];
         }
 
-        $paidStatuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+        $paidStatuses = [OrderStatus::Paid, OrderStatus::Shipped];
         $revenue = (float) ((clone $baseQb)
             ->andWhere('o.status IN (:paidStatuses)')
-            ->setParameter('paidStatuses', $paidStatuses)
+            ->setParameter('paidStatuses', $this->normalizeStatuses($paidStatuses))
             ->select('COALESCE(SUM(i.lineTotal), 0) AS revenue')
             ->getQuery()
             ->getSingleScalarResult());
 
         $filteredQb = clone $baseQb;
-        $allowedStatuses = [
-            CustomerOrder::STATUS_PENDING,
-            CustomerOrder::STATUS_PAID,
-            CustomerOrder::STATUS_SHIPPED,
-            CustomerOrder::STATUS_CANCELLED,
-        ];
+        $allowedStatuses = array_map(
+            static fn (OrderStatus $status): string => $status->value,
+            OrderStatus::cases()
+        );
 
         if ($statusFilter !== null && !in_array($statusFilter, $allowedStatuses, true)) {
             $statusFilter = null;
@@ -253,5 +273,73 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->setParameter('shop', $shop)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * @return array<int, array{day: DateTimeImmutable, total: int}>
+     */
+    public function findDailyOrderCountsSince(DateTimeImmutable $since): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT DATE_TRUNC('day', created_at) AS day, COUNT(id) AS total
+            FROM customer_order
+            WHERE created_at >= :since
+            GROUP BY day
+            ORDER BY day ASC",
+            ['since' => $since],
+            ['since' => 'datetime_immutable']
+        );
+
+        return array_map(static function (array $row): array {
+            return [
+                'day' => new DateTimeImmutable((string) $row['day']),
+                'total' => (int) $row['total'],
+            ];
+        }, $rows);
+    }
+
+    /**
+     * @param array<int, OrderStatus|string> $statuses
+     *
+     * @return array<int, array{month: DateTimeImmutable, total: float}>
+     */
+    public function findMonthlyRevenueSince(DateTimeImmutable $since, array $statuses): array
+    {
+        $statusValues = $this->normalizeStatuses($statuses);
+
+        if ($statusValues === []) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT DATE_TRUNC('month', created_at) AS month, COALESCE(SUM(total_amount), 0) AS total
+            FROM customer_order
+            WHERE created_at >= :since
+            AND status IN (:statuses)
+            GROUP BY month
+            ORDER BY month ASC",
+            ['since' => $since, 'statuses' => $statusValues],
+            ['since' => 'datetime_immutable', 'statuses' => ArrayParameterType::STRING]
+        );
+
+        return array_map(static function (array $row): array {
+            return [
+                'month' => new DateTimeImmutable((string) $row['month']),
+                'total' => (float) $row['total'],
+            ];
+        }, $rows);
+    }
+
+    /**
+     * @param array<int, OrderStatus|string> $statuses
+     *
+     * @return array<int, string>
+     */
+    private function normalizeStatuses(array $statuses): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (OrderStatus|string $status): ?string => $status instanceof OrderStatus ? $status->value : $status,
+            $statuses
+        )));
     }
 }

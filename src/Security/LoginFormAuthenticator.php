@@ -4,6 +4,8 @@ namespace App\Security;
 
 use App\Entity\User;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Scheb\TwoFactorBundle\Model\Email\TwoFactorInterface as EmailTwoFactorInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface as TotpTwoFactorInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -55,7 +57,9 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
         if ($session && $user instanceof User) {
             $session->set('recent_user_id', $user->getId());
-            $session->set('jwt_token', $this->jwtManager->create($user));
+            if (!$this->requiresTwoFactor($user)) {
+                $session->set('jwt_token', $this->jwtManager->create($user));
+            }
         }
 
         if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
@@ -68,5 +72,18 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     protected function getLoginUrl(Request $request): string
     {
         return $this->urlGenerator->generate(self::LOGIN_ROUTE);
+    }
+
+    private function requiresTwoFactor(User $user): bool
+    {
+        if ($user instanceof EmailTwoFactorInterface && $user->isEmailAuthEnabled()) {
+            return true;
+        }
+
+        if ($user instanceof TotpTwoFactorInterface && $user->isTotpAuthenticationEnabled()) {
+            return true;
+        }
+
+        return false;
     }
 }

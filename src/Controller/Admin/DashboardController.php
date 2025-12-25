@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\AttributeDefinition;
+use App\Entity\AuditLog;
 use App\Entity\Brand;
 use App\Entity\Category;
 use App\Entity\CustomerOrder;
@@ -15,14 +16,24 @@ use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\Response;
 
 #[AdminDashboard(routePath: '/admin/ea', routeName: 'admin_ea')]
 class DashboardController extends AbstractDashboardController
 {
+    public function __construct(
+        private readonly AdminUrlGenerator $adminUrlGenerator,
+    ) {
+    }
+
     public function index(): Response
     {
-        return $this->redirectToRoute('admin_dashboard');
+        $url = $this->adminUrlGenerator
+            ->setController(CustomerOrderCrudController::class)
+            ->generateUrl();
+
+        return $this->redirect($url);
     }
 
     public function configureDashboard(): Dashboard
@@ -55,5 +66,9 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::section('Commandes');
         yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', CustomerOrder::class);
         yield MenuItem::linkToCrud('Conversations', 'fas fa-comments', Conversation::class);
+
+        yield MenuItem::section('Observabilite');
+        yield MenuItem::linkToCrud('Audit log', 'fas fa-clipboard-list', AuditLog::class);
+        yield MenuItem::linkToRoute('Logs Monolog', 'fas fa-file-lines', 'admin_logs');
     }
 }

@@ -26,3 +26,19 @@ services:
     App\Image\ImageUploader:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Security\TwoFactor\ExpiringEmailCodeGenerator:
+        arguments:
+            $digits: '%scheb_two_factor.email.digits%'
+            $ttlSeconds: 300
+
+    Scheb\TwoFactorBundle\Mailer\AuthCodeMailerInterface:
+        alias: 'scheb_two_factor.security.email.symfony_auth_code_mailer'
+
+    App\Security\TwoFactor\RoleBasedTrustedDeviceCondition:
+        arguments:
+            $trustedDeviceManager: '@scheb_two_factor.trusted_device_manager'
+            $extendTrustedToken: '%scheb_two_factor.trusted_device.extend_lifetime%'
+
+    scheb_two_factor.trusted_device_condition:
+        alias: App\Security\TwoFactor\RoleBasedTrustedDeviceCondition

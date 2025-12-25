@@ -2,26 +2,22 @@
 
 namespace App\Entity;
 
-use App\Entity\CustomerOrderStatusHistory;
+use App\Enum\OrderStatus;
 use App\Entity\Traits\Timestampable;
 use App\Repository\CustomerOrderRepository;
-use App\Entity\Conversation;
-use App\Entity\OrderDocument;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CustomerOrderRepository::class)]
+#[ORM\Table(name: 'customer_order', indexes: [
+    new ORM\Index(name: 'idx_customer_order_status_created_at', columns: ['status', 'created_at']),
+])]
 #[ORM\HasLifecycleCallbacks]
 class CustomerOrder
 {
     use Timestampable;
-
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_PAID = 'paid';
-    public const STATUS_SHIPPED = 'shipped';
-    public const STATUS_CANCELLED = 'cancelled';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -34,8 +30,8 @@ class CustomerOrder
     #[ORM\ManyToOne(inversedBy: 'orders')]
     private ?User $owner = null;
 
-    #[ORM\Column(length: 20)]
-    private string $status = self::STATUS_PENDING;
+    #[ORM\Column(length: 20, enumType: OrderStatus::class)]
+    private OrderStatus $status = OrderStatus::Pending;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $totalAmount = '0.00';
@@ -141,12 +137,17 @@ class CustomerOrder
 
     public function getStatus(): string
     {
+        return $this->status->value;
+    }
+
+    public function getStatusEnum(): OrderStatus
+    {
         return $this->status;
     }
 
-    public function setStatus(string $status): self
+    public function setStatus(OrderStatus|string $status): self
     {
-        $this->status = $status;
+        $this->status = $status instanceof OrderStatus ? $status : OrderStatus::from($status);
 
         return $this;
     }
@@ -237,7 +238,7 @@ class CustomerOrder
 
     public function isPaid(): bool
     {
-        return $this->status === self::STATUS_PAID;
+        return $this->status === OrderStatus::Paid;
     }
 
     /**

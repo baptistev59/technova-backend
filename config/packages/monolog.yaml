@@ -1,6 +1,13 @@
 monolog:
     channels:
         - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
+        - payment
+        - order
+        - stock
+        - security
+        - integration
+        - email
+        - admin
 
 when@dev:
     monolog:
@@ -9,11 +16,46 @@ when@dev:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
-                channels: ["!event"]
+                channels: ["!event", "!payment", "!order", "!stock", "!security", "!integration", "!email", "!admin"]
             console:
                 type: console
                 process_psr_3_messages: false
-                channels: ["!event", "!doctrine", "!console"]
+                channels: ["!event", "!doctrine", "!console", "!payment", "!order", "!stock", "!security", "!integration", "!email", "!admin"]
+            payment:
+                type: stream
+                path: "%kernel.logs_dir%/payment.log"
+                level: info
+                channels: [payment]
+            order:
+                type: stream
+                path: "%kernel.logs_dir%/order.log"
+                level: info
+                channels: [order]
+            stock:
+                type: stream
+                path: "%kernel.logs_dir%/stock.log"
+                level: info
+                channels: [stock]
+            security:
+                type: stream
+                path: "%kernel.logs_dir%/security.log"
+                level: warning
+                channels: [security]
+            integration:
+                type: stream
+                path: "%kernel.logs_dir%/integration.log"
+                level: info
+                channels: [integration]
+            email:
+                type: stream
+                path: "%kernel.logs_dir%/email.log"
+                level: info
+                channels: [email]
+            admin:
+                type: stream
+                path: "%kernel.logs_dir%/admin.log"
+                level: info
+                channels: [admin]
 
 when@test:
     monolog:
@@ -23,11 +65,46 @@ when@test:
                 action_level: error
                 handler: nested
                 excluded_http_codes: [404, 405]
-                channels: ["!event"]
+                channels: ["!event", "!payment", "!order", "!stock", "!security", "!integration", "!email", "!admin"]
             nested:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
+            payment:
+                type: stream
+                path: "%kernel.logs_dir%/payment.log"
+                level: debug
+                channels: [payment]
+            order:
+                type: stream
+                path: "%kernel.logs_dir%/order.log"
+                level: debug
+                channels: [order]
+            stock:
+                type: stream
+                path: "%kernel.logs_dir%/stock.log"
+                level: debug
+                channels: [stock]
+            security:
+                type: stream
+                path: "%kernel.logs_dir%/security.log"
+                level: debug
+                channels: [security]
+            integration:
+                type: stream
+                path: "%kernel.logs_dir%/integration.log"
+                level: debug
+                channels: [integration]
+            email:
+                type: stream
+                path: "%kernel.logs_dir%/email.log"
+                level: debug
+                channels: [email]
+            admin:
+                type: stream
+                path: "%kernel.logs_dir%/admin.log"
+                level: debug
+                channels: [admin]
 
 when@prod:
     monolog:
@@ -37,7 +114,7 @@ when@prod:
                 action_level: error
                 handler: nested
                 excluded_http_codes: [404, 405]
-                channels: ["!deprecation"]
+                channels: ["!deprecation", "!payment", "!order", "!stock", "!security", "!integration", "!email", "!admin"]
                 buffer_size: 50 # How many messages should be saved? Prevent memory leaks
             nested:
                 type: rotating_file
@@ -48,9 +125,58 @@ when@prod:
             console:
                 type: console
                 process_psr_3_messages: false
-                channels: ["!event", "!doctrine"]
+                channels: ["!event", "!doctrine", "!payment", "!order", "!stock", "!security", "!integration", "!email", "!admin"]
             deprecation:
                 type: stream
                 channels: [deprecation]
                 path: php://stderr
+                formatter: monolog.formatter.json
+            payment:
+                type: rotating_file
+                path: "%kernel.logs_dir%/payment.log"
+                max_files: 30
+                level: info
+                channels: [payment]
+                formatter: monolog.formatter.json
+            order:
+                type: rotating_file
+                path: "%kernel.logs_dir%/order.log"
+                max_files: 30
+                level: info
+                channels: [order]
+                formatter: monolog.formatter.json
+            stock:
+                type: rotating_file
+                path: "%kernel.logs_dir%/stock.log"
+                max_files: 30
+                level: info
+                channels: [stock]
+                formatter: monolog.formatter.json
+            security:
+                type: rotating_file
+                path: "%kernel.logs_dir%/security.log"
+                max_files: 30
+                level: warning
+                channels: [security]
+                formatter: monolog.formatter.json
+            integration:
+                type: rotating_file
+                path: "%kernel.logs_dir%/integration.log"
+                max_files: 30
+                level: info
+                channels: [integration]
+                formatter: monolog.formatter.json
+            email:
+                type: rotating_file
+                path: "%kernel.logs_dir%/email.log"
+                max_files: 30
+                level: info
+                channels: [email]
+                formatter: monolog.formatter.json
+            admin:
+                type: rotating_file
+                path: "%kernel.logs_dir%/admin.log"
+                max_files: 30
+                level: info
+                channels: [admin]
                 formatter: monolog.formatter.json

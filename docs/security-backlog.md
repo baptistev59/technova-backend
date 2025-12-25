@@ -13,17 +13,19 @@ Ces sujets ont été identifiés mais seront traités dans un sprint ultérieur.
 3. **/api/test conditionnel**  
    - Firewall ou feature flag pour restreindre le healthcheck en production (IP allo-liste ou authentification basique).
 
-4. **Double authentification par email**  
-   - À l’issue du login, envoyer un code de confirmation (OTP) par mail.
-   - Stocker l’OTP (BDD ou cache), définir une durée de validité et un compteur d’essais.
-   - Exiger ce code avant de délivrer le JWT final.
-
-5. **Rotation / invalidation des JWT**  
+4. **Rotation / invalidation des JWT**  
    - Conserver un journal des tokens émis et les invalider lors d’un logout manuel ou d’un changement critique (mot de passe).
 
-6. **Journalisation & audit exploitables**  
-   - Offrir une interface admin permettant d’afficher/exporter les entrées d’`audit_log` (filtres par date/action, export CSV).  
-   - Proposer un téléchargement des logs applicatifs (`dev.log`/`stderr`) avec une vérification d’autorisation.  
-   - Mettre en place une purge automatique (commande ou cron) pour supprimer anciens logs/audits au-delà d’une durée définie.
+5. **Purge automatique des audits/logs**  
+   - Ajouter une commande/cron pour supprimer les entrées au-delà d’une durée définie.
+
+Terminé
+-------
+
+- **Double authentification**  
+  - Clients : OTP email + trusted device.
+  - Vendeurs/admin : TOTP obligatoire.
+- **Journalisation & audit exploitables**  
+  - Back-office : consultation audit + accès/téléchargement/purge des logs applicatifs.
 
 Revenir sur ce fichier avant de démarrer le sprint dédié afin d’évaluer la complexité et l’ordre de priorité.

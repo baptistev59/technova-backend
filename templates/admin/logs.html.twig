@@ -1,0 +1,44 @@
+{% extends 'vendor/layout.html.twig' %}
+{% set hide_vendor_sidebar = true %}
+{% set vendor_nav = [] %}
+
+{% block title %}Logs — TechNova{% endblock %}
+
+{% block vendor_content %}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Observabilite</p>
+            <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">Logs applicatifs</h1>
+            <p class="text-sm text-slate-500">Acces aux fichiers Monolog.</p>
+        </div>
+        <a href="{{ path('admin_ea') }}" class="btn btn-outline btn-sm whitespace-nowrap">Dashboard EA</a>
+    </div>
+
+    <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm mt-6">
+        {% if files is empty %}
+            <div class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-2xl">
+                Aucun fichier log disponible.
+            </div>
+        {% else %}
+            <div class="space-y-3">
+                {% for file in files %}
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-slate-100 rounded-2xl px-4 py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-900">{{ file.name }}</p>
+                            <p class="text-xs text-slate-500">
+                                Modifie le {{ file.modifiedAt|date('d/m/Y H:i') }} · {{ (file.size / 1024)|number_format(1, ',', ' ') }} Ko
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ path('admin_logs_download', { name: file.name }) }}" class="btn btn-outline btn-sm whitespace-nowrap">Telecharger</a>
+                            <form method="post" action="{{ path('admin_logs_clear', { name: file.name }) }}" onsubmit="return confirm('Vider ce fichier log ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('admin_logs_clear_' ~ file.name) }}">
+                                <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Vider</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

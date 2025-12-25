@@ -7,6 +7,7 @@ use App\Entity\AttributeDefinition;
 use App\Entity\AttributeValueDefinition;
 use App\Entity\Category;
 use App\Entity\CustomerOrder;
+use App\Enum\OrderStatus;
 use App\Entity\Product;
 use App\Entity\ProductAttribute;
 use App\Entity\ProductAttributeSelection;
@@ -89,16 +90,16 @@ class VendorShopController extends AbstractController
             $shopProductMap = $this->mapShopProductIds($existingShop, $dashboardOrders['orders'] ?? []);
 
             $statusCounts = array_merge([
-                CustomerOrder::STATUS_PENDING => 0,
-                CustomerOrder::STATUS_PAID => 0,
-                CustomerOrder::STATUS_SHIPPED => 0,
-                CustomerOrder::STATUS_CANCELLED => 0,
+                OrderStatus::Pending->value => 0,
+                OrderStatus::Paid->value => 0,
+                OrderStatus::Shipped->value => 0,
+                OrderStatus::Cancelled->value => 0,
             ], $dashboardOrders['statusCounts'] ?? []);
 
             $metrics = [
                 'totalOrders' => $dashboardOrders['total'] ?? 0,
-                'pendingOrders' => $statusCounts[CustomerOrder::STATUS_PENDING] ?? 0,
-                'paidOrders' => ($statusCounts[CustomerOrder::STATUS_PAID] ?? 0) + ($statusCounts[CustomerOrder::STATUS_SHIPPED] ?? 0),
+                'pendingOrders' => $statusCounts[OrderStatus::Pending->value] ?? 0,
+                'paidOrders' => ($statusCounts[OrderStatus::Paid->value] ?? 0) + ($statusCounts[OrderStatus::Shipped->value] ?? 0),
                 'revenue' => (float) ($dashboardOrders['revenue'] ?? 0.0),
             ];
 
@@ -144,7 +145,7 @@ class VendorShopController extends AbstractController
             $monthlyStart = $today->modify('first day of this month')->modify('-11 months');
             $trendStart = $dailyStart < $monthlyStart ? $dailyStart : $monthlyStart;
             $ordersHistory = $this->orderRepository->findShopOrdersSince($existingShop, $trendStart);
-            $validatedStatuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+            $validatedStatuses = [OrderStatus::Paid->value, OrderStatus::Shipped->value];
 
             $dailyTrend = [];
             for ($i = 0; $i < 30; ++$i) {
@@ -506,16 +507,16 @@ class VendorShopController extends AbstractController
         }
 
         $statusCounts = array_merge([
-            CustomerOrder::STATUS_PENDING => 0,
-            CustomerOrder::STATUS_PAID => 0,
-            CustomerOrder::STATUS_SHIPPED => 0,
-            CustomerOrder::STATUS_CANCELLED => 0,
+            OrderStatus::Pending->value => 0,
+            OrderStatus::Paid->value => 0,
+            OrderStatus::Shipped->value => 0,
+            OrderStatus::Cancelled->value => 0,
         ], $result['statusCounts'] ?? []);
 
         $metrics = [
             'totalOrders' => $result['overallTotal'] ?? $result['total'],
-            'pendingOrders' => $statusCounts[CustomerOrder::STATUS_PENDING] ?? 0,
-            'paidOrders' => ($statusCounts[CustomerOrder::STATUS_PAID] ?? 0) + ($statusCounts[CustomerOrder::STATUS_SHIPPED] ?? 0),
+            'pendingOrders' => $statusCounts[OrderStatus::Pending->value] ?? 0,
+            'paidOrders' => ($statusCounts[OrderStatus::Paid->value] ?? 0) + ($statusCounts[OrderStatus::Shipped->value] ?? 0),
             'revenue' => (float) ($result['revenue'] ?? 0.0),
             'pageRevenue' => $pageRevenue,
         ];
@@ -562,12 +563,12 @@ class VendorShopController extends AbstractController
         }
 
         $statusMeta = [
-            CustomerOrder::STATUS_PENDING => ['label' => 'En attente', 'color' => '#f97316', 'fill' => 'rgba(249,115,22,0.12)'],
-            CustomerOrder::STATUS_PAID => ['label' => 'Payée', 'color' => '#10b981', 'fill' => 'rgba(16,185,129,0.12)'],
-            CustomerOrder::STATUS_SHIPPED => ['label' => 'Expédiée', 'color' => '#0ea5e9', 'fill' => 'rgba(14,165,233,0.12)'],
-            CustomerOrder::STATUS_CANCELLED => ['label' => 'Annulée', 'color' => '#ef4444', 'fill' => 'rgba(239,68,68,0.12)'],
+            OrderStatus::Pending->value => ['label' => 'En attente', 'color' => '#f97316', 'fill' => 'rgba(249,115,22,0.12)'],
+            OrderStatus::Paid->value => ['label' => 'Payee', 'color' => '#10b981', 'fill' => 'rgba(16,185,129,0.12)'],
+            OrderStatus::Shipped->value => ['label' => 'Expediee', 'color' => '#0ea5e9', 'fill' => 'rgba(14,165,233,0.12)'],
+            OrderStatus::Cancelled->value => ['label' => 'Annulee', 'color' => '#ef4444', 'fill' => 'rgba(239,68,68,0.12)'],
         ];
-        $realStatuses = [CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED];
+        $realStatuses = [OrderStatus::Paid->value, OrderStatus::Shipped->value];
 
         $today = new \DateTimeImmutable('today');
         $dailyStart = $today->modify('-29 days');
@@ -621,7 +622,7 @@ class VendorShopController extends AbstractController
                 $dayIndex = $dailyKeyIndex[$dayKey];
                 if (in_array($status, $realStatuses, true)) {
                     $dailyRevenueReal[$dayIndex] += $total;
-                } elseif ($status === CustomerOrder::STATUS_CANCELLED) {
+                } elseif ($status === OrderStatus::Cancelled->value) {
                     $dailyRevenueCancelled[$dayIndex] += $total;
                 }
             }
@@ -725,9 +726,9 @@ class VendorShopController extends AbstractController
 
         $target = (string) $request->request->get('status');
         $transition = match ($target) {
-            CustomerOrder::STATUS_PAID => 'pay',
-            CustomerOrder::STATUS_SHIPPED => 'ship',
-            CustomerOrder::STATUS_CANCELLED => 'cancel',
+            OrderStatus::Paid->value => 'pay',
+            OrderStatus::Shipped->value => 'ship',
+            OrderStatus::Cancelled->value => 'cancel',
             default => null,
         };
 
@@ -1958,20 +1959,20 @@ class VendorShopController extends AbstractController
     private function orderStatusBadges(): array
     {
         return [
-            CustomerOrder::STATUS_PENDING => [
+            OrderStatus::Pending->value => [
                 'label' => 'En attente',
                 'class' => 'bg-amber-50 text-amber-700 border border-amber-200',
             ],
-            CustomerOrder::STATUS_PAID => [
-                'label' => 'Payée',
+            OrderStatus::Paid->value => [
+                'label' => 'Payee',
                 'class' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
             ],
-            CustomerOrder::STATUS_SHIPPED => [
-                'label' => 'Expédiée',
+            OrderStatus::Shipped->value => [
+                'label' => 'Expediee',
                 'class' => 'bg-sky-50 text-sky-700 border border-sky-200',
             ],
-            CustomerOrder::STATUS_CANCELLED => [
-                'label' => 'Annulée',
+            OrderStatus::Cancelled->value => [
+                'label' => 'Annulee',
                 'class' => 'bg-rose-50 text-rose-700 border border-rose-200',
             ],
         ];

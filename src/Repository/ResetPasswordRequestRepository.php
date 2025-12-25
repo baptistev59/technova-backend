@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Repository;
+
+use App\Entity\ResetPasswordRequest;
+use App\Entity\User;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use SymfonyCasts\Bundle\ResetPassword\Model\ResetPasswordRequestInterface;
+use SymfonyCasts\Bundle\ResetPassword\Persistence\ResetPasswordRequestRepositoryInterface;
+use SymfonyCasts\Bundle\ResetPassword\Persistence\Repository\ResetPasswordRequestRepositoryTrait;
+
+/**
+ * @extends ServiceEntityRepository<ResetPasswordRequest>
+ */
+class ResetPasswordRequestRepository extends ServiceEntityRepository implements ResetPasswordRequestRepositoryInterface
+{
+    use ResetPasswordRequestRepositoryTrait;
+
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, ResetPasswordRequest::class);
+    }
+
+    public function createResetPasswordRequest(object $user, \DateTimeInterface $expiresAt, string $selector, string $hashedToken): ResetPasswordRequestInterface
+    {
+        if (!$user instanceof User) {
+            throw new \InvalidArgumentException(sprintf('Expected %s, got %s.', User::class, $user::class));
+        }
+
+        return new ResetPasswordRequest($user, \DateTimeImmutable::createFromInterface($expiresAt), $selector, $hashedToken);
+    }
+}

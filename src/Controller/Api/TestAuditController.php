@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Enum\AuditAction;
 use App\Service\AuditLoggerService;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -36,7 +37,7 @@ class TestAuditController extends AbstractController
     {
         // On écrit volontairement une entrée pour vérifier la base et le service
         $audit->log(
-            action: 'TEST_AUDIT',
+            action: AuditAction::AuditTest,
             resource: 'test_endpoint',
             data: ['message' => 'Audit de test OK']
         );

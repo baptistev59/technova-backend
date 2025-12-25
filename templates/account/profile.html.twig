@@ -113,6 +113,16 @@
 
                 {{ form_end(profileForm) }}
 
+                {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_VENDOR') %}
+                    <div class="mt-8 rounded-3xl border border-slate-200 bg-slate-50/80 p-6 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Double authentification</h2>
+                            <p class="text-sm text-slate-600">Active la verification TOTP pour securiser ton compte.</p>
+                        </div>
+                        <a href="{{ path('app_two_factor_setup') }}" class="btn btn-outline">Configurer</a>
+                    </div>
+                {% endif %}
+
                 {% if viewer and not viewer.vendor %}
                     <div class="mt-10 rounded-3xl border border-slate-200 bg-slate-50/80 p-6 flex flex-col gap-3">
                         <h2 class="text-lg font-semibold text-slate-900">Devenir vendeur TechNova</h2>

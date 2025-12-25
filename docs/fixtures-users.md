@@ -22,5 +22,7 @@ Les données de démonstration injectées via `php bin/console doctrine:fixtures
 Notes :
 - Les avatars par défaut se trouvent dans `public/images/avatars/` (`avatar-admin.svg`, `avatar-vendor.svg`, `avatar-customer.svg`).  
 - Les comptes clients créés via `/inscription` héritent automatiquement de l’avatar client et peuvent l’écraser via `/mon-compte/profil`.
+- Les comptes admin/vendeur doivent activer la TOTP au premier login via `/mon-compte/2fa`.  
+- Les comptes clients utilisent un OTP email (trusted device possible).
 
 > ⚠️ Le chargement des fixtures est **destructif** (`--purge-with-truncate`). Lance la commande uniquement lorsque tu souhaites repartir d’une base propre.

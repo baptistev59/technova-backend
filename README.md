@@ -24,7 +24,9 @@ Stack & modules clés
 - **Symfony 7.3 (full attributes)** – Architecture modulaire, domaines `User`, `Vendor`, `Product`, `Order`, …  
 - **Base PostgreSQL** – Doctrine ORM 3, migrations versionnées.  
 - **Authentification** – LexikJWTAuthenticationBundle (login JSON → JWT).  
-- **Audit & logs** – `AuditLoggerService`, subscriber sur les succès/échecs de login, endpoints de test (`/api/test-audit`).  
+- **Double auth** – OTP email pour clients, TOTP obligatoire pour vendeurs/admin, audit des validations.  
+- **Mot de passe oublié** – SymfonyCasts ResetPasswordBundle (email + lien 5 min).  
+- **Audit & logs** – `AuditLoggerService`, audit des actions admin + page de consultation, export et purge des logs applicatifs.  
 - **Documentation** – NelmioApiDocBundle + Swagger UI exposé sur `/api/docs`.  
 - **Sécurité** – Firewalls séparés (`/api/login`, `/api/docs`, zone `/api/**` protégée).  
 - **Front tooling** – AssetMapper + Stimulus pour interfacer la doc ou l’admin.  
@@ -78,6 +80,7 @@ Pages Twig (catalogue)
 - `/panier` + `/commande` : panier interactif puis checkout récapitulatif avant création de la commande + page de succès.
 - `/mon-compte/commandes` : historique de commandes + détail par référence.
 - `/mon-compte/profil` : mise à jour des informations + suppression/anonymisation RGPD du compte.
+- `/mon-compte/2fa` : configuration TOTP (vendeurs/admin).
 - Confirmation d’une commande déclenche un e-mail (HTML + texte) envoyé via le SMTP configuré (`MAILER_DSN`).
 - `/produit/{slug}` : fiche produit (images, caractéristiques, options, variantes).
 - `/panier` : récapitulatif du panier stocké côté session (ajout/suppression/vidage) — accès réservé aux clients connectés.
@@ -89,7 +92,9 @@ Espace compte (Twig + API)
 - `/inscription` : formulaire Tailwind qui appelle directement `POST /api/register`.  
   Après validation l’utilisateur est automatiquement connecté (ID + JWT stockés en session) puis redirigé vers `/mon-compte/profil`.
 - `/connexion` : formulaire Symfony (`LoginType`) branché sur `App\Security\LoginFormAuthenticator` (firewall `main`). L’utilisateur est authentifié via `Security`, la session Symfony est ouverte (remember-me disponible) et un JWT Lexik est toujours regénéré pour alimenter les pages Twig (`viewer_user()` s’appuie désormais sur `Security` quand c’est possible).  
+- `/connexion/mot-de-passe-oublie` : demande de réinitialisation par email (lien valable 5 minutes).  
 - `/mon-compte/profil` : page composée de deux formulaires (`ProfileType`, `AddressType`) pour compléter les informations personnelles, préférences marketing et adresse principale.  
+- `/mon-compte/2fa` : activation TOTP et QR code pour les vendeurs/admin.  
 - `/api/profile` (GET/POST/DELETE) : endpoints jumeaux utilisés par le front Twig, protégés par le firewall JWT (`DELETE` anonymise le compte).
 - **Uploads** : les fichiers (logos, bannières, visuels produits) ne sont plus traités dans chaque controller. Ils passent tous par `ImageProfile` / `ImageUploader` (WebP, redimensionnement, backgrounds uniformes) et utilisent les profils `shop_banner`, `shop_logo`, `product_image` ou `avatar`.
 
@@ -261,7 +266,7 @@ Déploiement Alwaysdata (prod)
    php bin/console app:create-admin --env=prod   # crée admin@test.fr ou équivalent
    ```
 
-4. **Compilation des envs pour les workflows** :  
+1. **Compilation des envs pour les workflows** :  
    Toujours sur Alwaysdata, générez le cache des variables :
 
    ```bash
@@ -270,7 +275,7 @@ Déploiement Alwaysdata (prod)
    ```
 
    Cela crée `.env.local.php` (non versionné) contenant les variables ; toutes les commandes (cron, GitHub Actions) utiliseront automatiquement les bons secrets.
-5. **Automatisation GitHub Actions** (`.github/workflows/deploy-alwaysdata.yml`) :
+2. **Automatisation GitHub Actions** (`.github/workflows/deploy-alwaysdata.yml`) :
    - Secrets requis : `SSH_REMOTE_HOST`, `SSH_REMOTE_PORT`, `SSH_REMOTE_USER`, `SSH_PRIVATE_KEY`, `DEPLOY_PATH`.
    - Le workflow rsync le code, puis exécute sur Alwaysdata :
 
@@ -334,6 +339,7 @@ Bonnes pratiques / sécurité
 - Swagger étant public, pensez à activer une protection HTTP Basic sur Alwaysdata.  
 - Monitorer `~/logs/php-*.log` sur Alwaysdata pour diagnostiquer les 500.  
 - Les endpoints `/api/test*` peuvent être désactivés en prod (feature flag) via un firewall si nécessaire.
+- **2FA** : clients → OTP email (trusted device optionnel), vendeurs/admin → TOTP obligatoire (QR code dans `/mon-compte/2fa`).
 - **Droit à l’oubli** : via `/mon-compte/profil`, un utilisateur peut supprimer son compte. Les données sont anonymisées (`email deleted-xxxx@technova.local`, avatars effacés, adresses et paniers supprimés) et le champ `is_deleted` bloque toute reconnexion.
 
 Design / UI

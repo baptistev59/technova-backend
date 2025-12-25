@@ -6,6 +6,11 @@ use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Scheb\TwoFactorBundle\Model\Email\TwoFactorInterface as EmailTwoFactorInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface as TotpTwoFactorInterface;
+use Scheb\TwoFactorBundle\Model\TrustedDeviceInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use App\Entity\Address;
@@ -16,7 +21,7 @@ use App\Entity\CustomerOrder;
 #[ORM\Table(name: '`user`')]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 #[ORM\HasLifecycleCallbacks]
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTwoFactorInterface, TotpTwoFactorInterface, TrustedDeviceInterface
 {
     use Timestampable;
 
@@ -57,6 +62,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(options: ['default' => false])]
     private bool $newsletterOptIn = false;
+
+    #[ORM\Column(length: 6, nullable: true)]
+    private ?string $emailAuthCode = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $emailAuthCodeExpiresAt = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $totpSecret = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $trustedTokenVersion = 0;
 
      /**
      * @var Collection<int, address>
@@ -201,6 +218,118 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->phone = $phone;
 
         return $this;
+    }
+
+    public function isEmailAuthEnabled(): bool
+    {
+        return !$this->requiresTotp();
+    }
+
+    public function getEmailAuthRecipient(): string
+    {
+        return (string) $this->email;
+    }
+
+    public function getEmailAuthCode(): ?string
+    {
+        if (null === $this->emailAuthCode || null === $this->emailAuthCodeExpiresAt) {
+            return null;
+        }
+
+        if ($this->emailAuthCodeExpiresAt < new \DateTimeImmutable()) {
+            return null;
+        }
+
+        return $this->emailAuthCode;
+    }
+
+    public function setEmailAuthCode(string $authCode): void
+    {
+        $this->emailAuthCode = $authCode;
+        $this->emailAuthCodeExpiresAt = new \DateTimeImmutable('+5 minutes');
+    }
+
+    public function clearEmailAuthCode(): static
+    {
+        $this->emailAuthCode = null;
+        $this->emailAuthCodeExpiresAt = null;
+
+        return $this;
+    }
+
+    public function getEmailAuthCodeExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->emailAuthCodeExpiresAt;
+    }
+
+    public function setEmailAuthCodeExpiresAt(?\DateTimeImmutable $expiresAt): void
+    {
+        $this->emailAuthCodeExpiresAt = $expiresAt;
+    }
+
+    public function isTotpAuthenticationEnabled(): bool
+    {
+        return $this->requiresTotp() && null !== $this->getTotpSecret();
+    }
+
+    public function getTotpAuthenticationUsername(): string
+    {
+        return (string) $this->email;
+    }
+
+    public function getTotpAuthenticationConfiguration(): ?TotpConfigurationInterface
+    {
+        $secret = $this->getTotpSecret();
+        if (null === $secret) {
+            return null;
+        }
+
+        return new TotpConfiguration($secret, TotpConfiguration::ALGORITHM_SHA1, 30, 6);
+    }
+
+    public function getTotpSecret(): ?string
+    {
+        if ($this->totpSecret === null) {
+            return null;
+        }
+
+        $secret = trim($this->totpSecret);
+
+        return $secret === '' ? null : $secret;
+    }
+
+    public function setTotpSecret(?string $totpSecret): static
+    {
+        $secret = $totpSecret !== null ? trim($totpSecret) : null;
+        $this->totpSecret = $secret === '' ? null : $secret;
+
+        return $this;
+    }
+
+    public function clearTotpSecret(): static
+    {
+        $this->totpSecret = null;
+
+        return $this;
+    }
+
+    public function getTrustedTokenVersion(): int
+    {
+        return $this->trustedTokenVersion;
+    }
+
+    public function bumpTrustedTokenVersion(): static
+    {
+        ++$this->trustedTokenVersion;
+
+        return $this;
+    }
+
+    private function requiresTotp(): bool
+    {
+        $roles = $this->getRoles();
+
+        return in_array('ROLE_ADMIN', $roles, true) || in_array('ROLE_VENDOR', $roles, true);
     }
 
     public function getAvatarPath(): ?string

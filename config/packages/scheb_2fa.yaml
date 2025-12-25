@@ -1,0 +1,21 @@
+# See the configuration reference at https://symfony.com/bundles/SchebTwoFactorBundle/6.x/configuration.html
+scheb_two_factor:
+    security_tokens:
+        - Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken
+        - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
+    trusted_device:
+        enabled: true
+        lifetime: 2592000
+        extend_lifetime: true
+        cookie_name: 'technova_trusted_device'
+    email:
+        enabled: true
+        sender_email: '%env(MAILER_FROM)%'
+        sender_name: 'TechNova'
+        digits: 6
+        code_generator: App\Security\TwoFactor\ExpiringEmailCodeGenerator
+        template: 'security/two_factor.html.twig'
+    totp:
+        enabled: true
+        issuer: 'TechNova'
+        template: 'security/two_factor.html.twig'

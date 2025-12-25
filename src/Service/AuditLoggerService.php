@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\AuditLog;
 use App\Entity\User;
+use App\Enum\AuditAction;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -15,16 +16,16 @@ use Symfony\Component\HttpFoundation\RequestStack;
 class AuditLoggerService
 {
     public function __construct(
-        private EntityManagerInterface $em,
-        private Security $security,
-        private RequestStack $requestStack,
+        private readonly EntityManagerInterface $em,
+        private readonly Security $security,
+        private readonly RequestStack $requestStack,
     ) {}
 
     /**
      * Petite API interne : on passe l'action + ressource + données contextuelles.
      */
     public function log(
-        string $action,
+        AuditAction|string $action,
         ?string $resource = null,
         ?int $resourceId = null,
         ?array $data = null
@@ -41,7 +42,7 @@ class AuditLoggerService
         }
 
         // Action
-        $log->setAction($action);
+        $log->setAction($action instanceof AuditAction ? $action->value : $action);
 
         // Ressource & ID
         $log->setResource($resource);

@@ -197,28 +197,27 @@
                     const paginationEl = swiperEl.querySelector('.swiper-pagination');
                     const nextEl = swiperEl.querySelector('.swiper-button-next');
                     const prevEl = swiperEl.querySelector('.swiper-button-prev');
-                    const visibleSlides = Math.max(1, parseInt(swiperEl.dataset.swiperVisible ?? '1', 10));
-                    const clamp = (value) => Math.min(value, visibleSlides);
+
+                    const slidesCount = swiperEl.querySelectorAll('.swiper-slide').length;
+                    const max = (value) => Math.min(value, slidesCount);
 
                     new Swiper(swiperEl, {
-                      
                         loop: false,
-
                         spaceBetween: 16,
                         grabCursor: true,
 
-                        slidesPerView: clamp(1),
-                        slidesPerGroup: clamp(1),
+                        slidesPerView: max(1),
+                        slidesPerGroup: max(1),
 
                         observer: true,
                         observeParents: true,
                         resizeObserver: true,
 
                         breakpoints: {
-                            640:  { slidesPerView: clamp(2), slidesPerGroup: clamp(2) },
-                            768:  { slidesPerView: clamp(3), slidesPerGroup: clamp(3) },
-                            1024: { slidesPerView: clamp(4), slidesPerGroup: clamp(4) },
-                            1280: { slidesPerView: clamp(5), slidesPerGroup: clamp(5) },
+                            640:  { slidesPerView: max(2), slidesPerGroup: max(2) },
+                            768:  { slidesPerView: max(3), slidesPerGroup: max(3) },
+                            1024: { slidesPerView: max(4), slidesPerGroup: max(4) },
+                            1280: { slidesPerView: max(5), slidesPerGroup: max(5) },
                         },
 
                         pagination: {
@@ -232,6 +231,7 @@
                             prevEl,
                         },
                     });
+
                 });
             };
 

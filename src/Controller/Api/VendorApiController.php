@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\CustomerOrder;
+use App\Enum\OrderStatus;
 use App\Entity\Media;
 use App\Entity\Product;
 use App\Entity\ProductAttribute;
@@ -451,7 +452,7 @@ final class VendorApiController extends AbstractController
     #[OA\Get(
         summary: 'Liste les commandes du vendeur',
         parameters: [
-            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: [CustomerOrder::STATUS_PENDING, CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED, CustomerOrder::STATUS_CANCELLED])),
+            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Shipped->value, OrderStatus::Cancelled->value])),
             new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'perPage', in: 'query', schema: new OA\Schema(type: 'integer')),
         ]
@@ -498,7 +499,7 @@ final class VendorApiController extends AbstractController
             content: new OA\JsonContent(
                 required: ['status'],
                 properties: [
-                    new OA\Property(property: 'status', type: 'string', enum: [CustomerOrder::STATUS_PENDING, CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED, CustomerOrder::STATUS_CANCELLED]),
+                    new OA\Property(property: 'status', type: 'string', enum: [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Shipped->value, OrderStatus::Cancelled->value]),
                 ]
             )
         ),
@@ -517,14 +518,18 @@ final class VendorApiController extends AbstractController
             $payload = [];
         }
         $target = (string) ($payload['status'] ?? '');
-        if (!in_array($target, [CustomerOrder::STATUS_PENDING, CustomerOrder::STATUS_PAID, CustomerOrder::STATUS_SHIPPED, CustomerOrder::STATUS_CANCELLED], true)) {
+        $allowedStatuses = array_map(
+            static fn (OrderStatus $status): string => $status->value,
+            OrderStatus::cases()
+        );
+        if (!in_array($target, $allowedStatuses, true)) {
             return $this->json(['error' => 'Statut cible invalide.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
         $transition = match ($target) {
-            CustomerOrder::STATUS_PAID => 'pay',
-            CustomerOrder::STATUS_SHIPPED => 'ship',
-            CustomerOrder::STATUS_CANCELLED => 'cancel',
+            OrderStatus::Paid->value => 'pay',
+            OrderStatus::Shipped->value => 'ship',
+            OrderStatus::Cancelled->value => 'cancel',
             default => null,
         };
 

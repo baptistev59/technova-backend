@@ -8,9 +8,11 @@ use App\Entity\CustomerOrderItem;
 use App\Entity\Product;
 use App\Entity\ProductVariant;
 use App\Entity\User;
+use App\Enum\OrderStatus;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Workflow\WorkflowInterface;
 
@@ -27,6 +29,8 @@ class CheckoutService
         private readonly ProductVariantRepository $productVariantRepository,
         #[Autowire(service: 'state_machine.customer_order')]
         private readonly WorkflowInterface $orderWorkflow,
+        #[Autowire(service: 'monolog.logger.stock')]
+        private readonly LoggerInterface $stockLogger,
     ) {
     }
 
@@ -42,7 +46,7 @@ class CheckoutService
         $order = (new CustomerOrder())
             ->setOwner($user)
             ->setReference($this->generateReference())
-            ->setStatus(CustomerOrder::STATUS_PENDING)
+            ->setStatus(OrderStatus::Pending)
             ->setCurrency('EUR')
             ->setTotalAmount($this->formatAmount($summary['total']))
             ->setShippingAddress($this->addressToArray($shippingAddress))
@@ -151,6 +155,12 @@ class CheckoutService
     {
         $available = $variant ? $variant->getStock() : $product->getStock();
         if ($available < $quantity || $available <= 0) {
+            $this->stockLogger->warning('Stock shortage detected', [
+                'product_id' => $product->getId(),
+                'variant_id' => $variant?->getId(),
+                'requested' => $quantity,
+                'available' => $available,
+            ]);
             $name = $variant ? sprintf('%s (%s)', $product->getName(), implode(' / ', array_values($variant->getMetadata() ?? []))) : $product->getName();
             throw new \RuntimeException(sprintf('Stock insuffisant pour %s.', $name));
         }

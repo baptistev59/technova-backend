@@ -4,11 +4,13 @@ namespace App\Service;
 
 use App\Entity\CustomerOrder;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 class OrderStatusNotifier
 {
     public function __construct(
         private readonly OrderMailer $orderMailer,
+        #[Autowire(service: 'monolog.logger.order')]
         private readonly LoggerInterface $logger
     ) {
     }

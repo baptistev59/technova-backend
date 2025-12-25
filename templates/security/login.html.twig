@@ -26,6 +26,9 @@
                 {{ form_row(loginForm.email) }}
                 {{ form_row(loginForm.password) }}
             </div>
+            <div class="text-right text-sm">
+                <a class="text-blue-600 hover:underline" href="{{ path('app_forgot_password_request') }}">Mot de passe oublié ?</a>
+            </div>
             <button class="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-lg font-semibold text-white shadow-lg shadow-blue-400/40 transition hover:-translate-y-0.5 hover:bg-blue-500 md:w-auto">
                 Se connecter
             </button>
@@ -45,4 +48,3 @@
     </div>
 </section>
 {% endblock %}
-
