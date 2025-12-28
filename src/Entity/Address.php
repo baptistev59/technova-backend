@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
+use App\Entity\Traits\Timestampable;
 use App\Repository\AddressRepository;
 use Doctrine\ORM\Mapping as ORM;
-use App\Entity\Traits\Timestampable;
-
 
 #[ORM\Entity(repositoryClass: AddressRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -199,12 +200,12 @@ class Address
     public function setVendor(?Vendor $vendor): static
     {
         // unset the owning side of the relation if necessary
-        if ($vendor === null && $this->vendor !== null) {
+        if (null === $vendor && null !== $this->vendor) {
             $this->vendor->setAddress(null);
         }
 
         // set the owning side of the relation if necessary
-        if ($vendor !== null && $vendor->getAddress() !== $this) {
+        if (null !== $vendor && $vendor->getAddress() !== $this) {
             $vendor->setAddress($this);
         }
 
@@ -212,5 +213,4 @@ class Address
 
         return $this;
     }
-
 }

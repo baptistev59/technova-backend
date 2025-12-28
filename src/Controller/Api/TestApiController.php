@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use OpenApi\Attributes as OA;
@@ -31,13 +33,12 @@ class TestApiController extends AbstractController
                         new OA\Property(property: 'message', type: 'string', example: 'TechNova API répond bien 🚀'),
                     ]
                 )
-            )
+            ),
         ]
     )]
     public function index(
-        #[Autowire(service: 'monolog.logger.integration')] LoggerInterface $technovaLogger
-    ): JsonResponse
-    {
+        #[Autowire(service: 'monolog.logger.integration')] LoggerInterface $technovaLogger,
+    ): JsonResponse {
         // Permet de vérifier dans les logs qu'un appel a bien été traité
         $technovaLogger->info('Appel réussi sur /api/test depuis React');
 

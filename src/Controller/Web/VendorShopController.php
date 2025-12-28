@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\Address;
@@ -7,7 +9,6 @@ use App\Entity\AttributeDefinition;
 use App\Entity\AttributeValueDefinition;
 use App\Entity\Category;
 use App\Entity\CustomerOrder;
-use App\Enum\OrderStatus;
 use App\Entity\Product;
 use App\Entity\ProductAttribute;
 use App\Entity\ProductAttributeSelection;
@@ -18,32 +19,34 @@ use App\Entity\ProductVariant;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;
-use App\Form\Vendor\ShopType;
+use App\Enum\OrderStatus;
 use App\Form\Vendor\ProductType;
+use App\Form\Vendor\ShopType;
 use App\Image\ImageProfileRegistry;
 use App\Image\ImageUploader;
 use App\Repository\AttributeDefinitionRepository;
+use App\Repository\BrandRepository;
+use App\Repository\CategoryRepository;
 use App\Repository\CustomerOrderRepository;
+use App\Repository\ProductRepository;
 use App\Repository\ShopRepository;
 use App\Repository\UserRepository;
-use App\Repository\ProductRepository;
-use App\Repository\CategoryRepository;
-use App\Repository\BrandRepository;
 use App\Security\ViewerAccessChecker;
+use App\Security\Voter\OrderVoter;
+use App\Security\Voter\ProductVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Workflow\WorkflowInterface;
-use Throwable;
 
 #[Route('/mon-espace-vendeur')]
 class VendorShopController extends AbstractController
@@ -87,31 +90,31 @@ class VendorShopController extends AbstractController
 
         if ($existingShop instanceof Shop && !$editMode) {
             $dashboardOrders = $this->orderRepository->paginateForShop($existingShop, 1, 5);
-            $shopProductMap = $this->mapShopProductIds($existingShop, $dashboardOrders['orders'] ?? []);
+            $shopProductMap = $this->mapShopProductIds($existingShop, $dashboardOrders['orders']);
 
             $statusCounts = array_merge([
                 OrderStatus::Pending->value => 0,
                 OrderStatus::Paid->value => 0,
                 OrderStatus::Shipped->value => 0,
                 OrderStatus::Cancelled->value => 0,
-            ], $dashboardOrders['statusCounts'] ?? []);
+            ], $dashboardOrders['statusCounts']);
 
             $metrics = [
-                'totalOrders' => $dashboardOrders['total'] ?? 0,
+                'totalOrders' => $dashboardOrders['total'],
                 'pendingOrders' => $statusCounts[OrderStatus::Pending->value] ?? 0,
                 'paidOrders' => ($statusCounts[OrderStatus::Paid->value] ?? 0) + ($statusCounts[OrderStatus::Shipped->value] ?? 0),
-                'revenue' => (float) ($dashboardOrders['revenue'] ?? 0.0),
+                'revenue' => (float) $dashboardOrders['revenue'],
             ];
 
             $statCards = [
                 ['label' => 'Commandes totales', 'value' => $metrics['totalOrders'], 'trend' => 'Depuis l’ouverture', 'icon' => '🧾'],
                 ['label' => 'En attente', 'value' => $metrics['pendingOrders'], 'trend' => 'Statut pending', 'icon' => '⏳'],
                 ['label' => 'Payées / expédiées', 'value' => $metrics['paidOrders'], 'trend' => 'Commandes validées', 'icon' => '✅'],
-                ['label' => 'Revenus cumulés', 'value' => number_format($metrics['revenue'], 2, ',', ' ') . ' €', 'trend' => 'Cumul boutique', 'icon' => '💶'],
+                ['label' => 'Revenus cumulés', 'value' => number_format($metrics['revenue'], 2, ',', ' ').' €', 'trend' => 'Cumul boutique', 'icon' => '💶'],
             ];
 
             $ordersPreview = [];
-            foreach ($dashboardOrders['orders'] ?? [] as $order) {
+            foreach ($dashboardOrders['orders'] as $order) {
                 $lines = [];
                 $lineTotal = 0.0;
                 $quantity = 0;
@@ -128,7 +131,7 @@ class VendorShopController extends AbstractController
                     $lineTotal += $lineAmount;
                     $quantity += $item->getQuantity();
                 }
-                if ($lines === []) {
+                if ([] === $lines) {
                     continue;
                 }
                 $ordersPreview[] = [
@@ -171,7 +174,7 @@ class VendorShopController extends AbstractController
                 $status = $historyRow['status'];
                 $dayKey = $createdAt->format('Y-m-d');
                 if (isset($dailyTrend[$dayKey])) {
-                    $dailyTrend[$dayKey]['value'] += 1;
+                    ++$dailyTrend[$dayKey]['value'];
                 }
                 $monthKey = $createdAt->format('Y-m');
                 if (isset($monthlyTrend[$monthKey]) && in_array($status, $validatedStatuses, true)) {
@@ -183,11 +186,13 @@ class VendorShopController extends AbstractController
             $monthlyMax = max(array_column($monthlyTrend, 'value')) ?: 1;
 
             $dailyTrend = array_map(static function (array $point) use ($dailyMax) {
-                $point['percent'] = $dailyMax > 0 ? (int) round(($point['value'] / $dailyMax) * 100) : 0;
+                $point['percent'] = (int) round(($point['value'] / $dailyMax) * 100);
+
                 return $point;
             }, $dailyTrend);
             $monthlyTrend = array_map(static function (array $point) use ($monthlyMax) {
-                $point['percent'] = $monthlyMax > 0 ? (int) round(($point['value'] / $monthlyMax) * 100) : 0;
+                $point['percent'] = (int) round(($point['value'] / $monthlyMax) * 100);
+
                 return $point;
             }, $monthlyTrend);
             $latestProducts = $this->productRepository->findLatestPublishedForShop(shop: $existingShop, limit: 10);
@@ -207,7 +212,7 @@ class VendorShopController extends AbstractController
         }
 
         $session = $request->getSession();
-        if (!$existingShop && !$vendor && (!$session || !$session->get('vendor_terms_accepted'))) {
+        if (!$existingShop && !$vendor && !$session->get('vendor_terms_accepted')) {
             $this->addFlash('warning', 'Merci de valider les conditions vendeur avant de créer ta boutique.');
 
             return $this->redirectToRoute('app_vendor_terms');
@@ -225,22 +230,22 @@ class VendorShopController extends AbstractController
 
         $vendorAddress = $vendor->getAddress();
         if ($vendorAddress) {
-            if ($vendorAddress->isDefault() === null) {
+            if (null === $vendorAddress->isDefault()) {
                 $vendorAddress->setIsDefault(false);
             }
-            if ($vendorAddress->isBilling() === null) {
+            if (null === $vendorAddress->isBilling()) {
                 $vendorAddress->setIsBilling(false);
             }
-            if ($vendorAddress->isShipping() === null) {
+            if (null === $vendorAddress->isShipping()) {
                 $vendorAddress->setIsShipping(false);
             }
         }
 
-        if ($existingShop instanceof Shop && $editMode) {
+        if ($existingShop instanceof Shop) {
             $shop = $existingShop;
         } else {
             $shop = new Shop();
-            $shop->setContactEmail($vendor?->getEmail() ?? $user->getEmail() ?? '');
+            $shop->setContactEmail($vendor->getEmail() ?? $user->getEmail() ?? '');
         }
 
         if (!$shop->getOwner()) {
@@ -250,7 +255,7 @@ class VendorShopController extends AbstractController
         $form = $this->createForm(ShopType::class, $shop);
         $form->handleRequest($request);
 
-            if ($form->isSubmitted() && $form->isValid()) {
+        if ($form->isSubmitted() && $form->isValid()) {
             $isNewShop = null === $shop->getId();
             $vendor = $shop->getOwner();
             $isNewVendor = $vendor && null === $vendor->getId();
@@ -285,9 +290,7 @@ class VendorShopController extends AbstractController
             }
             $this->entityManager->flush();
 
-            if ($session) {
-                $session->remove('vendor_terms_accepted');
-            }
+            $session->remove('vendor_terms_accepted');
 
             $this->addFlash('success', $isNewShop ? 'Ta boutique est créée ! Tu peux maintenant ajouter tes produits.' : 'Ta boutique a été mise à jour.');
 
@@ -324,7 +327,7 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_shop_new');
         }
 
-        $page = max(1, (int) $request->query->get('page', 1));
+        $page = max(1, (int) $request->query->get('page', '1'));
         $sort = (string) $request->query->get('sort', 'updated_desc');
         $statusQuery = $request->query->has('status') ? $request->query->get('status') : null;
 
@@ -338,7 +341,7 @@ class VendorShopController extends AbstractController
         ];
 
         $queryFilters = $filters;
-        if ($statusQuery === null) {
+        if (null === $statusQuery) {
             $queryFilters['status'] = '1';
         }
 
@@ -428,7 +431,7 @@ class VendorShopController extends AbstractController
 
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
-            $request->getSession()?->set('vendor_terms_accepted', true);
+            $request->getSession()->set('vendor_terms_accepted', true);
 
             return $this->redirectToRoute('app_vendor_shop_new');
         }
@@ -461,9 +464,9 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_shop_new');
         }
 
-        $page = max(1, (int) $request->query->get('page', 1));
+        $page = max(1, (int) $request->query->get('page', '1'));
         $perPageOptions = [10, 25, 50];
-        $perPage = (int) $request->query->get('limit', 10);
+        $perPage = (int) $request->query->get('limit', '10');
         if (!in_array($perPage, $perPageOptions, true)) {
             $perPage = 10;
         }
@@ -511,13 +514,13 @@ class VendorShopController extends AbstractController
             OrderStatus::Paid->value => 0,
             OrderStatus::Shipped->value => 0,
             OrderStatus::Cancelled->value => 0,
-        ], $result['statusCounts'] ?? []);
+        ], $result['statusCounts']);
 
         $metrics = [
-            'totalOrders' => $result['overallTotal'] ?? $result['total'],
+            'totalOrders' => $result['overallTotal'],
             'pendingOrders' => $statusCounts[OrderStatus::Pending->value] ?? 0,
             'paidOrders' => ($statusCounts[OrderStatus::Paid->value] ?? 0) + ($statusCounts[OrderStatus::Shipped->value] ?? 0),
-            'revenue' => (float) ($result['revenue'] ?? 0.0),
+            'revenue' => (float) $result['revenue'],
             'pageRevenue' => $pageRevenue,
         ];
 
@@ -608,13 +611,13 @@ class VendorShopController extends AbstractController
 
             $dayKey = $createdAt->format('Y-m-d');
             if (isset($dailyKeyIndex[$dayKey], $dailyStatusSeries[$status])) {
-                $dailyStatusSeries[$status][$dailyKeyIndex[$dayKey]] += 1;
+                ++$dailyStatusSeries[$status][$dailyKeyIndex[$dayKey]];
             }
 
             $monthKey = $createdAt->format('Y-m');
             if (isset($monthlyKeyIndex[$monthKey]) && in_array($status, $realStatuses, true)) {
                 $monthIndex = $monthlyKeyIndex[$monthKey];
-                $monthlySalesCounts[$monthIndex] += 1;
+                ++$monthlySalesCounts[$monthIndex];
                 $monthlyRevenueTotals[$monthIndex] += $total;
             }
 
@@ -714,6 +717,8 @@ class VendorShopController extends AbstractController
             throw $this->createAccessDeniedException('Publie ta boutique pour gérer les commandes.');
         }
 
+        $this->denyAccessUnlessGranted(OrderVoter::MANAGE, $order);
+
         if (!$this->orderBelongsToShop($order, $shop)) {
             throw $this->createAccessDeniedException('Commande introuvable pour cette boutique.');
         }
@@ -738,7 +743,7 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_orders');
         }
 
-        if ($transition === 'pay') {
+        if ('pay' === $transition) {
             $order->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
         }
 
@@ -751,13 +756,10 @@ class VendorShopController extends AbstractController
             'pay' => 'Commande marquée comme payée.',
             'ship' => 'Commande marquée comme expédiée.',
             'cancel' => 'Commande annulée.',
-            default => 'Statut mis à jour.',
         };
 
         $this->entityManager->flush();
-        if ($successMessage) {
-            $this->addFlash('success', $successMessage);
-        }
+        $this->addFlash('success', $successMessage);
 
         return $this->redirectToRoute('app_vendor_orders');
     }
@@ -795,7 +797,7 @@ class VendorShopController extends AbstractController
         $form->handleRequest($request);
         $variantAction = (string) $request->request->get('_action', '');
         if ($form->isSubmitted()) {
-            if ($variantAction === 'delete_all_variants') {
+            if ('delete_all_variants' === $variantAction) {
                 $this->deleteAllVariants($product);
                 $this->entityManager->flush();
                 $this->addFlash('success', 'Toutes les variantes ont été supprimées.');
@@ -832,11 +834,11 @@ class VendorShopController extends AbstractController
             $this->handleProductImages($product, $mainImageFile, $galleryFiles);
             $this->removeSelectedProductImages($product, $request);
             $this->syncProductAttributeSelections($product, $selectionState);
-            if ($variantAction === 'generate_variants') {
+            if ('generate_variants' === $variantAction) {
                 $this->syncProductVariantsFromAttributes($product);
             }
             $this->updateVariantDetailsFromRequest($product, $request);
-            if ($product->getType() === 'grouped') {
+            if ('grouped' === $product->getType()) {
                 $this->syncProductBundleItems($product, $bundleState);
                 $this->ensureGroupedCategory($product);
             } else {
@@ -846,7 +848,7 @@ class VendorShopController extends AbstractController
             $this->entityManager->persist($product);
             $this->entityManager->flush();
 
-            if ($variantAction === 'generate_variants') {
+            if ('generate_variants' === $variantAction) {
                 $this->addFlash('success', 'Variantes générées. Tu peux maintenant ajuster chaque variante.');
 
                 return $this->redirectToRoute('app_vendor_product_edit', ['id' => $product->getId()]);
@@ -881,16 +883,14 @@ class VendorShopController extends AbstractController
 
         $user = $this->resolveViewer($request);
 
-        if (!$this->isGranted('ROLE_ADMIN') && (!$product->getShop() || $product->getShop()->getOwner()?->getOwner() !== $user)) {
-            throw $this->createAccessDeniedException('Accès non autorisé.');
-        }
+        $this->denyAccessUnlessGranted(ProductVoter::MANAGE, $product);
 
         $form = $this->createForm(ProductType::class, $product);
         $this->prefillPromoPercent($form, $product);
         $form->handleRequest($request);
         $variantAction = (string) $request->request->get('_action', '');
         if ($form->isSubmitted()) {
-            if ($variantAction === 'delete_all_variants') {
+            if ('delete_all_variants' === $variantAction) {
                 $this->deleteAllVariants($product);
                 $this->entityManager->flush();
                 $this->addFlash('success', 'Toutes les variantes ont été supprimées.');
@@ -927,11 +927,11 @@ class VendorShopController extends AbstractController
             $this->handleProductImages($product, $mainImageFile, $galleryFiles);
             $this->removeSelectedProductImages($product, $request);
             $this->syncProductAttributeSelections($product, $selectionState);
-            if ($variantAction === 'generate_variants') {
+            if ('generate_variants' === $variantAction) {
                 $this->syncProductVariantsFromAttributes($product);
             }
             $this->updateVariantDetailsFromRequest($product, $request);
-            if ($product->getType() === 'grouped') {
+            if ('grouped' === $product->getType()) {
                 $this->syncProductBundleItems($product, $bundleState);
                 $this->ensureGroupedCategory($product);
             } else {
@@ -940,7 +940,7 @@ class VendorShopController extends AbstractController
 
             $this->entityManager->flush();
 
-            if ($variantAction === 'generate_variants') {
+            if ('generate_variants' === $variantAction) {
                 $this->addFlash('success', 'Variantes mises à jour.');
 
                 return $this->redirectToRoute('app_vendor_product_edit', ['id' => $product->getId()]);
@@ -967,12 +967,12 @@ class VendorShopController extends AbstractController
     }
 
     #[Route('/produits/{id}/toggle-publication', name: 'app_vendor_product_toggle_publish', methods: ['POST'])]
-    public function toggleProductPublication(Product $product, Request $request): RedirectResponse
+    public function toggleProductPublication(Product $product, Request $request): Response
     {
         if ($response = $this->guardProductAction($product, $request)) {
             return $response;
         }
-        if (!$this->isCsrfTokenValid('product_toggle_' . $product->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('product_toggle_'.$product->getId(), $request->request->get('_token'))) {
             $this->addFlash('error', 'Le jeton CSRF est invalide.');
 
             return $this->redirectToRoute('app_vendor_products');
@@ -987,12 +987,12 @@ class VendorShopController extends AbstractController
     }
 
     #[Route('/produits/{id}/dupliquer', name: 'app_vendor_product_duplicate', methods: ['POST'])]
-    public function duplicateProduct(Product $product, Request $request): RedirectResponse
+    public function duplicateProduct(Product $product, Request $request): Response
     {
         if ($response = $this->guardProductAction($product, $request)) {
             return $response;
         }
-        if (!$this->isCsrfTokenValid('product_duplicate_' . $product->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('product_duplicate_'.$product->getId(), $request->request->get('_token'))) {
             $this->addFlash('error', 'Le jeton CSRF est invalide.');
 
             return $this->redirectToRoute('app_vendor_products');
@@ -1008,12 +1008,12 @@ class VendorShopController extends AbstractController
     }
 
     #[Route('/produits/{id}/supprimer', name: 'app_vendor_product_delete', methods: ['POST'])]
-    public function deleteProduct(Product $product, Request $request): RedirectResponse
+    public function deleteProduct(Product $product, Request $request): Response
     {
         if ($response = $this->guardProductAction($product, $request)) {
             return $response;
         }
-        if (!$this->isCsrfTokenValid('product_delete_' . $product->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('product_delete_'.$product->getId(), $request->request->get('_token'))) {
             $this->addFlash('error', 'Le jeton CSRF est invalide.');
 
             return $this->redirectToRoute('app_vendor_products');
@@ -1046,7 +1046,7 @@ class VendorShopController extends AbstractController
         foreach ($definitions as $definition) {
             $values = [];
             foreach ($definition->getValues() as $value) {
-                if ($value->getId() === null) {
+                if (null === $value->getId()) {
                     continue;
                 }
                 $values[] = [
@@ -1073,14 +1073,14 @@ class VendorShopController extends AbstractController
 
     private function bundleTableExists(): bool
     {
-        if ($this->bundleTableExists !== null) {
+        if (null !== $this->bundleTableExists) {
             return $this->bundleTableExists;
         }
 
         try {
             $schemaManager = $this->entityManager->getConnection()->createSchemaManager();
             $this->bundleTableExists = $schemaManager->tablesExist(['product_bundle_item']);
-        } catch (Throwable) {
+        } catch (\Throwable) {
             $this->bundleTableExists = false;
         }
 
@@ -1089,11 +1089,11 @@ class VendorShopController extends AbstractController
 
     private function applyProductFormValidation(FormInterface $form, Product $product): void
     {
-        if (!$form->isSubmitted() || $product->getType() === 'grouped') {
+        if (!$form->isSubmitted() || 'grouped' === $product->getType()) {
             return;
         }
 
-        if ($product->getPrice() === null || $product->getPrice() <= 0) {
+        if ($product->getPrice() <= 0) {
             $form->get('price')->addError(new FormError('Indique un prix HT.'));
         }
 
@@ -1104,7 +1104,7 @@ class VendorShopController extends AbstractController
 
     private function ensureGroupedCategory(Product $product): void
     {
-        if ($product->getCategory() || $product->getType() !== 'grouped') {
+        if ($product->getCategory() || 'grouped' !== $product->getType()) {
             return;
         }
 
@@ -1113,7 +1113,7 @@ class VendorShopController extends AbstractController
         if (!$category) {
             $category = (new Category())
                 ->setName('Produits groupés')
-                ->setSlug($this->slugger->slug('Produits groupés')->lower());
+                ->setSlug((string) $this->slugger->slug('Produits groupés')->lower());
             $this->entityManager->persist($category);
         }
 
@@ -1142,7 +1142,7 @@ class VendorShopController extends AbstractController
             }
 
             $type = $candidate->getType() ?: 'simple';
-            if ($type === 'grouped') {
+            if ('grouped' === $type) {
                 continue;
             }
 
@@ -1171,17 +1171,17 @@ class VendorShopController extends AbstractController
         $state = [];
         foreach ($product->getAttributeSelections() as $selection) {
             $attribute = $selection->getAttribute();
-            if (!$attribute || $attribute->getId() === null) {
+            if (!$attribute || null === $attribute->getId()) {
                 continue;
             }
 
             $valueIds = [];
             foreach ($selection->getValues() as $value) {
-                if ($value->getId() !== null) {
+                if (null !== $value->getId()) {
                     $valueIds[] = $value->getId();
                 }
             }
-            if ($valueIds === []) {
+            if ([] === $valueIds) {
                 continue;
             }
 
@@ -1206,7 +1206,7 @@ class VendorShopController extends AbstractController
         $state = [];
         foreach ($product->getBundleItems() as $item) {
             $component = $item->getComponent();
-            if (!$component || $component->getId() === null) {
+            if (!$component || null === $component->getId()) {
                 continue;
             }
 
@@ -1217,7 +1217,7 @@ class VendorShopController extends AbstractController
             ];
         }
 
-        usort($state, static fn (array $a, array $b) => ($a['position'] ?? 0) <=> ($b['position'] ?? 0));
+        usort($state, static fn (array $a, array $b) => $a['position'] <=> $b['position']);
 
         return $state;
     }
@@ -1228,7 +1228,7 @@ class VendorShopController extends AbstractController
     private function parseAttributeSelectionPayload(Request $request): array
     {
         $raw = $request->request->get('attribute_selections');
-        if (!is_string($raw) || trim($raw) === '') {
+        if (!is_string($raw) || '' === trim($raw)) {
             return [];
         }
 
@@ -1253,10 +1253,14 @@ class VendorShopController extends AbstractController
                 continue;
             }
 
+            $rawValues = $item['values'];
+            if (!is_array($rawValues)) {
+                $rawValues = [];
+            }
             $valueIds = array_values(array_unique(array_filter(array_map(
                 static fn ($value) => is_numeric($value) ? (int) $value : null,
-                $item['values'] ?? []
-            ), static fn ($value) => $value !== null)));
+                $rawValues
+            ), static fn ($value) => null !== $value)));
 
             $results[] = [
                 'attribute' => $attributeId,
@@ -1273,7 +1277,7 @@ class VendorShopController extends AbstractController
     private function parseBundleItemsPayload(Request $request): array
     {
         $raw = $request->request->get('bundle_items');
-        if (!is_string($raw) || trim($raw) === '') {
+        if (!is_string($raw) || '' === trim($raw)) {
             return [];
         }
 
@@ -1326,8 +1330,8 @@ class VendorShopController extends AbstractController
                 continue;
             }
 
-            $valueIds = $item['values'] ?? [];
-            if ($valueIds === []) {
+            $valueIds = $item['values'];
+            if ([] === $valueIds) {
                 continue;
             }
 
@@ -1336,12 +1340,12 @@ class VendorShopController extends AbstractController
                 ->setAttribute($attribute);
 
             foreach ($attribute->getValues() as $value) {
-                if ($value->getId() !== null && in_array($value->getId(), $valueIds, true)) {
+                if (null !== $value->getId() && in_array($value->getId(), $valueIds, true)) {
                     $selection->addValue($value);
                 }
             }
 
-            if ($selection->getValues()->count() === 0) {
+            if (0 === $selection->getValues()->count()) {
                 continue;
             }
 
@@ -1361,7 +1365,7 @@ class VendorShopController extends AbstractController
 
         $this->clearProductBundleItems($product);
 
-        if ($payload === []) {
+        if ([] === $payload) {
             $this->refreshGroupedProductPrice($product);
 
             return;
@@ -1385,7 +1389,7 @@ class VendorShopController extends AbstractController
                 continue;
             }
 
-            if ($component->getType() === 'grouped') {
+            if ('grouped' === $component->getType()) {
                 continue;
             }
 
@@ -1427,7 +1431,7 @@ class VendorShopController extends AbstractController
     private function computeProductPriceRange(Product $product, array $visited = []): array
     {
         $prices = $this->collectEffectivePrices($product, $visited);
-        if ($prices === []) {
+        if ([] === $prices) {
             return [
                 'min' => null,
                 'max' => null,
@@ -1438,7 +1442,7 @@ class VendorShopController extends AbstractController
         sort($prices, SORT_NUMERIC);
         $min = $prices[0];
         $max = $prices[count($prices) - 1];
-        $format = static fn (float $value): string => number_format($value, 2, ',', ' ') . ' €';
+        $format = static fn (float $value): string => number_format($value, 2, ',', ' ').' €';
         $label = $min === $max ? $format($min) : sprintf('%s – %s', $format($min), $format($max));
 
         return [
@@ -1455,14 +1459,14 @@ class VendorShopController extends AbstractController
     {
         $prices = [];
         $productId = $product->getId();
-        if ($productId !== null) {
+        if (null !== $productId) {
             if (in_array($productId, $visited, true)) {
                 return [];
             }
             $visited[] = $productId;
         }
 
-        if ($product->getType() === 'grouped') {
+        if ('grouped' === $product->getType()) {
             foreach ($product->getBundleItems() as $item) {
                 $component = $item->getComponent();
                 if ($component) {
@@ -1476,7 +1480,7 @@ class VendorShopController extends AbstractController
         if ($product->getVariants()->count() > 0) {
             foreach ($product->getVariants() as $variant) {
                 $price = $variant->getPromoPrice();
-                if ($price === null || $price <= 0) {
+                if (null === $price || $price <= 0) {
                     $price = $variant->getPrice();
                 }
                 if ($price > 0) {
@@ -1485,7 +1489,7 @@ class VendorShopController extends AbstractController
             }
         } else {
             $price = $product->getPromoPrice();
-            if ($price === null || $price <= 0 || $price >= $product->getPrice()) {
+            if (null === $price || $price <= 0 || $price >= $product->getPrice()) {
                 $price = $product->getPrice();
             }
             if ($price > 0) {
@@ -1498,12 +1502,12 @@ class VendorShopController extends AbstractController
 
     private function refreshGroupedProductPrice(Product $product): void
     {
-        if ($product->getType() !== 'grouped' || !$this->bundleTableExists()) {
+        if ('grouped' !== $product->getType() || !$this->bundleTableExists()) {
             return;
         }
 
         $range = $this->computeProductPriceRange($product);
-        if ($range['min'] !== null) {
+        if (null !== $range['min']) {
             $product->setPrice($range['min']);
         }
         $product->setPromoPrice(null);
@@ -1520,7 +1524,7 @@ class VendorShopController extends AbstractController
 
     private function syncProductVariantsFromAttributes(Product $product): void
     {
-        if ($product->getType() !== 'variable') {
+        if ('variable' !== $product->getType()) {
             return;
         }
 
@@ -1532,7 +1536,7 @@ class VendorShopController extends AbstractController
             }
 
             $values = $selection->getValues()->toArray();
-            if ($values === []) {
+            if ([] === $values) {
                 continue;
             }
 
@@ -1546,7 +1550,7 @@ class VendorShopController extends AbstractController
             ];
         }
 
-        if ($attributeSets === []) {
+        if ([] === $attributeSets) {
             foreach ($product->getVariants()->toArray() as $variant) {
                 $product->removeVariant($variant);
                 $this->entityManager->remove($variant);
@@ -1572,7 +1576,7 @@ class VendorShopController extends AbstractController
             foreach ($combination as $entry) {
                 $attribute = $entry['attribute'];
                 $value = $entry['value'];
-                $attributeKey = $attribute->getSlug() ?: ('attribute_' . $attribute->getId());
+                $attributeKey = $attribute->getSlug() ?: ('attribute_'.$attribute->getId());
                 $configuration[$attributeKey] = $value->getValue();
                 $metadata[$attribute->getName() ?? $attributeKey] = $value->getLabel();
             }
@@ -1622,11 +1626,12 @@ class VendorShopController extends AbstractController
 
     /**
      * @param array<int, array<string, mixed>> $attributeSets
+     *
      * @return array<int, array<int, array{attribute: AttributeDefinition, value: AttributeValueDefinition}>>
      */
     private function buildVariantCombinations(array $attributeSets): array
     {
-        if ($attributeSets === []) {
+        if ([] === $attributeSets) {
             return [];
         }
 
@@ -1652,7 +1657,7 @@ class VendorShopController extends AbstractController
 
     private function buildVariantKey(?array $configuration): ?string
     {
-        if (!$configuration || $configuration === []) {
+        if (empty($configuration)) {
             return null;
         }
 
@@ -1721,20 +1726,14 @@ class VendorShopController extends AbstractController
             return $response;
         }
 
-        $user = $this->resolveViewer($request);
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            $owner = $product->getShop()?->getOwner()?->getOwner();
-            if (!$owner || $owner !== $user) {
-                throw $this->createAccessDeniedException('Accès non autorisé.');
-            }
-        }
+        $this->denyAccessUnlessGranted(ProductVoter::MANAGE, $product);
 
         return null;
     }
 
     private function duplicateProductEntity(Product $source): Product
     {
-        $name = trim(($source->getName() ?? 'Produit') . ' (Copie)');
+        $name = trim(($source->getName() ?? 'Produit').' (Copie)');
         $clone = (new Product())
             ->setName($name)
             ->setShortDescription($source->getShortDescription())
@@ -1807,8 +1806,8 @@ class VendorShopController extends AbstractController
                 ->setImagePath($variant->getImagePath())
                 ->setConfiguration($variant->getConfiguration())
                 ->setMetadata($variant->getMetadata())
-                ->setSku($variant->getSku() ? $variant->getSku() . '-copie' : null)
-                ->setBarcode($variant->getBarcode() ? $variant->getBarcode() . '-copie' : null);
+                ->setSku($variant->getSku() ? $variant->getSku().'-copie' : null)
+                ->setBarcode($variant->getBarcode() ? $variant->getBarcode().'-copie' : null);
 
             $clone->addVariant($copyVariant);
         }
@@ -1836,32 +1835,32 @@ class VendorShopController extends AbstractController
         }
 
         $payload = $request->request->all('variants');
-        if (!is_array($payload) || $payload === []) {
+        if (!is_array($payload) || [] === $payload) {
             return;
         }
 
         foreach ($product->getVariants() as $variant) {
             $id = $variant->getId();
-            if ($id === null || !isset($payload[$id]) || !is_array($payload[$id])) {
+            if (null === $id || !isset($payload[$id]) || !is_array($payload[$id])) {
                 continue;
             }
 
             $data = $payload[$id];
 
             $price = $this->normalizeFloat($data['price'] ?? null);
-            if ($price !== null && $price >= 0) {
+            if (null !== $price && $price >= 0) {
                 $variant->setPrice($price);
             }
 
             $promo = $this->normalizeFloat($data['promoPrice'] ?? null);
-            if ($promo !== null && $promo > 0 && ($price ?? $variant->getPrice()) > $promo) {
+            if (null !== $promo && $promo > 0 && ($price ?? $variant->getPrice()) > $promo) {
                 $variant->setPromoPrice($promo);
             } else {
                 $variant->setPromoPrice(null);
             }
 
             $stock = $this->normalizeInt($data['stock'] ?? null);
-            if ($stock !== null && $stock >= 0) {
+            if (null !== $stock && $stock >= 0) {
                 $variant->setStock($stock);
             }
 
@@ -1869,13 +1868,13 @@ class VendorShopController extends AbstractController
                 $variant->setSku((string) $data['sku']);
             }
 
-            $variant->setIsAvailable(isset($data['isAvailable']) && (string) $data['isAvailable'] === '1');
+            $variant->setIsAvailable(isset($data['isAvailable']) && '1' === (string) $data['isAvailable']);
         }
     }
 
     private function normalizeFloat(mixed $value): ?float
     {
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return null;
         }
 
@@ -1892,7 +1891,7 @@ class VendorShopController extends AbstractController
 
     private function normalizeInt(mixed $value): ?int
     {
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return null;
         }
 
@@ -1920,6 +1919,7 @@ class VendorShopController extends AbstractController
 
     /**
      * @param array<int, CustomerOrder> $orders
+     *
      * @return array<int, true>
      */
     private function mapShopProductIds(Shop $shop, array $orders): array
@@ -1932,7 +1932,7 @@ class VendorShopController extends AbstractController
         }
 
         $productIds = array_values(array_unique(array_filter($productIds, static fn ($id) => is_int($id) || ctype_digit((string) $id))));
-        if ($productIds === []) {
+        if ([] === $productIds) {
             return [];
         }
 
@@ -2021,7 +2021,7 @@ class VendorShopController extends AbstractController
         $owner = $order->getOwner();
         if ($owner instanceof User) {
             $fullName = trim(sprintf('%s %s', $owner->getFirstname() ?? '', $owner->getLastname() ?? ''));
-            if ($fullName !== '') {
+            if ('' !== $fullName) {
                 return $fullName;
             }
 
@@ -2048,12 +2048,12 @@ class VendorShopController extends AbstractController
         foreach ($order->getItems() as $item) {
             $productIds[] = $item->getProductId();
         }
-        if ($productIds === []) {
+        if ([] === $productIds) {
             return false;
         }
 
         $productIds = array_values(array_unique(array_filter($productIds, static fn ($id) => is_int($id) || ctype_digit((string) $id))));
-        if ($productIds === []) {
+        if ([] === $productIds) {
             return false;
         }
 
@@ -2076,7 +2076,7 @@ class VendorShopController extends AbstractController
             return $current;
         }
 
-        $recentId = $request->getSession()?->get('recent_user_id');
+        $recentId = $request->getSession()->get('recent_user_id');
         if ($recentId) {
             $user = $this->userRepository->find((int) $recentId);
             if ($user instanceof User) {
@@ -2090,7 +2090,7 @@ class VendorShopController extends AbstractController
     private function generateUniqueSlug(string $name): string
     {
         $baseSlug = strtolower($this->slugger->slug($name)->toString());
-        if ($baseSlug === '') {
+        if ('' === $baseSlug) {
             $baseSlug = 'boutique';
         }
 
@@ -2107,7 +2107,7 @@ class VendorShopController extends AbstractController
     private function prefillPromoPercent(FormInterface $form, Product $product): void
     {
         $percent = $this->calculatePromoPercent($product);
-        if ($percent !== null && $form->has('promoPercent')) {
+        if (null !== $percent && $form->has('promoPercent')) {
             $form->get('promoPercent')->setData($percent);
         }
     }
@@ -2122,7 +2122,7 @@ class VendorShopController extends AbstractController
         $percentInput = $form->get('promoPercent')->getData();
         $promoInput = $form->has('promoPrice') ? $form->get('promoPrice')->getData() : null;
 
-        if ($promoInput === null || $promoInput === '') {
+        if (null === $promoInput || '' === $promoInput) {
             $product->setPromoPrice(null);
         } elseif (is_numeric($promoInput)) {
             $promoValue = max(0.0, (float) $promoInput);
@@ -2133,13 +2133,13 @@ class VendorShopController extends AbstractController
             }
         }
 
-        if ($percentInput !== null && $percentInput !== '' && $price > 0) {
+        if (null !== $percentInput && '' !== $percentInput && $price > 0) {
             $percent = max(0.0, min(100.0, (float) $percentInput));
             $amount = round($price * (1 - ($percent / 100)), 2);
             $product->setPromoPrice($amount > 0 ? $amount : 0.0);
-        } elseif ($product->getPromoPrice() !== null && $price > 0) {
+        } elseif (null !== $product->getPromoPrice() && $price > 0) {
             $computed = $this->calculatePromoPercent($product);
-            if ($computed !== null) {
+            if (null !== $computed) {
                 $form->get('promoPercent')->setData($computed);
             }
         }
@@ -2150,7 +2150,7 @@ class VendorShopController extends AbstractController
         $price = $product->getPrice();
         $promo = $product->getPromoPrice();
 
-        if ($price <= 0 || $promo === null || $promo >= $price) {
+        if ($price <= 0 || null === $promo || $promo >= $price) {
             return null;
         }
 
@@ -2161,18 +2161,18 @@ class VendorShopController extends AbstractController
     {
         $payload = $request->request->all();
         $ids = $payload['remove_images'] ?? [];
-        if (!is_array($ids) || $ids === []) {
+        if (!is_array($ids) || [] === $ids) {
             return;
         }
 
-        $ids = array_values(array_unique(array_filter(array_map(static fn ($value) => is_numeric($value) ? (int) $value : null, $ids), static fn ($value) => $value !== null)));
-        if ($ids === []) {
+        $ids = array_values(array_unique(array_filter(array_map(static fn ($value) => is_numeric($value) ? (int) $value : null, $ids), static fn ($value) => null !== $value)));
+        if ([] === $ids) {
             return;
         }
 
         foreach ($product->getImages()->toArray() as $image) {
             $imageId = $image->getId();
-            if ($imageId !== null && in_array($imageId, $ids, true)) {
+            if (null !== $imageId && in_array($imageId, $ids, true)) {
                 $this->deleteUploadFile($image->getUrl());
                 $product->removeImage($image);
             }
@@ -2192,7 +2192,7 @@ class VendorShopController extends AbstractController
             }
         }
 
-        if (!$mainUpload && $galleryUploads === []) {
+        if (!$mainUpload && [] === $galleryUploads) {
             return;
         }
 
@@ -2212,7 +2212,7 @@ class VendorShopController extends AbstractController
             $image->setIsMain(true);
             $image->setPosition(0);
             $product->addImage($image);
-            $maxPosition++;
+            ++$maxPosition;
         }
 
         foreach ($galleryUploads as $file) {
@@ -2241,7 +2241,7 @@ class VendorShopController extends AbstractController
     private function createProductImageFromFile(Product $product, UploadedFile $file): ProductImage
     {
         $relativePath = $this->imageUploader->upload($file, ImageProfileRegistry::get('product_image'));
-        $absolutePath = $this->projectDir . '/public/' . ltrim($relativePath, '/');
+        $absolutePath = $this->projectDir.'/public/'.ltrim($relativePath, '/');
         $fileSize = is_file($absolutePath) ? filesize($absolutePath) : null;
 
         $image = new ProductImage();
@@ -2276,7 +2276,7 @@ class VendorShopController extends AbstractController
             return;
         }
 
-        $absolute = $this->getParameter('kernel.project_dir') . '/public/' . ltrim($relativePath, '/');
+        $absolute = $this->getParameter('kernel.project_dir').'/public/'.ltrim($relativePath, '/');
         if (is_file($absolute)) {
             @unlink($absolute);
         }
@@ -2285,7 +2285,7 @@ class VendorShopController extends AbstractController
     private function ensureProductSlug(Product $product): void
     {
         $desired = trim((string) $product->getSlug());
-        if ($desired === '') {
+        if ('' === $desired) {
             $desired = (string) ($product->getName() ?? 'produit');
         }
 
@@ -2296,7 +2296,7 @@ class VendorShopController extends AbstractController
     private function generateUniqueProductSlug(string $name, ?int $ignoreId = null): string
     {
         $baseSlug = strtolower($this->slugger->slug($name)->toString());
-        if ($baseSlug === '') {
+        if ('' === $baseSlug) {
             $baseSlug = 'produit';
         }
 
@@ -2304,7 +2304,7 @@ class VendorShopController extends AbstractController
         $suffix = 1;
 
         while ($existing = $this->productRepository->findOneBy(['slug' => $slug])) {
-            if ($ignoreId !== null && $existing->getId() === $ignoreId) {
+            if (null !== $ignoreId && $existing->getId() === $ignoreId) {
                 break;
             }
             $slug = sprintf('%s-%d', $baseSlug, ++$suffix);

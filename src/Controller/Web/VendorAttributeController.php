@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\AttributeDefinition;
@@ -9,10 +11,10 @@ use App\Form\Vendor\AttributeDefinitionType;
 use App\Repository\AttributeDefinitionRepository;
 use App\Repository\ShopRepository;
 use App\Security\ViewerAccessChecker;
+use App\Security\Voter\AttributeDefinitionVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -27,7 +29,7 @@ class VendorAttributeController extends AbstractController
         private readonly AttributeDefinitionRepository $attributeRepository,
         private readonly ShopRepository $shopRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly SluggerInterface $slugger
+        private readonly SluggerInterface $slugger,
     ) {
     }
 
@@ -39,7 +41,7 @@ class VendorAttributeController extends AbstractController
         }
 
         $shop = $this->resolveShop($request);
-        $attributes = $this->attributeRepository->findBy(['shop' => $shop], ['position' => 'ASC', 'name' => 'ASC', 'slug' => 'ASC']);
+        $attributes = $this->attributeRepository->findByShopWithValues($shop);
 
         return $this->render('vendor/attribute/index.html.twig', [
             'attributes' => $attributes,
@@ -89,6 +91,7 @@ class VendorAttributeController extends AbstractController
         if ($attribute->getShop() && $attribute->getShop() !== $shop) {
             throw $this->createNotFoundException();
         }
+        $this->denyAccessUnlessGranted(AttributeDefinitionVoter::MANAGE, $attribute);
         $attribute->setShop($shop);
 
         $form = $this->createForm(AttributeDefinitionType::class, $attribute);
@@ -112,7 +115,7 @@ class VendorAttributeController extends AbstractController
     }
 
     #[Route('/{id}/supprimer', name: 'app_vendor_attributes_delete', methods: ['POST'])]
-    public function delete(Request $request, AttributeDefinition $attribute): RedirectResponse
+    public function delete(Request $request, AttributeDefinition $attribute): Response
     {
         if ($response = $this->guardViewer($request)) {
             return $response;
@@ -122,8 +125,9 @@ class VendorAttributeController extends AbstractController
         if ($attribute->getShop() !== $shop) {
             throw $this->createNotFoundException();
         }
+        $this->denyAccessUnlessGranted(AttributeDefinitionVoter::MANAGE, $attribute);
 
-        if ($this->isCsrfTokenValid('attribute_delete_' . $attribute->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('attribute_delete_'.$attribute->getId(), $request->request->get('_token'))) {
             $this->entityManager->remove($attribute);
             $this->entityManager->flush();
             $this->addFlash('success', 'L’attribut a bien été supprimé.');
@@ -163,11 +167,11 @@ class VendorAttributeController extends AbstractController
     {
         $name = (string) $attribute->getName();
         $shopSegment = $shop->getSlug() ?: (string) $shop->getId();
-        $baseSlug = (string) $this->slugger->slug(trim($name !== '' ? $name : uniqid('attribute_', true)))->lower();
+        $baseSlug = (string) $this->slugger->slug(trim('' !== $name ? $name : uniqid('attribute_', true)))->lower();
         if ($shopSegment) {
-            $baseSlug = trim($baseSlug . '-' . $shopSegment, '-');
+            $baseSlug = trim($baseSlug.'-'.$shopSegment, '-');
         }
-        if ($baseSlug === '') {
+        if ('' === $baseSlug) {
             $baseSlug = uniqid('attribute_', true);
         }
 

@@ -34,6 +34,61 @@ Stack & modules clés
 - **Monitoring** – Monolog JSON sur `php://stderr` en prod (Alwaysdata récupère les logs PHP).
 - **Paiement** – Stripe Checkout + webhook `/stripe/webhook` pour confirmer les commandes.
 
+### Webpack Encore vs Asset Mapper (justification)
+
+Ce projet n’utilise pas Webpack Encore : il s’appuie sur **Asset Mapper + importmap + Tailwind CLI**.  
+Pour l’activité demandée, l’équivalence fonctionnelle est la suivante :
+
+- **Bundling JS/CSS**
+  - Encore : build bundlé (Webpack) via `encore production`.
+  - Asset Mapper : chargement ES modules via `importmap.php` + `assets/` (pas de bundling).
+- **Minification**
+  - Encore : minification intégrée Webpack.
+  - Ici : `npm run build` (Tailwind `--minify`) pour `assets/styles/app.css`.
+- **Cache assets**
+  - Encore : fichiers versionnés (hash) → cache long.
+  - Asset Mapper : versionning géré par Symfony (asset mapper), possibilité d’ajouter des headers de cache côté serveur.
+- **Chargement JS**
+  - Encore : `{{ encore_entry_script_tags(...) }}`.
+  - Asset Mapper : `importmap()`/`asset()` + modules ES (voir `importmap.php`).
+
+Ce choix est aligné avec Symfony 7 (Asset Mapper recommandé) et reste acceptable pour la consigne,
+tant que la minification CSS est assurée et que la politique de cache des assets est documentée.
+
+Notes complémentaires
+- **Build CSS en prod** : `npm run build` (Tailwind CLI avec `--minify`, voir `package.json`).
+- **Cache assets** : config serveur à prévoir (ex. `Cache-Control: public, max-age=31536000, immutable` sur `public/assets/`).
+
+Qualité de code (PSR-12 & Best Practices)
+----------------------------------------
+
+Outils ajoutés :
+- PHP-CS-Fixer (PSR-12 + Symfony)
+- PHPStan (niveau 5)
+- Lint Symfony (Twig/YAML/Container)
+
+Installation des outils
+
+```bash
+composer update friendsofphp/php-cs-fixer phpstan/phpstan phpstan/phpstan-symfony
+```
+
+Note : si tu modifies `composer.json`, il faut mettre à jour `composer.lock` via `composer update <packages>` pour que les outils soient réellement installés.
+
+⚠️ Avertissement PHP-CS-Fixer  
+Si tu exécutes PHP-CS-Fixer avec PHP 8.3 alors que le projet cible PHP 8.2 (`composer.json`), l’outil affiche un warning.  
+Recommandation : lancer `composer lint` avec PHP 8.2 pour éviter d’introduire une syntaxe non supportée.
+
+Commandes pédagogiques (preuve outillée)
+
+```bash
+# Vérifier sans modifier
+composer lint
+
+# Corriger automatiquement le style
+composer lint-fix
+```
+
 Endpoints disponibles
 ---------------------
 

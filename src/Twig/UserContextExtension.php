@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig;
 
 use App\Entity\User;
@@ -19,7 +21,7 @@ class UserContextExtension extends AbstractExtension
     public function __construct(
         private readonly Security $security,
         private readonly RequestStack $requestStack,
-        private readonly UserRepository $userRepository
+        private readonly UserRepository $userRepository,
     ) {
     }
 
@@ -46,7 +48,7 @@ class UserContextExtension extends AbstractExtension
         }
 
         $session = $this->requestStack->getSession();
-        if ($session && $session->has('recent_user_id')) {
+        if ($session->has('recent_user_id')) {
             $userId = $session->get('recent_user_id');
             if (is_numeric($userId)) {
                 $user = $this->userRepository->find((int) $userId);

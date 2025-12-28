@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
+use App\Entity\Traits\Timestampable;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -13,9 +16,6 @@ use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface as TotpTwoFactorInterfac
 use Scheb\TwoFactorBundle\Model\TrustedDeviceInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
-use App\Entity\Address;
-use App\Entity\Traits\Timestampable;
-use App\Entity\CustomerOrder;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -75,8 +75,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTw
     #[ORM\Column(options: ['default' => 0])]
     private int $trustedTokenVersion = 0;
 
-     /**
-     * @var Collection<int, address>
+    /**
+     * @var Collection<int, Address>
      */
     #[ORM\OneToMany(targetEntity: Address::class, mappedBy: 'owner')]
     private Collection $addresses;
@@ -289,19 +289,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTw
 
     public function getTotpSecret(): ?string
     {
-        if ($this->totpSecret === null) {
+        if (null === $this->totpSecret) {
             return null;
         }
 
         $secret = trim($this->totpSecret);
 
-        return $secret === '' ? null : $secret;
+        return '' === $secret ? null : $secret;
     }
 
     public function setTotpSecret(?string $totpSecret): static
     {
-        $secret = $totpSecret !== null ? trim($totpSecret) : null;
-        $this->totpSecret = $secret === '' ? null : $secret;
+        $secret = null !== $totpSecret ? trim($totpSecret) : null;
+        $this->totpSecret = '' === $secret ? null : $secret;
 
         return $this;
     }
@@ -369,14 +369,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTw
     }
 
     /**
-     * @return Collection<int, address>
+     * @return Collection<int, Address>
      */
     public function getAddresses(): Collection
     {
         return $this->addresses;
     }
 
-    public function addAddress(address $address): static
+    public function addAddress(Address $address): static
     {
         if (!$this->addresses->contains($address)) {
             $this->addresses->add($address);
@@ -386,7 +386,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTw
         return $this;
     }
 
-    public function removeAddress(address $address): static
+    public function removeAddress(Address $address): static
     {
         if ($this->addresses->removeElement($address)) {
             // set the owning side to null (unless already changed)

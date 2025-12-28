@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\CustomerOrder;
@@ -28,7 +30,7 @@ class CheckoutController extends AbstractController
         private readonly UserRepository $userRepository,
         private readonly CustomerOrderRepository $orderRepository,
         private readonly StripePaymentService $stripePaymentService,
-        private readonly UrlGeneratorInterface $urlGenerator
+        private readonly UrlGeneratorInterface $urlGenerator,
     ) {
     }
 
@@ -91,7 +93,7 @@ class CheckoutController extends AbstractController
             'app_checkout_success',
             ['reference' => $order->getReference()],
             UrlGeneratorInterface::ABSOLUTE_URL
-        ) . '?session_id={CHECKOUT_SESSION_ID}';
+        ).'?session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = $this->urlGenerator->generate(
             'app_checkout_cancel',
             ['reference' => $order->getReference()],
@@ -153,7 +155,7 @@ class CheckoutController extends AbstractController
         }
 
         $session = $request->getSession();
-        if ($session && $session->has('recent_user_id')) {
+        if ($session->has('recent_user_id')) {
             $resolved = $this->userRepository->find((int) $session->get('recent_user_id'));
             if ($resolved instanceof User) {
                 return $resolved;
@@ -171,7 +173,7 @@ class CheckoutController extends AbstractController
         }
 
         $session = $request->getSession();
-        if ($session && $session->has('recent_user_id')) {
+        if ($session->has('recent_user_id')) {
             return $order->getOwner()?->getId() === (int) $session->get('recent_user_id');
         }
 

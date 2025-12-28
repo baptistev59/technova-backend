@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Security;
 
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -34,7 +37,7 @@ class ViewerAccessChecker
             return null;
         }
 
-        if ($session) {
+        if ($session instanceof Session) {
             $session->getFlashBag()->add('warning', 'Votre session a expiré. Merci de vous reconnecter pour continuer vos achats.');
         }
 

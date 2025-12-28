@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\Address;
@@ -7,8 +9,8 @@ use App\Entity\User;
 use App\Form\ProfileType;
 use App\Repository\UserRepository;
 use App\Security\ViewerAccessChecker;
-use App\Service\UserProfileService;
 use App\Service\UserAnonymizer;
+use App\Service\UserProfileService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
@@ -24,7 +26,7 @@ class ProfileController extends AbstractController
         private readonly UserRepository $userRepository,
         private readonly UserProfileService $profileService,
         private readonly ViewerAccessChecker $viewerAccessChecker,
-        private readonly UserAnonymizer $userAnonymizer
+        private readonly UserAnonymizer $userAnonymizer,
     ) {
     }
 
@@ -78,16 +80,11 @@ class ProfileController extends AbstractController
         }
 
         $user = $this->resolveViewer($request);
-        if (!$user instanceof User) {
-            return $this->redirectToRoute('app_login');
-        }
 
         $this->userAnonymizer->anonymize($user);
 
         $session = $request->getSession();
-        if ($session) {
-            $session->invalidate();
-        }
+        $session->invalidate();
         $this->security->logout(false);
 
         $this->addFlash('success', 'Ton compte a été supprimé et anonymisé.');
@@ -95,7 +92,7 @@ class ProfileController extends AbstractController
         return $this->redirectToRoute('homepage');
     }
 
-    private function resolveViewer(Request $request): ?User
+    private function resolveViewer(Request $request): User
     {
         $currentUser = $this->security->getUser();
         if ($currentUser instanceof User) {
@@ -104,10 +101,13 @@ class ProfileController extends AbstractController
 
         $recentId = $request->getSession()->get('recent_user_id');
         if ($recentId) {
-            return $this->userRepository->find($recentId);
+            $user = $this->userRepository->find($recentId);
+            if ($user instanceof User) {
+                return $user;
+            }
         }
 
-        return null;
+        throw $this->createAccessDeniedException('Utilisateur requis.');
     }
 
     private function handleAvatarUpload(mixed $file, User $user): void
@@ -116,7 +116,7 @@ class ProfileController extends AbstractController
             return;
         }
 
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars';
+        $uploadDir = $this->getParameter('kernel.project_dir').'/public/uploads/avatars';
         if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
             $this->addFlash('error', 'Impossible de créer le dossier des avatars.');
 
@@ -129,7 +129,7 @@ class ProfileController extends AbstractController
         try {
             $this->deleteAvatarFile($user->getAvatarPath());
             $file->move($uploadDir, $filename);
-            $user->setAvatarPath('uploads/avatars/' . $filename);
+            $user->setAvatarPath('uploads/avatars/'.$filename);
         } catch (FileException) {
             $this->addFlash('error', 'Le téléchargement de ton avatar a échoué.');
         }
@@ -141,7 +141,7 @@ class ProfileController extends AbstractController
             return;
         }
 
-        $absolute = $this->getParameter('kernel.project_dir') . '/public/' . ltrim($relativePath, '/');
+        $absolute = $this->getParameter('kernel.project_dir').'/public/'.ltrim($relativePath, '/');
         if (is_file($absolute)) {
             @unlink($absolute);
         }

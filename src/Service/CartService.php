@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Product;
@@ -10,9 +12,9 @@ use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
 use App\Repository\SavedCartRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
-use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * Gère le panier stocké en session (et son miroir base de données) avec
@@ -66,7 +68,7 @@ class CartService
             $line['quantity'] + max(1, $quantity),
             $this->resolveMaxStock($product, $variant)
         );
-        if ($unitPriceOverride !== null) {
+        if (null !== $unitPriceOverride) {
             $line['unit_price_override'] = $unitPriceOverride;
         } elseif (!array_key_exists('unit_price_override', $line)) {
             $line['unit_price_override'] = null;
@@ -81,7 +83,7 @@ class CartService
         Product $product,
         int $quantity,
         ?ProductVariant $variant = null,
-        ?int $variantId = null
+        ?int $variantId = null,
     ): void {
         $this->ensureInitialized();
         $variant = $this->resolveVariant($product, $variant, $variantId);
@@ -101,7 +103,7 @@ class CartService
                 'product_id' => $product->getId(),
                 'variant_id' => $variant?->getId(),
                 'quantity' => $quantity,
-                'unit_price_override' => $unitPriceOverride !== null ? (float) $unitPriceOverride : null,
+                'unit_price_override' => null !== $unitPriceOverride ? (float) $unitPriceOverride : null,
             ];
         }
 
@@ -112,7 +114,7 @@ class CartService
     public function removeProduct(
         Product $product,
         ?ProductVariant $variant = null,
-        ?int $variantId = null
+        ?int $variantId = null,
     ): void {
         $this->ensureInitialized();
         $variant = $this->resolveVariant($product, $variant, $variantId);
@@ -173,7 +175,7 @@ class CartService
             $basePrice = (float) $product->getPrice();
             $promoPrice = $product->getPromoPrice();
             $stock = $product->getStock();
-            $unitPriceOverride = array_key_exists('unit_price_override', $line) && $line['unit_price_override'] !== null
+            $unitPriceOverride = array_key_exists('unit_price_override', $line) && null !== $line['unit_price_override']
                 ? (float) $line['unit_price_override']
                 : null;
 
@@ -205,7 +207,7 @@ class CartService
 
             $referencePrice = $promoPrice ?? $basePrice;
             $unitPrice = $referencePrice;
-            if ($unitPriceOverride !== null) {
+            if (null !== $unitPriceOverride) {
                 $unitPrice = $unitPriceOverride;
             }
             $appliedDiscount = max(0, $referencePrice - $unitPrice);
@@ -272,7 +274,7 @@ class CartService
     private function resolveVariant(
         Product $product,
         ?ProductVariant $variant,
-        ?int $variantId = null
+        ?int $variantId = null,
     ): ?ProductVariant {
         if ($variant && $variant->getProduct()?->getId() !== $product->getId()) {
             throw new \InvalidArgumentException('La variante ne correspond pas au produit.');
@@ -319,7 +321,6 @@ class CartService
     }
 
     /**
-     * @param mixed $rawState
      * @return array{version:int,lines:array<string,array{product_id:int,variant_id:int|null,quantity:int,unit_price_override:float|null}>}
      */
     private function normalizeState(mixed $rawState): array
@@ -363,6 +364,7 @@ class CartService
 
     /**
      * @param array<string, mixed> $lines
+     *
      * @return array<string, array{product_id:int,variant_id:int|null,quantity:int,unit_price_override:float|null}>
      */
     private function sanitizeLines(array $lines): array
@@ -373,9 +375,9 @@ class CartService
                 continue;
             }
             $productId = isset($line['product_id']) ? (int) $line['product_id'] : 0;
-            $variantId = array_key_exists('variant_id', $line) ? ($line['variant_id'] !== null ? (int) $line['variant_id'] : null) : null;
+            $variantId = array_key_exists('variant_id', $line) ? (null !== $line['variant_id'] ? (int) $line['variant_id'] : null) : null;
             $quantity = isset($line['quantity']) ? max(0, (int) $line['quantity']) : 0;
-            $override = array_key_exists('unit_price_override', $line) && $line['unit_price_override'] !== null
+            $override = array_key_exists('unit_price_override', $line) && null !== $line['unit_price_override']
                 ? (float) $line['unit_price_override']
                 : null;
 
@@ -439,6 +441,7 @@ class CartService
                 $this->entityManager->remove($saved);
                 $this->entityManager->flush();
             }
+
             return;
         }
 
@@ -460,6 +463,7 @@ class CartService
     private function getUser(): ?User
     {
         $user = $this->security->getUser();
+
         return $user instanceof User ? $user : null;
     }
 }

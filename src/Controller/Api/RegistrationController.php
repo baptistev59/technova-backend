@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Service\UserRegistrationService;
@@ -70,7 +72,7 @@ class RegistrationController extends AbstractController
 
         $result = $this->registrationService->register($requestData);
 
-        if ($result['status'] !== Response::HTTP_CREATED) {
+        if (Response::HTTP_CREATED !== $result['status']) {
             return $this->json(
                 $result['errors'] ?? ['error' => 'Requête invalide'],
                 $result['status']

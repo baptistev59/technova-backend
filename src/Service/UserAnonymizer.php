@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\User;
@@ -14,7 +16,7 @@ class UserAnonymizer
         private readonly EntityManagerInterface $entityManager,
         private readonly Filesystem $filesystem,
         private readonly SavedCartRepository $savedCartRepository,
-        #[Autowire('%kernel.project_dir%')] private readonly string $projectDir
+        #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {
     }
 
@@ -46,6 +48,7 @@ class UserAnonymizer
     private function generateAnonymousEmail(?int $id): string
     {
         $suffix = $id ?? random_int(1000, 999999);
+
         return sprintf('deleted-%s@technova.local', $suffix);
     }
 

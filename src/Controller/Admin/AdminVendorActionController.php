@@ -18,7 +18,7 @@ class AdminVendorActionController extends AbstractController
     #[Route('/admin/vendors/{id}/suspend', name: 'admin_vendor_suspend', methods: ['POST'])]
     public function suspend(Vendor $vendor, Request $request, EntityManagerInterface $entityManager): RedirectResponse
     {
-        $this->isCsrfTokenValidOrThrow('suspend_vendor_' . $vendor->getId(), $request->request->get('_token'));
+        $this->isCsrfTokenValidOrThrow('suspend_vendor_'.$vendor->getId(), $request->request->get('_token'));
 
         $vendor->setIsSuspended(true);
         $entityManager->flush();
@@ -31,7 +31,7 @@ class AdminVendorActionController extends AbstractController
     #[Route('/admin/vendors/{id}/activate', name: 'admin_vendor_activate', methods: ['POST'])]
     public function activate(Vendor $vendor, Request $request, EntityManagerInterface $entityManager): RedirectResponse
     {
-        $this->isCsrfTokenValidOrThrow('activate_vendor_' . $vendor->getId(), $request->request->get('_token'));
+        $this->isCsrfTokenValidOrThrow('activate_vendor_'.$vendor->getId(), $request->request->get('_token'));
 
         $vendor->setIsSuspended(false);
         $entityManager->flush();

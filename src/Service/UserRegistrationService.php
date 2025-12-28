@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\User;
@@ -12,7 +14,6 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 /**
  * Service dédié à l'inscription : transforme les données brutes du formulaire en entité User persistée.
  */
-
 class UserRegistrationService
 {
     private const DEFAULT_AVATAR = '/images/avatars/avatar-customer.svg';
@@ -21,7 +22,7 @@ class UserRegistrationService
         private readonly EntityManagerInterface $entityManager,
         private readonly UserRepository $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
-        private readonly JWTTokenManagerInterface $jwtManager
+        private readonly JWTTokenManagerInterface $jwtManager,
     ) {
     }
 

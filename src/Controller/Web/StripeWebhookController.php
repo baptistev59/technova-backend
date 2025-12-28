@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
-use App\Entity\CustomerOrder;
 use App\Enum\OrderStatus;
 use App\Repository\CustomerOrderRepository;
 use App\Service\CheckoutService;
@@ -22,7 +23,7 @@ class StripeWebhookController extends AbstractController
         private readonly CustomerOrderRepository $orderRepository,
         private readonly CheckoutService $checkoutService,
         #[Autowire(service: 'monolog.logger.integration')]
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -52,9 +53,9 @@ class StripeWebhookController extends AbstractController
         $type = $event['type'] ?? '';
         $data = $event['data']['object'] ?? [];
 
-        if ($type === 'checkout.session.completed') {
+        if ('checkout.session.completed' === $type) {
             $this->handleSessionCompleted($data);
-        } elseif ($type === 'checkout.session.expired') {
+        } elseif ('checkout.session.expired' === $type) {
             $this->handleSessionExpired($data);
         }
 
@@ -81,7 +82,7 @@ class StripeWebhookController extends AbstractController
             return;
         }
 
-        if ($order->getStatusEnum() === OrderStatus::Paid) {
+        if (OrderStatus::Paid === $order->getStatusEnum()) {
             return;
         }
 
@@ -105,7 +106,7 @@ class StripeWebhookController extends AbstractController
             return;
         }
 
-        if ($order->getStatusEnum() === OrderStatus::Paid) {
+        if (OrderStatus::Paid === $order->getStatusEnum()) {
             return;
         }
 
@@ -121,7 +122,7 @@ class StripeWebhookController extends AbstractController
         $parts = [];
         foreach (explode(',', $header) as $segment) {
             [$key, $value] = array_pad(explode('=', $segment, 2), 2, null);
-            if ($key !== null && $value !== null) {
+            if (null !== $key && null !== $value) {
                 $parts[$key] = $value;
             }
         }

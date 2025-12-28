@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\CustomerOrder;
 use App\Entity\OrderDocument;
 use App\Enum\DocumentType;
 use App\Repository\OrderDocumentRepository;
-use App\Service\OrderDocumentGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -26,7 +27,7 @@ class OrderMailer
         private readonly EntityManagerInterface $entityManager,
         #[Autowire(service: 'monolog.logger.email')]
         private readonly LoggerInterface $emailLogger,
-        private readonly ?string $mailerFrom = null
+        private readonly ?string $mailerFrom = null,
     ) {
     }
 
@@ -45,7 +46,7 @@ class OrderMailer
 
         $baseUrl = $this->resolveBaseUrl();
 
-        $publicDir = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public';
+        $publicDir = rtrim((string) $this->params->get('kernel.project_dir'), '/').'/public';
 
         $items = [];
         foreach ($order->getItems() as $item) {
@@ -58,7 +59,7 @@ class OrderMailer
                     $imageUrl = $image;
                 } else {
                     $relative = ltrim(parse_url($image, PHP_URL_PATH) ?? $image, '/');
-                    $fullPath = $publicDir . '/' . $relative;
+                    $fullPath = $publicDir.'/'.$relative;
 
                     if (is_file($fullPath)) {
                         $embedPath = $fullPath;
@@ -90,7 +91,7 @@ class OrderMailer
             if (!empty($itemData['_embedPath'])) {
                 $inlinePart = DataPart::fromPath($itemData['_embedPath'])->asInline();
                 $emailMessage->addPart($inlinePart);
-                $items[$index]['imageCid'] = 'cid:' . $inlinePart->getContentId();
+                $items[$index]['imageCid'] = 'cid:'.$inlinePart->getContentId();
             }
 
             unset($items[$index]['_embedPath']);
@@ -105,7 +106,7 @@ class OrderMailer
         ]);
 
         $document = $this->ensureInvoiceDocument($order, $baseUrl);
-        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public/' . ltrim($document->getPath(), '/');
+        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/').'/public/'.ltrim($document->getPath(), '/');
         if (is_file($absolute)) {
             $emailMessage->attachFromPath($absolute, sprintf('facture-%s.pdf', $order->getReference()), 'application/pdf');
         }
@@ -153,14 +154,8 @@ class OrderMailer
                 'baseUrl' => $baseUrl,
             ]);
 
-        $document = $this->ensureInvoiceDocument($order);
-        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public/' . ltrim($document->getPath(), '/');
-        if (is_file($absolute)) {
-            $emailMessage->attachFromPath($absolute, sprintf('facture-%s.pdf', $order->getReference()), 'application/pdf');
-        }
-
         $document = $this->ensureInvoiceDocument($order, $baseUrl);
-        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/') . '/public/' . ltrim($document->getPath(), '/');
+        $absolute = rtrim((string) $this->params->get('kernel.project_dir'), '/').'/public/'.ltrim($document->getPath(), '/');
         if (is_file($absolute)) {
             $emailMessage->attachFromPath($absolute, sprintf('facture-%s.pdf', $order->getReference()), 'application/pdf');
         }
@@ -193,7 +188,7 @@ class OrderMailer
     private function resolveBaseUrl(): string
     {
         $base = $this->params->has('router.default_uri') ? (string) $this->params->get('router.default_uri') : '';
-        if ($base !== '') {
+        if ('' !== $base) {
             return rtrim($base, '/');
         }
 

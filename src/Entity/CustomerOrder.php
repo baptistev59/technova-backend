@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Enum\OrderStatus;
 use App\Entity\Traits\Timestampable;
+use App\Enum\OrderStatus;
 use App\Repository\CustomerOrderRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -69,14 +71,11 @@ class CustomerOrder
     #[ORM\OneToMany(mappedBy: 'order', targetEntity: OrderDocument::class, cascade: ['persist'], orphanRemoval: true)]
     private Collection $documents;
 
-
-
     public function __construct()
     {
         $this->items = new ArrayCollection();
         $this->statusHistory = new ArrayCollection();
         $this->documents = new ArrayCollection();
-
     }
 
     public function getId(): ?int
@@ -238,7 +237,7 @@ class CustomerOrder
 
     public function isPaid(): bool
     {
-        return $this->status === OrderStatus::Paid;
+        return OrderStatus::Paid === $this->status;
     }
 
     /**
@@ -257,6 +256,7 @@ class CustomerOrder
     public function setConversation(?Conversation $conversation): self
     {
         $this->conversation = $conversation;
+
         return $this;
     }
 
@@ -289,7 +289,7 @@ class CustomerOrder
         );
 
         foreach ($this->items as $item) {
-            if ($item->getShopId() !== null && in_array($item->getShopId(), $vendorShopIds, true)) {
+            if (null !== $item->getShopId() && in_array($item->getShopId(), $vendorShopIds, true)) {
                 return true;
             }
         }
@@ -341,6 +341,4 @@ class CustomerOrder
 
         return $this;
     }
-
-
 }

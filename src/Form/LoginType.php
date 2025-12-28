@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Form;
 
 use Symfony\Component\Form\AbstractType;
@@ -8,6 +10,8 @@ use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Email;
+use Symfony\Component\Validator\Constraints\NotBlank;
 
 class LoginType extends AbstractType
 {
@@ -20,6 +24,10 @@ class LoginType extends AbstractType
                     'autocomplete' => 'email',
                 ],
                 'label' => 'Email',
+                'constraints' => [
+                    new NotBlank(message: 'L’email est requis.'),
+                    new Email(message: 'Adresse e-mail invalide.'),
+                ],
             ])
             ->add('password', PasswordType::class, [
                 'attr' => [
@@ -27,6 +35,9 @@ class LoginType extends AbstractType
                     'autocomplete' => 'current-password',
                 ],
                 'label' => 'Mot de passe',
+                'constraints' => [
+                    new NotBlank(message: 'Le mot de passe est requis.'),
+                ],
             ])
             ->add('submit', SubmitType::class, [
                 'label' => 'Se connecter',

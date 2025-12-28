@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Vendor;
-use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -17,7 +18,7 @@ class VendorRepository extends ServiceEntityRepository
         parent::__construct($registry, Vendor::class);
     }
 
-    public function countNewSince(DateTimeImmutable $since): int
+    public function countNewSince(\DateTimeImmutable $since): int
     {
         return (int) $this->createQueryBuilder('v')
             ->select('COUNT(v.id)')

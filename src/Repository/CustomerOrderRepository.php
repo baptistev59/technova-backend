@@ -1,16 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\CustomerOrder;
-use App\Enum\OrderStatus;
 use App\Entity\Product;
 use App\Entity\Shop;
+use App\Enum\OrderStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
-use DateTimeImmutable;
 
 /**
  * @extends ServiceEntityRepository<CustomerOrder>
@@ -22,7 +23,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
         parent::__construct($registry, CustomerOrder::class);
     }
 
-    public function countSince(DateTimeImmutable $since): int
+    public function countSince(\DateTimeImmutable $since): int
     {
         return (int) $this->createQueryBuilder('o')
             ->select('COUNT(o.id)')
@@ -32,11 +33,11 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function countSinceWithStatuses(DateTimeImmutable $since, array $statuses): int
+    public function countSinceWithStatuses(\DateTimeImmutable $since, array $statuses): int
     {
         $statusValues = $this->normalizeStatuses($statuses);
 
-        if ($statusValues === []) {
+        if ([] === $statusValues) {
             return 0;
         }
 
@@ -50,7 +51,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function sumPaidSince(DateTimeImmutable $since): float
+    public function sumPaidSince(\DateTimeImmutable $since): float
     {
         $statuses = [OrderStatus::Paid, OrderStatus::Shipped];
 
@@ -81,7 +82,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
     {
         $statusValues = $this->normalizeStatuses($statuses);
 
-        if ($statusValues === []) {
+        if ([] === $statusValues) {
             return 0;
         }
 
@@ -133,11 +134,13 @@ class CustomerOrderRepository extends ServiceEntityRepository
      * @return array{
      *     orders: array<int, CustomerOrder>,
      *     total: int,
+     *     overallTotal: int,
      *     pages: int,
      *     page: int,
      *     limit: int,
      *     revenue: float,
-     *     statusCounts: array<string, int>
+     *     statusCounts: array<string, int>,
+     *     statusFilter: string|null
      * }
      */
     public function paginateForShop(Shop $shop, int $page = 1, int $limit = 10, ?string $statusFilter = null): array
@@ -169,12 +172,12 @@ class CustomerOrderRepository extends ServiceEntityRepository
         }
 
         $paidStatuses = [OrderStatus::Paid, OrderStatus::Shipped];
-        $revenue = (float) ((clone $baseQb)
+        $revenue = (float) (clone $baseQb)
             ->andWhere('o.status IN (:paidStatuses)')
             ->setParameter('paidStatuses', $this->normalizeStatuses($paidStatuses))
             ->select('COALESCE(SUM(i.lineTotal), 0) AS revenue')
             ->getQuery()
-            ->getSingleScalarResult());
+            ->getSingleScalarResult();
 
         $filteredQb = clone $baseQb;
         $allowedStatuses = array_map(
@@ -182,11 +185,11 @@ class CustomerOrderRepository extends ServiceEntityRepository
             OrderStatus::cases()
         );
 
-        if ($statusFilter !== null && !in_array($statusFilter, $allowedStatuses, true)) {
+        if (null !== $statusFilter && !in_array($statusFilter, $allowedStatuses, true)) {
             $statusFilter = null;
         }
 
-        if ($statusFilter !== null) {
+        if (null !== $statusFilter) {
             $filteredQb
                 ->andWhere('o.status = :statusFilter')
                 ->setParameter('statusFilter', $statusFilter);
@@ -208,7 +211,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
         $ids = array_map(static fn ($row) => (int) $row['id'], $idRows);
 
         $orders = [];
-        if ($ids !== []) {
+        if ([] !== $ids) {
             $orders = $this->createQueryBuilder('o')
                 ->addSelect('items')
                 ->leftJoin('o.items', 'items')
@@ -235,9 +238,9 @@ class CustomerOrderRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<int, array{id: int, createdAt: DateTimeImmutable, total: float, status: string}>
+     * @return array<int, array{id: int, createdAt: \DateTimeImmutable, total: float, status: string}>
      */
-    public function findShopOrdersSince(Shop $shop, DateTimeImmutable $since): array
+    public function findShopOrdersSince(Shop $shop, \DateTimeImmutable $since): array
     {
         $rows = $this->createQueryBuilder('o')
             ->select('o.id AS id', 'o.createdAt AS createdAt', 'o.status AS status', 'SUM(items.lineTotal) AS total')
@@ -255,7 +258,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
         return array_map(static function (array $row): array {
             return [
                 'id' => (int) $row['id'],
-                'createdAt' => new DateTimeImmutable($row['createdAt']),
+                'createdAt' => new \DateTimeImmutable($row['createdAt']),
                 'total' => (float) $row['total'],
                 'status' => (string) $row['status'],
             ];
@@ -265,7 +268,9 @@ class CustomerOrderRepository extends ServiceEntityRepository
     public function findOneForShop(Shop $shop, int $orderId): ?CustomerOrder
     {
         return $this->createQueryBuilder('o')
+            ->addSelect('items', 'owner')
             ->innerJoin('o.items', 'items')
+            ->leftJoin('o.owner', 'owner')
             ->innerJoin(Product::class, 'p', Join::WITH, 'p.id = items.productId')
             ->andWhere('o.id = :id')
             ->andWhere('p.shop = :shop')
@@ -276,9 +281,9 @@ class CustomerOrderRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<int, array{day: DateTimeImmutable, total: int}>
+     * @return array<int, array{day: \DateTimeImmutable, total: int}>
      */
-    public function findDailyOrderCountsSince(DateTimeImmutable $since): array
+    public function findDailyOrderCountsSince(\DateTimeImmutable $since): array
     {
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
             "SELECT DATE_TRUNC('day', created_at) AS day, COUNT(id) AS total
@@ -292,7 +297,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
 
         return array_map(static function (array $row): array {
             return [
-                'day' => new DateTimeImmutable((string) $row['day']),
+                'day' => new \DateTimeImmutable((string) $row['day']),
                 'total' => (int) $row['total'],
             ];
         }, $rows);
@@ -301,13 +306,13 @@ class CustomerOrderRepository extends ServiceEntityRepository
     /**
      * @param array<int, OrderStatus|string> $statuses
      *
-     * @return array<int, array{month: DateTimeImmutable, total: float}>
+     * @return array<int, array{month: \DateTimeImmutable, total: float}>
      */
-    public function findMonthlyRevenueSince(DateTimeImmutable $since, array $statuses): array
+    public function findMonthlyRevenueSince(\DateTimeImmutable $since, array $statuses): array
     {
         $statusValues = $this->normalizeStatuses($statuses);
 
-        if ($statusValues === []) {
+        if ([] === $statusValues) {
             return [];
         }
 
@@ -324,7 +329,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
 
         return array_map(static function (array $row): array {
             return [
-                'month' => new DateTimeImmutable((string) $row['month']),
+                'month' => new \DateTimeImmutable((string) $row['month']),
                 'total' => (float) $row['total'],
             ];
         }, $rows);
@@ -338,7 +343,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
     private function normalizeStatuses(array $statuses): array
     {
         return array_values(array_filter(array_map(
-            static fn (OrderStatus|string $status): ?string => $status instanceof OrderStatus ? $status->value : $status,
+            static fn (OrderStatus|string $status): string => $status instanceof OrderStatus ? $status->value : $status,
             $statuses
         )));
     }

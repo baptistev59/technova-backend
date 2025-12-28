@@ -1,9 +1,9 @@
 {% extends 'vendor/layout.html.twig' %}
 
-{% set STATUS_PENDING = constant('App\\Entity\\CustomerOrder::STATUS_PENDING') %}
-{% set STATUS_PAID = constant('App\\Entity\\CustomerOrder::STATUS_PAID') %}
-{% set STATUS_SHIPPED = constant('App\\Entity\\CustomerOrder::STATUS_SHIPPED') %}
-{% set STATUS_CANCELLED = constant('App\\Entity\\CustomerOrder::STATUS_CANCELLED') %}
+{% set STATUS_PENDING = constant('App\\Enum\\OrderStatus::Pending').value %}
+{% set STATUS_PAID = constant('App\\Enum\\OrderStatus::Paid').value %}
+{% set STATUS_SHIPPED = constant('App\\Enum\\OrderStatus::Shipped').value %}
+{% set STATUS_CANCELLED = constant('App\\Enum\\OrderStatus::Cancelled').value %}
 
 {% block title %}Commandes — {{ shop.name }}{% endblock %}
 
@@ -84,7 +84,8 @@
         <div class="space-y-4">
             {% for entry in orders %}
                 {% set order = entry.entity %}
-                {% set badge = status_badges[order.status] ?? { label: order.status, class: 'bg-slate-100 text-slate-600 border border-slate-200' } %}
+                {% set status_code = order.status.value ?? order.status %}
+                {% set badge = status_badges[status_code] ?? { label: status_code, class: 'bg-slate-100 text-slate-600 border border-slate-200' } %}
                 <details class="group rounded-3xl border border-slate-100 bg-white shadow-sm">
                     <summary class="flex cursor-pointer list-none flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -115,7 +116,7 @@
                                 {% endif %}
                             </p>
                         <div class="flex flex-wrap items-center gap-2">
-                            {% if order.status == STATUS_PENDING %}
+                            {% if status_code == STATUS_PENDING %}
                                     <form method="post"
                                           action="{{ path('app_vendor_orders_update', {id: order.id}) }}"
                                           onsubmit="return confirm('Marquer cette commande comme payée ?');">
@@ -128,7 +129,7 @@
                                         <input type="hidden" name="status" value="{{ STATUS_CANCELLED }}">
                                         <button class="btn btn-outline btn-sm text-red-600 border-red-200" type="submit">Annuler</button>
                                     </form>
-                            {% elseif order.status == STATUS_PAID %}
+                            {% elseif status_code == STATUS_PAID %}
                                     <form method="post"
                                           action="{{ path('app_vendor_orders_update', {id: order.id}) }}"
                                           onsubmit="return confirm('Marquer cette commande comme expédiée ?');">

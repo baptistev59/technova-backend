@@ -43,7 +43,7 @@ final class VendorApiControllerTest extends WebTestCase
         try {
             $this->manager->beginTransaction();
         } catch (ConnectionException $exception) {
-            static::markTestSkipped('Base de données indisponible (configurez DATABASE_URL pour les tests). ' . $exception->getMessage());
+            static::markTestSkipped('Base de données indisponible (configurez DATABASE_URL pour les tests). '.$exception->getMessage());
         }
     }
 
@@ -51,7 +51,7 @@ final class VendorApiControllerTest extends WebTestCase
     {
         $projectDir = static::getContainer()->getParameter('kernel.project_dir');
         foreach ($this->uploadedPaths as $path) {
-            $absolute = $projectDir . '/public/' . ltrim($path, '/');
+            $absolute = $projectDir.'/public/'.ltrim($path, '/');
             if (is_file($absolute)) {
                 @unlink($absolute);
             }
@@ -327,7 +327,6 @@ final class VendorApiControllerTest extends WebTestCase
             bin2hex(random_bytes(4))
         );
 
-
         $order = (new CustomerOrder())
             ->setReference($reference)
             ->setStatus(CustomerOrder::STATUS_PENDING)
@@ -395,6 +394,7 @@ final class VendorApiControllerTest extends WebTestCase
     {
         self::assertNotEmpty($token, 'Le JWT doit être généré.');
         $header = 'Bearer '.$token;
+
         return ['HTTP_AUTHORIZATION' => $header];
     }
 }

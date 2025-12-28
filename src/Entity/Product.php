@@ -1,10 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Entity\Brand;
-use App\Entity\Category;
-use App\Entity\Shop;
 use App\Entity\Traits\Timestampable;
 use App\Repository\ProductRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -12,6 +11,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use OpenApi\Attributes as OA;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 #[OA\Schema(
@@ -37,39 +37,55 @@ class Product
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Merci d’indiquer un nom de produit.')]
+    #[Assert\Length(min: 2, max: 255)]
     private ?string $name = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\Length(max: 255)]
+    #[Assert\Regex(
+        pattern: '/^[a-z0-9-]*$/',
+        message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets.'
+    )]
     private ?string $slug = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 500)]
     private ?string $shortDescription = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 5000)]
     private ?string $description = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    #[Assert\GreaterThanOrEqual(0)]
     private ?string $price = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    #[Assert\GreaterThanOrEqual(0)]
     private ?string $promoPrice = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
+    #[Assert\Range(min: 0, max: 100)]
     private ?string $bundleDiscountPercent = null;
 
     #[ORM\Column]
+    #[Assert\GreaterThanOrEqual(0)]
     private int $stock = 0;
 
     #[ORM\Column(length: 100, nullable: true)]
+    #[Assert\Length(max: 100)]
     private ?string $sku = null;
 
     #[ORM\Column(length: 100, nullable: true)]
+    #[Assert\Length(max: 100)]
     private ?string $barcode = null;
 
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $type = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Length(max: 255)]
     private ?string $keywords = null;
 
     #[ORM\Column(options: ['default' => false])]
@@ -85,7 +101,6 @@ class Product
     #[ORM\ManyToOne(inversedBy: 'products')]
     #[ORM\JoinColumn(nullable: true)]
     private ?Brand $brand = null;
-
 
     #[ORM\ManyToOne(inversedBy: 'products')]
     #[ORM\JoinColumn(nullable: false)]
@@ -216,24 +231,24 @@ class Product
 
     public function getPromoPrice(): ?float
     {
-        return $this->promoPrice !== null ? (float) $this->promoPrice : null;
+        return null !== $this->promoPrice ? (float) $this->promoPrice : null;
     }
 
     public function setPromoPrice(?float $promoPrice): self
     {
-        $this->promoPrice = $promoPrice !== null ? (string) $promoPrice : null;
+        $this->promoPrice = null !== $promoPrice ? (string) $promoPrice : null;
 
         return $this;
     }
 
     public function getBundleDiscountPercent(): ?float
     {
-        return $this->bundleDiscountPercent !== null ? (float) $this->bundleDiscountPercent : null;
+        return null !== $this->bundleDiscountPercent ? (float) $this->bundleDiscountPercent : null;
     }
 
     public function setBundleDiscountPercent(?float $bundleDiscountPercent): self
     {
-        $this->bundleDiscountPercent = $bundleDiscountPercent !== null ? (string) $bundleDiscountPercent : null;
+        $this->bundleDiscountPercent = null !== $bundleDiscountPercent ? (string) $bundleDiscountPercent : null;
 
         return $this;
     }

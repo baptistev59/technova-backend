@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\User;
@@ -29,7 +31,7 @@ class ResetPasswordController extends AbstractController
         private readonly ResetPasswordHelperInterface $resetPasswordHelper,
         private readonly EntityManagerInterface $entityManager,
         private readonly MailerInterface $mailer,
-        #[Autowire('%env(MAILER_FROM)%')] private readonly ?string $mailerFrom = null
+        #[Autowire('%env(MAILER_FROM)%')] private readonly ?string $mailerFrom = null,
     ) {
     }
 

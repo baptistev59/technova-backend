@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Admin;
 
 use App\Entity\User;
@@ -33,11 +35,11 @@ class UserCrudController extends AbstractCrudController
             ->linkToUrl(function (User $user): string {
                 return $this->urlGenerator->generate('admin_user_2fa_reset', [
                     'id' => $user->getId(),
-                    '_token' => $this->csrfTokenManager->getToken('reset2fa' . $user->getId())->getValue(),
+                    '_token' => $this->csrfTokenManager->getToken('reset2fa'.$user->getId())->getValue(),
                 ]);
             })
             ->addCssClass('btn btn-warning')
-            ->displayIf(static fn (User $user): bool => $user->getTotpSecret() !== null);
+            ->displayIf(static fn (User $user): bool => null !== $user->getTotpSecret());
 
         return $actions
             ->add(Action::INDEX, Action::DETAIL)

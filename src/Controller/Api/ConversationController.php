@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Entity\Conversation;
@@ -29,6 +31,7 @@ final class ConversationController extends AbstractController
     public function vendorConversation(int $orderId): JsonResponse
     {
         $conversation = $this->resolveVendorConversation($orderId);
+
         return $this->json($this->serializeConversation($conversation));
     }
 
@@ -36,6 +39,7 @@ final class ConversationController extends AbstractController
     public function vendorPostMessage(int $orderId, Request $request): JsonResponse
     {
         $conversation = $this->resolveVendorConversation($orderId);
+
         return $this->handleMessagePost($conversation, $request);
     }
 
@@ -43,6 +47,7 @@ final class ConversationController extends AbstractController
     public function accountConversation(int $orderId): JsonResponse
     {
         $conversation = $this->resolveAccountConversation($orderId);
+
         return $this->json($this->serializeConversation($conversation));
     }
 
@@ -50,6 +55,7 @@ final class ConversationController extends AbstractController
     public function accountPostMessage(int $orderId, Request $request): JsonResponse
     {
         $conversation = $this->resolveAccountConversation($orderId);
+
         return $this->handleMessagePost($conversation, $request);
     }
 
@@ -72,7 +78,7 @@ final class ConversationController extends AbstractController
 
         $allowed = false;
         foreach ($order->getItems() as $item) {
-            if ($item->getShopId() !== null && in_array($item->getShopId(), $vendorShopIds, true)) {
+            if (null !== $item->getShopId() && in_array($item->getShopId(), $vendorShopIds, true)) {
                 $allowed = true;
                 break;
             }
@@ -100,7 +106,7 @@ final class ConversationController extends AbstractController
     private function handleMessagePost(Conversation $conversation, Request $request): JsonResponse
     {
         $content = trim((string) $request->request->get('content', ''));
-        if ($content === '') {
+        if ('' === $content) {
             return $this->json(['error' => 'Le message ne peut être vide.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
@@ -138,7 +144,7 @@ final class ConversationController extends AbstractController
         return [
             'id' => $message->getId(),
             'authorId' => $message->getAuthor()->getId(),
-            'authorName' => trim($message->getAuthor()->getFirstname() . ' ' . $message->getAuthor()->getLastname()),
+            'authorName' => trim($message->getAuthor()->getFirstname().' '.$message->getAuthor()->getLastname()),
             'content' => $message->getContent(),
             'createdAt' => $message->getCreatedAt()?->format(\DateTimeImmutable::ATOM),
         ];

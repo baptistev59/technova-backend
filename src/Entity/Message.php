@@ -1,13 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Repository\MessageRepository;
 use App\Entity\Traits\Timestampable;
+use App\Repository\MessageRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use App\Entity\Conversation;
-use App\Entity\User;
 
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\Table(name: 'message')]

@@ -1,16 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Entity\Product;
-use App\Entity\AttributeDefinition;
 use App\Entity\Traits\Timestampable;
-use App\Entity\Vendor;
 use App\Repository\ShopRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ShopRepository::class)]
 #[ORM\Table(name: 'shop')]
@@ -26,12 +26,20 @@ class Shop
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Le nom de la boutique est requis.')]
+    #[Assert\Length(min: 2, max: 255)]
     private ?string $name = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\Length(max: 255)]
+    #[Assert\Regex(
+        pattern: '/^[a-z0-9-]*$/',
+        message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets.'
+    )]
     private ?string $slug = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 2000)]
     private ?string $description = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -41,9 +49,12 @@ class Shop
     private ?string $banner = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Un e-mail de contact est requis.')]
+    #[Assert\Email(message: 'Ce champ doit contenir une adresse e-mail valide.')]
     private ?string $contactEmail = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 2000)]
     private ?string $policies = null;
 
     #[ORM\ManyToOne(inversedBy: 'shops')]

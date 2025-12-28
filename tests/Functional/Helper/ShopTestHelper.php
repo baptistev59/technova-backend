@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Functional\Helper;
 
 use App\Entity\Shop;
@@ -10,13 +12,13 @@ trait ShopTestHelper
 {
     protected function createShopForVendor(
         EntityManagerInterface $em,
-        Vendor $vendor
+        Vendor $vendor,
     ): Shop {
         $shop = new Shop();
         $emailToken = bin2hex(random_bytes(3));
         $shop
-            ->setName('Test Shop ' . bin2hex(random_bytes(3)))
-            ->setSlug('test-shop-' . bin2hex(random_bytes(3)))
+            ->setName('Test Shop '.bin2hex(random_bytes(3)))
+            ->setSlug('test-shop-'.bin2hex(random_bytes(3)))
             ->setContactEmail(sprintf('shop-tests-%s@technova.test', $emailToken))
             ->setOwner($vendor);
 

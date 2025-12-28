@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Conversation;
 use App\Entity\CustomerOrder;
-use App\Repository\ConversationRepository;
 use App\Entity\Shop;
+use App\Repository\ConversationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class ConversationManager

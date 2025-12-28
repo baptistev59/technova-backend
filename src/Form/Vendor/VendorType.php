@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Form\Vendor;
 
 use App\Entity\Vendor;

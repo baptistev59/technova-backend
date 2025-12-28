@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Repository\ProductRepository;
@@ -17,9 +19,9 @@ class ShopPublicController extends AbstractController
     #[Route('/boutiques', name: 'shop_index', methods: ['GET'])]
     public function index(Request $request, ShopRepository $shopRepository): Response
     {
-        $page = max(1, (int) $request->query->get('page', 1));
+        $page = max(1, (int) $request->query->get('page', '1'));
         $limitOptions = [12, 24, 48];
-        $limit = (int) $request->query->get('limit', $limitOptions[0]);
+        $limit = (int) $request->query->get('limit', (string) $limitOptions[0]);
         if (!in_array($limit, $limitOptions, true)) {
             $limit = $limitOptions[0];
         }
@@ -62,16 +64,16 @@ class ShopPublicController extends AbstractController
         string $slug,
         Request $request,
         ShopRepository $shopRepository,
-        ProductRepository $productRepository
+        ProductRepository $productRepository,
     ): Response {
         $shop = $shopRepository->findOneBy(['slug' => $slug]);
         if (!$shop) {
             throw $this->createNotFoundException('Boutique introuvable.');
         }
 
-        $page = max(1, (int) $request->query->get('page', 1));
+        $page = max(1, (int) $request->query->get('page', '1'));
         $limitOptions = [12, 24, 48];
-        $limit = (int) $request->query->get('limit', $limitOptions[0]);
+        $limit = (int) $request->query->get('limit', (string) $limitOptions[0]);
         if (!in_array($limit, $limitOptions, true)) {
             $limit = $limitOptions[0];
         }

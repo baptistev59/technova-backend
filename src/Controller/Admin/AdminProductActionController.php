@@ -18,14 +18,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class AdminProductActionController extends AbstractController
 {
     public function __construct(
-        private readonly AuditLoggerService $auditLogger
+        private readonly AuditLoggerService $auditLogger,
     ) {
     }
 
     #[Route('/admin/products/{id}/hide', name: 'admin_product_hide', methods: ['POST'])]
     public function hide(Product $product, Request $request, EntityManagerInterface $entityManager): RedirectResponse
     {
-        $this->isCsrfTokenValidOrThrow('hide_product_' . $product->getId(), $request->request->get('_token'));
+        $this->isCsrfTokenValidOrThrow('hide_product_'.$product->getId(), $request->request->get('_token'));
 
         $product->setIsPublished(false);
         $entityManager->flush();
@@ -46,7 +46,7 @@ class AdminProductActionController extends AbstractController
     #[Route('/admin/products/{id}/publish', name: 'admin_product_publish', methods: ['POST'])]
     public function publish(Product $product, Request $request, EntityManagerInterface $entityManager): RedirectResponse
     {
-        $this->isCsrfTokenValidOrThrow('publish_product_' . $product->getId(), $request->request->get('_token'));
+        $this->isCsrfTokenValidOrThrow('publish_product_'.$product->getId(), $request->request->get('_token'));
 
         $product->setIsPublished(true);
         $entityManager->flush();

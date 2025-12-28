@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Enum\AuditAction;
@@ -30,7 +32,7 @@ class TestAuditController extends AbstractController
                         new OA\Property(property: 'message', type: 'string', example: 'Audit log created successfully'),
                     ]
                 )
-            )
+            ),
         ]
     )]
     public function index(AuditLoggerService $audit): JsonResponse

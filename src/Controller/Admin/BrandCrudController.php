@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Admin;
 
 use App\Entity\Brand;
@@ -26,7 +28,6 @@ class BrandCrudController extends AbstractCrudController
             ->add(Action::EDIT, Action::DETAIL);
     }
 
-    
     public function configureFields(string $pageName): iterable
     {
         return [
@@ -46,5 +47,4 @@ class BrandCrudController extends AbstractCrudController
                 ->setDisabled(),
         ];
     }
-    
 }

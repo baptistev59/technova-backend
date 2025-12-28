@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Admin;
 
 use App\Entity\AttributeDefinition;
 use App\Entity\AuditLog;
 use App\Entity\Brand;
 use App\Entity\Category;
+use App\Entity\Conversation;
 use App\Entity\CustomerOrder;
 use App\Entity\Product;
-use App\Entity\Conversation;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;

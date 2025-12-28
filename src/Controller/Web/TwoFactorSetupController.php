@@ -101,7 +101,7 @@ final class TwoFactorSetupController extends AbstractController
             throw $this->createAccessDeniedException('Acces refuse.');
         }
 
-        $codeGenerator->reSend($user);
+        $codeGenerator->generateAndSend($user);
         $this->addFlash('success', 'Code renvoye.');
 
         return new RedirectResponse($this->generateUrl('2fa_login'));

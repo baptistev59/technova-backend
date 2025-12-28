@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\Product;
 use App\Entity\ProductVariant;
-use App\Security\ViewerAccessChecker;
 use App\Repository\ProductRepository;
+use App\Security\ViewerAccessChecker;
 use App\Service\CartService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,11 +50,12 @@ class CartController extends AbstractController
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
 
-        if ($product->getType() === 'grouped') {
+        if ('grouped' === $product->getType()) {
             $bundlePayload = (string) $request->request->get('bundle_selections', '');
             $result = $this->addBundleSelectionsToCart($product, $bundlePayload);
             if (!$result['success']) {
                 $this->addFlash('error', $result['error'] ?? 'Configuration du pack incomplète.');
+
                 return $this->redirectToRoute('product_show', [
                     'slug' => $product->getSlug(),
                 ]);
@@ -69,6 +72,7 @@ class CartController extends AbstractController
         $redirectTo = $request->request->get('redirect_to');
         if ('product' === $redirectTo && $request->request->get('product_slug')) {
             $slug = (string) $request->request->get('product_slug');
+
             return $this->redirectToRoute('product_show', [
                 'slug' => $slug,
                 'cart_added' => 1,
@@ -162,6 +166,7 @@ class CartController extends AbstractController
             return null;
         }
         $variantId = (int) $raw;
+
         return $variantId > 0 ? $variantId : null;
     }
 
@@ -191,7 +196,7 @@ class CartController extends AbstractController
             ];
         }
 
-        if (!is_array($selections) || $selections === []) {
+        if (!is_array($selections) || [] === $selections) {
             return [
                 'success' => false,
                 'error' => 'Aucune configuration de pack reçue.',
@@ -210,7 +215,7 @@ class CartController extends AbstractController
                 continue;
             }
             $variantId = isset($selection['variantId']) ? (int) $selection['variantId'] : null;
-            if ($variantId !== null && $variantId <= 0) {
+            if (null !== $variantId && $variantId <= 0) {
                 $variantId = null;
             }
             $quantity = isset($selection['quantity']) ? (int) $selection['quantity'] : 1;
@@ -226,7 +231,7 @@ class CartController extends AbstractController
             ];
         }
 
-        if ($entries === []) {
+        if ([] === $entries) {
             return [
                 'success' => false,
                 'error' => 'Aucun composant valide pour composer ce pack.',
@@ -276,10 +281,12 @@ class CartController extends AbstractController
     {
         if ($variant) {
             $price = $variant->getPromoPrice() ?? $variant->getPrice();
+
             return (float) $price;
         }
 
         $price = $component->getPromoPrice() ?? $component->getPrice();
+
         return (float) $price;
     }
 

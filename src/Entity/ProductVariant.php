@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use App\Repository\ProductVariantRepository;
@@ -101,12 +103,12 @@ class ProductVariant
 
     public function getPromoPrice(): ?float
     {
-        return $this->promoPrice !== null ? (float) $this->promoPrice : null;
+        return null !== $this->promoPrice ? (float) $this->promoPrice : null;
     }
 
     public function setPromoPrice(?float $promoPrice): self
     {
-        $this->promoPrice = $promoPrice !== null ? (string) $promoPrice : null;
+        $this->promoPrice = null !== $promoPrice ? (string) $promoPrice : null;
 
         return $this;
     }

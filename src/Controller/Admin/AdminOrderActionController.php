@@ -19,7 +19,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class AdminOrderActionController extends AbstractController
 {
     public function __construct(
-        private readonly AuditLoggerService $auditLogger
+        private readonly AuditLoggerService $auditLogger,
     ) {
     }
 
@@ -27,9 +27,9 @@ class AdminOrderActionController extends AbstractController
     public function blockOrder(
         CustomerOrder $order,
         Request $request,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
     ): RedirectResponse {
-        $this->isCsrfTokenValidOrThrow('block_order_' . $order->getId(), $request->request->get('_token'));
+        $this->isCsrfTokenValidOrThrow('block_order_'.$order->getId(), $request->request->get('_token'));
 
         $previousStatus = $order->getStatus();
         $order->setStatus(OrderStatus::Cancelled);
@@ -56,9 +56,9 @@ class AdminOrderActionController extends AbstractController
     public function forceStatus(
         CustomerOrder $order,
         Request $request,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
     ): RedirectResponse {
-        $this->isCsrfTokenValidOrThrow('force_status_' . $order->getId(), $request->request->get('_token'));
+        $this->isCsrfTokenValidOrThrow('force_status_'.$order->getId(), $request->request->get('_token'));
 
         $newStatus = (string) $request->request->get('new_status');
         $allowed = array_map(

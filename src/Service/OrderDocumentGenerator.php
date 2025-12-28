@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\CustomerOrder;
@@ -47,26 +49,26 @@ final class OrderDocumentGenerator
         );
 
         $relativeDir = 'uploads/documents';
-        $absoluteDir = $this->projectDir . '/public/' . $relativeDir;
+        $absoluteDir = $this->projectDir.'/public/'.$relativeDir;
         if (!is_dir($absoluteDir)) {
             mkdir($absoluteDir, 0775, true);
         }
 
-        $relativePath = $relativeDir . '/' . $filename;
-        $absolutePath = $absoluteDir . '/' . $filename;
+        $relativePath = $relativeDir.'/'.$filename;
+        $absolutePath = $absoluteDir.'/'.$filename;
         file_put_contents($absolutePath, $contents);
 
         return (new OrderDocument())
             ->setOrder($order)
             ->setType($type)
             ->setPath($relativePath)
-            ->setUrl('/' . ltrim($relativePath, '/'))
+            ->setUrl('/'.ltrim($relativePath, '/'))
             ->setHash(hash('sha256', $contents));
     }
 
     private function resolveBaseUrl(string $baseUrl): string
     {
-        if ($baseUrl !== '') {
+        if ('' !== $baseUrl) {
             return $baseUrl;
         }
 
@@ -75,9 +77,9 @@ final class OrderDocumentGenerator
             return $request->getSchemeAndHttpHost();
         }
 
-        $defaultUri = $this->params->get('router.default_uri', '');
-        if ($defaultUri !== '') {
-            return (string) $defaultUri;
+        $defaultUri = $this->params->get('router.default_uri');
+        if (is_string($defaultUri) && '' !== $defaultUri) {
+            return $defaultUri;
         }
 
         return $_ENV['DEFAULT_URI'] ?? 'https://technova.local';

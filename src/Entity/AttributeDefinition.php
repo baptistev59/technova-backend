@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use App\Repository\AttributeDefinitionRepository;
-use App\Entity\Shop;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: AttributeDefinitionRepository::class)]
 #[ORM\Table(name: 'attribute_definition')]
@@ -18,12 +20,20 @@ class AttributeDefinition
     private ?int $id = null;
 
     #[ORM\Column(length: 120)]
+    #[Assert\NotBlank(message: 'Le nom de l’attribut est requis.')]
+    #[Assert\Length(min: 2, max: 120)]
     private ?string $name = null;
 
     #[ORM\Column(length: 120)]
+    #[Assert\Length(max: 120)]
+    #[Assert\Regex(
+        pattern: '/^[a-z0-9-]*$/',
+        message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets.'
+    )]
     private ?string $slug = null;
 
     #[ORM\Column(length: 40, options: ['default' => 'select'])]
+    #[Assert\Choice(choices: ['select', 'chip', 'radio'], message: 'Type d’entrée invalide.')]
     private string $inputType = 'select';
 
     #[ORM\Column(type: 'smallint', options: ['default' => 0])]
@@ -121,6 +131,14 @@ class AttributeDefinition
     public function getValues(): Collection
     {
         return $this->values;
+    }
+
+    /**
+     * @return Collection<int, ProductAttributeSelection>
+     */
+    public function getProductSelections(): Collection
+    {
+        return $this->productSelections;
     }
 
     public function addValue(AttributeValueDefinition $value): self

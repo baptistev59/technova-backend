@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use App\Repository\ProductAttributeSelectionRepository;
@@ -27,7 +29,7 @@ class ProductAttributeSelection
     /**
      * @var Collection<int, AttributeValueDefinition>
      */
-    #[ORM\ManyToMany(targetEntity: AttributeValueDefinition::class,inversedBy: 'productSelections')]
+    #[ORM\ManyToMany(targetEntity: AttributeValueDefinition::class, inversedBy: 'productSelections')]
     #[ORM\JoinTable(name: 'product_attribute_selection_value')]
     #[ORM\JoinColumn(name: 'selection_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     #[ORM\InverseJoinColumn(name: 'value_id', referencedColumnName: 'id', onDelete: 'CASCADE')]

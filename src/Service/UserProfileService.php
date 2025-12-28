@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Address;
@@ -65,9 +67,9 @@ class UserProfileService
             ->setCity($data['city'] ?? null)
             ->setState($data['state'] ?? null)
             ->setCountry($data['country'] ?? 'FR')
-            ->setIsDefault((bool)($data['isDefault'] ?? true))
-            ->setIsShipping((bool)($data['isShipping'] ?? true))
-            ->setIsBilling((bool)($data['isBilling'] ?? true));
+            ->setIsDefault((bool) ($data['isDefault'] ?? true))
+            ->setIsShipping((bool) ($data['isShipping'] ?? true))
+            ->setIsBilling((bool) ($data['isBilling'] ?? true));
 
         return $address;
     }

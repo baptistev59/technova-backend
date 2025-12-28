@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\CustomerOrder;
@@ -20,7 +22,7 @@ class AccountOrderController extends AbstractController
         private readonly Security $security,
         private readonly UserRepository $userRepository,
         private readonly CustomerOrderRepository $orderRepository,
-        private readonly ViewerAccessChecker $viewerAccessChecker
+        private readonly ViewerAccessChecker $viewerAccessChecker,
     ) {
     }
 

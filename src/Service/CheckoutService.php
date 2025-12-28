@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Address;
@@ -135,6 +137,7 @@ class CheckoutService
     private function resolveProductImage(Product $product): ?string
     {
         $image = $product->getImages()->first();
+
         return $image ? $image->getUrl() : null;
     }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Form\RegistrationType;
@@ -32,7 +34,7 @@ class RegistrationController extends AbstractController
             $requestData = $form->getData();
             $result = $this->registrationService->register($requestData);
 
-            if (($result['status'] ?? Response::HTTP_INTERNAL_SERVER_ERROR) === Response::HTTP_CREATED) {
+            if (Response::HTTP_CREATED === $result['status']) {
                 $this->addFlash('success', 'Bienvenue sur TechNova ! Le profil est prêt à être complété.');
                 if (isset($result['data']['user']['id'])) {
                     $request->getSession()->set('recent_user_id', $result['data']['user']['id']);

@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use App\Entity\Traits\Timestampable;
 use App\Enum\DocumentType;
 use App\Repository\OrderDocumentRepository;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: OrderDocumentRepository::class)]
@@ -24,7 +25,6 @@ class OrderDocument
     #[ORM\JoinColumn(name: 'order_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?CustomerOrder $order = null;
 
-
     #[ORM\Column(enumType: DocumentType::class)]
     private DocumentType $type;
 
@@ -42,12 +42,12 @@ class OrderDocument
         return $this->id;
     }
 
-    public function getOrder(): CustomerOrder
+    public function getOrder(): ?CustomerOrder
     {
         return $this->order;
     }
 
-    public function setOrder(CustomerOrder $order): self
+    public function setOrder(?CustomerOrder $order): self
     {
         $this->order = $order;
 
@@ -62,6 +62,7 @@ class OrderDocument
     public function setType(DocumentType $type): self
     {
         $this->type = $type;
+
         return $this;
     }
 

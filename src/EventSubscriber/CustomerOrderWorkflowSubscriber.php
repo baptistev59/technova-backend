@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\EventSubscriber;
 
 use App\Entity\CustomerOrder;
@@ -14,14 +16,14 @@ class CustomerOrderWorkflowSubscriber implements EventSubscriberInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly OrderStatusNotifier $notifier
+        private readonly OrderStatusNotifier $notifier,
     ) {
     }
 
     public static function getSubscribedEvents(): array
     {
         return [
-            WorkflowEvents::COMPLETED . '.customer_order' => 'onCompleted',
+            WorkflowEvents::COMPLETED.'.customer_order' => 'onCompleted',
         ];
     }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Entity\Product;
@@ -57,7 +59,7 @@ class ProductApiController extends AbstractController
                         ]
                     )
                 )
-            )
+            ),
         ]
     )]
     public function index(Request $request): JsonResponse
@@ -124,7 +126,7 @@ class ProductApiController extends AbstractController
                                         new OA\Property(property: 'label', type: 'string'),
                                         new OA\Property(property: 'color', type: 'string', nullable: true),
                                     ])
-                                )
+                                ),
                             ])
                         ),
                         new OA\Property(
@@ -177,7 +179,7 @@ class ProductApiController extends AbstractController
             'brandSlug' => $product->getBrand()?->getSlug(),
             'category' => $product->getCategory()->getName(),
             'categorySlug' => $product->getCategory()->getSlug(),
-            'thumbnail' => $product->getImages()->first()?->getUrl(),
+            'thumbnail' => ($product->getImages()->first() ?: null)?->getUrl(),
         ];
 
         if ($includeDetails) {

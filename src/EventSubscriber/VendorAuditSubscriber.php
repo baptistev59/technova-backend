@@ -7,9 +7,9 @@ namespace App\EventSubscriber;
 use App\Entity\Vendor;
 use App\Enum\AuditAction;
 use App\Service\AuditLoggerService;
+use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
-use Symfony\Bridge\Doctrine\Attribute\AsDoctrineListener;
 use Symfony\Bundle\SecurityBundle\Security;
 
 #[AsDoctrineListener(event: Events::preUpdate)]

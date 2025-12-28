@@ -89,7 +89,7 @@ final class AdminLogController extends AbstractController
     #[Route('/admin/logs/{name}/clear', name: 'admin_logs_clear', requirements: ['name' => '.+'], methods: ['POST'])]
     public function clear(string $name, Request $request): RedirectResponse
     {
-        if (!$this->isCsrfTokenValid('admin_logs_clear_' . $name, (string) $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('admin_logs_clear_'.$name, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
 
@@ -124,8 +124,8 @@ final class AdminLogController extends AbstractController
             throw new NotFoundHttpException('Log introuvable.');
         }
 
-        $path = realpath($logRoot . DIRECTORY_SEPARATOR . $safeName);
-        if (false === $path || !str_starts_with($path, $logRoot . DIRECTORY_SEPARATOR)) {
+        $path = realpath($logRoot.DIRECTORY_SEPARATOR.$safeName);
+        if (false === $path || !str_starts_with($path, $logRoot.DIRECTORY_SEPARATOR)) {
             throw new NotFoundHttpException('Log introuvable.');
         }
 

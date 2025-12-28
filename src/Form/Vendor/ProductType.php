@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Form\Vendor;
 
 use App\Entity\Brand;
@@ -18,7 +20,10 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\All;
 use Symfony\Component\Validator\Constraints\File;
+use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
+use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Range;
 
 class ProductType extends AbstractType
 {
@@ -33,6 +38,7 @@ class ProductType extends AbstractType
                 ],
                 'constraints' => [
                     new NotBlank(message: 'Merci d’indiquer un nom de produit.'),
+                    new Length(min: 2, max: 255),
                 ],
             ])
             ->add('slug', TextType::class, [
@@ -42,6 +48,9 @@ class ProductType extends AbstractType
                     'placeholder' => 'ex : novabook-quantum',
                 ],
                 'help' => 'Utilisé dans l’URL du produit. Laisse vide pour générer automatiquement.',
+                'constraints' => [
+                    new Length(max: 255),
+                ],
             ])
             ->add('shortDescription', TextareaType::class, [
                 'label' => 'Description courte',
@@ -50,6 +59,9 @@ class ProductType extends AbstractType
                     'rows' => 3,
                     'placeholder' => 'Phrase d’accroche affichée dans les listes.',
                 ],
+                'constraints' => [
+                    new Length(max: 500),
+                ],
             ])
             ->add('description', TextareaType::class, [
                 'label' => 'Description détaillée',
@@ -57,6 +69,9 @@ class ProductType extends AbstractType
                 'attr' => [
                     'rows' => 8,
                     'placeholder' => 'Décris ton produit, ses caractéristiques, son univers…',
+                ],
+                'constraints' => [
+                    new Length(max: 5000),
                 ],
             ])
             ->add('price', NumberType::class, [
@@ -67,6 +82,9 @@ class ProductType extends AbstractType
                 'attr' => [
                     'min' => 0,
                     'step' => '0.01',
+                ],
+                'constraints' => [
+                    new GreaterThanOrEqual(0),
                 ],
             ])
             ->add('promoPrice', NumberType::class, [
@@ -79,6 +97,9 @@ class ProductType extends AbstractType
                     'step' => '0.01',
                 ],
                 'help' => 'Optionnel. Laisse vide si tu n’as pas de promotion en cours.',
+                'constraints' => [
+                    new GreaterThanOrEqual(0),
+                ],
             ])
             ->add('promoPercent', NumberType::class, [
                 'label' => 'Réduction (%)',
@@ -93,6 +114,9 @@ class ProductType extends AbstractType
                     'placeholder' => 'Ex : 15',
                 ],
                 'help' => 'Tu peux saisir soit le pourcentage, soit le prix promo : l’autre sera recalculé automatiquement.',
+                'constraints' => [
+                    new Range(min: 0, max: 100),
+                ],
             ])
             ->add('bundleDiscountPercent', NumberType::class, [
                 'label' => 'Réduction pack (%)',
@@ -106,11 +130,17 @@ class ProductType extends AbstractType
                     'placeholder' => 'Ex : 10',
                 ],
                 'help' => 'Disponible pour les produits groupés. Applique une remise immédiate sur le total du pack.',
+                'constraints' => [
+                    new Range(min: 0, max: 100),
+                ],
             ])
             ->add('stock', IntegerType::class, [
                 'label' => 'Stock',
                 'attr' => [
                     'min' => 0,
+                ],
+                'constraints' => [
+                    new GreaterThanOrEqual(0),
                 ],
             ])
             ->add('sku', TextType::class, [
@@ -118,6 +148,9 @@ class ProductType extends AbstractType
                 'required' => false,
                 'attr' => [
                     'placeholder' => 'Identifiant interne',
+                ],
+                'constraints' => [
+                    new Length(max: 255),
                 ],
             ])
             ->add('brand', EntityType::class, [
@@ -141,6 +174,9 @@ class ProductType extends AbstractType
                     'placeholder' => 'tech, usb-c, pliable…',
                 ],
                 'help' => 'Sépare chaque mot ou expression par une virgule pour améliorer la recherche.',
+                'constraints' => [
+                    new Length(max: 500),
+                ],
             ])
             ->add('type', ChoiceType::class, [
                 'label' => 'Type de produit',

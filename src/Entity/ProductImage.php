@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Entity\Product;
 use App\Entity\Traits\Timestampable;
 use App\Repository\ProductImageRepository;
 use Doctrine\DBAL\Types\Types;

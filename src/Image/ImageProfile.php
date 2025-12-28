@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Image;
 
 final class ImageProfile
@@ -15,6 +17,7 @@ final class ImageProfile
         public readonly int $quality,
         public readonly string $directory,
         public readonly bool $allowUpscale = true,
-        public readonly string $background = '#f1f5f9'
-    ) {}
+        public readonly string $background = '#f1f5f9',
+    ) {
+    }
 }

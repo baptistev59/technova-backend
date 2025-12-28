@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Image;
 
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -54,17 +56,17 @@ final class ImageUploader
         );
 
         $filename = sprintf('%s-%s.webp', $profile->name, uniqid());
-        $absoluteDir = $this->projectDir . '/public/' . $profile->directory;
+        $absoluteDir = $this->projectDir.'/public/'.$profile->directory;
         if (!is_dir($absoluteDir)) {
             mkdir($absoluteDir, 0775, true);
         }
 
-        $absolutePath = $absoluteDir . '/' . $filename;
+        $absolutePath = $absoluteDir.'/'.$filename;
         imagewebp($canvas, $absolutePath, $profile->quality);
 
         imagedestroy($src);
         imagedestroy($canvas);
 
-        return $profile->directory . '/' . $filename;
+        return $profile->directory.'/'.$filename;
     }
 }

@@ -43,10 +43,8 @@ final class TwoFactorAuditSubscriber implements EventSubscriberInterface
 
         $user->clearEmailAuthCode();
         $session = $event->getRequest()->getSession();
-        if ($session) {
-            $session->set('recent_user_id', $user->getId());
-            $session->set('jwt_token', $this->jwtManager->create($user));
-        }
+        $session->set('recent_user_id', $user->getId());
+        $session->set('jwt_token', $this->jwtManager->create($user));
 
         $this->auditLogger->log(
             action: AuditAction::TwoFactorSuccess,

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\AuditLog;
@@ -19,7 +21,8 @@ class AuditLoggerService
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
         private readonly RequestStack $requestStack,
-    ) {}
+    ) {
+    }
 
     /**
      * Petite API interne : on passe l'action + ressource + données contextuelles.
@@ -28,9 +31,8 @@ class AuditLoggerService
         AuditAction|string $action,
         ?string $resource = null,
         ?int $resourceId = null,
-        ?array $data = null
-    ): void
-    {
+        ?array $data = null,
+    ): void {
         $request = $this->requestStack->getCurrentRequest();
 
         $log = new AuditLog();
@@ -55,7 +57,7 @@ class AuditLoggerService
         }
 
         // Additional data
-        if ($data !== null) {
+        if (null !== $data) {
             $log->setData($data);
         }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DataFixtures;
 
 use App\Entity\Address;
@@ -18,20 +20,19 @@ use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\String\Slugger\SluggerInterface;
-use function random_int;
 
 class AppFixtures extends Fixture
 {
     private const IMAGE_BASE_PATH = '/images/products/';
     private const CATEGORY_ICON_BASE_PATH = '/images/categories/';
     private const AVATAR_BASE_PATH = '/images/avatars/';
-    private const ADMIN_AVATAR = self::AVATAR_BASE_PATH . 'avatar-admin.svg';
-    private const VENDOR_AVATAR = self::AVATAR_BASE_PATH . 'avatar-vendor.svg';
-    private const CUSTOMER_AVATAR = self::AVATAR_BASE_PATH . 'avatar-customer.svg';
+    private const ADMIN_AVATAR = self::AVATAR_BASE_PATH.'avatar-admin.svg';
+    private const VENDOR_AVATAR = self::AVATAR_BASE_PATH.'avatar-vendor.svg';
+    private const CUSTOMER_AVATAR = self::AVATAR_BASE_PATH.'avatar-customer.svg';
 
     public function __construct(
         private SluggerInterface $slugger,
-        private UserPasswordHasherInterface $passwordHasher
+        private UserPasswordHasherInterface $passwordHasher,
     ) {
     }
 
@@ -101,19 +102,19 @@ class AppFixtures extends Fixture
 
             $customer->setPassword($this->passwordHasher->hashPassword($customer, $data['password']));
 
-             $address = (new Address())
-                 ->setLabel('Adresse principale')
-                 ->setAddressLine1($data['address']['line1'])
-                 ->setAddressLine2($data['address']['line2'])
-                 ->setPostalCode($data['address']['postal'])
-                 ->setCity($data['address']['city'])
-                 ->setCountry($data['address']['country'])
-                 ->setIsDefault(true)
-                 ->setIsShipping(true)
-                 ->setIsBilling(true)
-                 ->setOwner($customer);
+            $address = (new Address())
+                ->setLabel('Adresse principale')
+                ->setAddressLine1($data['address']['line1'])
+                ->setAddressLine2($data['address']['line2'])
+                ->setPostalCode($data['address']['postal'])
+                ->setCity($data['address']['city'])
+                ->setCountry($data['address']['country'])
+                ->setIsDefault(true)
+                ->setIsShipping(true)
+                ->setIsBilling(true)
+                ->setOwner($customer);
 
-             $customer->addAddress($address);
+            $customer->addAddress($address);
 
             $manager->persist($customer);
             $manager->persist($address);
@@ -216,7 +217,7 @@ class AppFixtures extends Fixture
         ObjectManager $manager,
         array $categories,
         array $brands,
-        array $shops
+        array $shops,
     ): void {
         $templates = $this->getProductTemplates();
         $reviews = $this->getReviewPool();
@@ -224,9 +225,9 @@ class AppFixtures extends Fixture
         $templateIndex = 0;
 
         foreach ($shops as $vendorKey => $shop) {
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 5; ++$i) {
                 $template = $templates[$templateIndex % $templateCount];
-                $templateIndex++;
+                ++$templateIndex;
 
                 $category = $categories[$template['category']];
                 $brand = $brands[$template['brand']];
@@ -234,20 +235,20 @@ class AppFixtures extends Fixture
                 $baseName = sprintf('%s %s edition', $template['name'], $shop->getOwner()->getCompanyName());
                 $productName = trim($baseName);
 
-                $price = $template['price'] * (1 + (random_int(-5, 12) / 100));
+                $price = $template['price'] * (1 + (\random_int(-5, 12) / 100));
                 $price = round($price, 2);
 
                 $product = (new Product())
                     ->setName($productName)
-                    ->setSlug($this->slug($productName . '-' . $vendorKey . '-' . $i))
+                    ->setSlug($this->slug($productName.'-'.$vendorKey.'-'.$i))
                     ->setShortDescription($template['short'])
                     ->setDescription($template['description'])
                     ->setPrice($price)
-                    ->setStock(random_int(10, 120))
+                    ->setStock(\random_int(10, 120))
                     ->setSku($this->generateSku($brand->getSlug()))
                     ->setBarcode($this->generateBarcode())
                     ->setType($template['type'])
-                    ->setIsFeatured($i === 0)
+                    ->setIsFeatured(0 === $i)
                     ->setIsPublished(true)
                     ->setCategory($category)
                     ->setBrand($brand)
@@ -271,7 +272,7 @@ class AppFixtures extends Fixture
         $absolutePath = sprintf('%s/public%s%s', dirname(__DIR__, 2), self::IMAGE_BASE_PATH, $file);
 
         $image = (new ProductImage())
-            ->setUrl(self::IMAGE_BASE_PATH . $file)
+            ->setUrl(self::IMAGE_BASE_PATH.$file)
             ->setAlt($product->getName())
             ->setTitle($product->getName())
             ->setCaption('Visual concept du produit')
@@ -289,11 +290,11 @@ class AppFixtures extends Fixture
 
     private function attachReviews(ObjectManager $manager, Product $product, array $pool): void
     {
-        for ($i = 0; $i < 2; $i++) {
+        for ($i = 0; $i < 2; ++$i) {
             $comment = $pool[array_rand($pool)];
 
             $review = (new ProductReview())
-                ->setRating(random_int(4, 5))
+                ->setRating(\random_int(4, 5))
                 ->setComment($comment)
                 ->setProduct($product);
 
@@ -309,43 +310,43 @@ class AppFixtures extends Fixture
                 'slug' => 'future-laptops',
                 'name' => 'Ordinateurs quantiques',
                 'description' => 'Stations portables mêlant IA embarquée et calcul quantique.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-future-laptops.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-future-laptops.svg',
             ],
             [
                 'slug' => 'smart-mobility',
                 'name' => 'Mobilité électrique intelligente',
                 'description' => 'Trottinettes autonomes, vélos augmentés et drones cargo.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-smart-mobility.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-smart-mobility.svg',
             ],
             [
                 'slug' => 'immersive-vr',
                 'name' => 'Réalité mixte & holographie',
                 'description' => 'Casques XR et projecteurs holographiques pour travailler différemment.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-immersive-vr.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-immersive-vr.svg',
             ],
             [
                 'slug' => 'bio-wearables',
                 'name' => 'Wearables biométriques',
                 'description' => 'Anneaux, bracelets et textiles mesurant en continu la santé.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-bio-wearables.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-bio-wearables.svg',
             ],
             [
                 'slug' => 'smart-home',
                 'name' => 'Maison autonome',
                 'description' => 'Domotique premium, sécurité IA et gestion énergétique.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-smart-home.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-smart-home.svg',
             ],
             [
                 'slug' => 'creative-ai',
                 'name' => 'Audio & création assistée',
                 'description' => 'Enceintes contextuelles, instruments et assistants créatifs.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-creative-ai.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-creative-ai.svg',
             ],
             [
                 'slug' => 'personal-robotics',
                 'name' => 'Robots personnels',
                 'description' => 'Compagnons domestiques et robots d’assistance.',
-                'icon' => self::CATEGORY_ICON_BASE_PATH . 'category-personal-robotics.svg',
+                'icon' => self::CATEGORY_ICON_BASE_PATH.'category-personal-robotics.svg',
             ],
         ];
     }
@@ -353,14 +354,14 @@ class AppFixtures extends Fixture
     private function getBrandData(): array
     {
         return [
-            ['slug' => 'aurora-dynamics', 'name' => 'Aurora Dynamics', 'description' => 'Ultrabooks IA et stations quantiques', 'logo' => self::IMAGE_BASE_PATH . 'ai-laptop.svg'],
-            ['slug' => 'pulse-mobility', 'name' => 'Pulse Mobility', 'description' => 'Mobilité électrique autonome', 'logo' => self::IMAGE_BASE_PATH . 'smart-scooter.svg'],
-            ['slug' => 'nexa-audio', 'name' => 'Nexa Audio', 'description' => 'Son spatial et assistants vocaux contextuels', 'logo' => self::IMAGE_BASE_PATH . 'smart-speaker.svg'],
-            ['slug' => 'lumina-home', 'name' => 'Lumina Home', 'description' => 'Domotique holographique et gestion énergétique', 'logo' => self::IMAGE_BASE_PATH . 'iot-hub.svg'],
-            ['slug' => 'orbit-robotics', 'name' => 'Orbit Robotics', 'description' => 'Robots compagnons et manutention', 'logo' => self::IMAGE_BASE_PATH . 'robot-companion.svg'],
-            ['slug' => 'flux-vision', 'name' => 'Flux Vision', 'description' => 'Casques XR et lunettes adaptatives', 'logo' => self::IMAGE_BASE_PATH . 'vr-headset.svg'],
-            ['slug' => 'solara-tech', 'name' => 'Solara Tech', 'description' => 'Textiles solaires et énergie portable', 'logo' => self::IMAGE_BASE_PATH . 'solar-backpack.svg'],
-            ['slug' => 'quantum-wear', 'name' => 'Quantum Wear', 'description' => 'Wearables de santé prédictive', 'logo' => self::IMAGE_BASE_PATH . 'wearable-ring.svg'],
+            ['slug' => 'aurora-dynamics', 'name' => 'Aurora Dynamics', 'description' => 'Ultrabooks IA et stations quantiques', 'logo' => self::IMAGE_BASE_PATH.'ai-laptop.svg'],
+            ['slug' => 'pulse-mobility', 'name' => 'Pulse Mobility', 'description' => 'Mobilité électrique autonome', 'logo' => self::IMAGE_BASE_PATH.'smart-scooter.svg'],
+            ['slug' => 'nexa-audio', 'name' => 'Nexa Audio', 'description' => 'Son spatial et assistants vocaux contextuels', 'logo' => self::IMAGE_BASE_PATH.'smart-speaker.svg'],
+            ['slug' => 'lumina-home', 'name' => 'Lumina Home', 'description' => 'Domotique holographique et gestion énergétique', 'logo' => self::IMAGE_BASE_PATH.'iot-hub.svg'],
+            ['slug' => 'orbit-robotics', 'name' => 'Orbit Robotics', 'description' => 'Robots compagnons et manutention', 'logo' => self::IMAGE_BASE_PATH.'robot-companion.svg'],
+            ['slug' => 'flux-vision', 'name' => 'Flux Vision', 'description' => 'Casques XR et lunettes adaptatives', 'logo' => self::IMAGE_BASE_PATH.'vr-headset.svg'],
+            ['slug' => 'solara-tech', 'name' => 'Solara Tech', 'description' => 'Textiles solaires et énergie portable', 'logo' => self::IMAGE_BASE_PATH.'solar-backpack.svg'],
+            ['slug' => 'quantum-wear', 'name' => 'Quantum Wear', 'description' => 'Wearables de santé prédictive', 'logo' => self::IMAGE_BASE_PATH.'wearable-ring.svg'],
         ];
     }
 
@@ -467,71 +468,71 @@ class AppFixtures extends Fixture
                 'name' => 'Aurora Flagship',
                 'description' => 'Ultrabooks et stations quantiques premium.',
                 'contact' => 'shop@auroralabs.tech',
-                'logo' => self::IMAGE_BASE_PATH . 'ai-laptop.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'vr-headset.svg',
+                'logo' => self::IMAGE_BASE_PATH.'ai-laptop.svg',
+                'banner' => self::IMAGE_BASE_PATH.'vr-headset.svg',
             ],
             'pulse-ride' => [
                 'name' => 'Pulse Mobility Hub',
                 'description' => 'Mobilité électrique autonome pour la ville.',
                 'contact' => 'hub@pulseride.io',
-                'logo' => self::IMAGE_BASE_PATH . 'smart-scooter.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'autonomous-drone.svg',
+                'logo' => self::IMAGE_BASE_PATH.'smart-scooter.svg',
+                'banner' => self::IMAGE_BASE_PATH.'autonomous-drone.svg',
             ],
             'nexa-studio' => [
                 'name' => 'Nexa Audio Studio',
                 'description' => 'Solutions audio génératives pour créateurs.',
                 'contact' => 'studio@nexastudio.ai',
-                'logo' => self::IMAGE_BASE_PATH . 'smart-speaker.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'wearable-ring.svg',
+                'logo' => self::IMAGE_BASE_PATH.'smart-speaker.svg',
+                'banner' => self::IMAGE_BASE_PATH.'wearable-ring.svg',
             ],
             'lumina-habitat' => [
                 'name' => 'Lumina Habitat Store',
                 'description' => 'Domotique holographique et gestion d’énergie.',
                 'contact' => 'boutique@luminahabitat.eu',
-                'logo' => self::IMAGE_BASE_PATH . 'iot-hub.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'solar-backpack.svg',
+                'logo' => self::IMAGE_BASE_PATH.'iot-hub.svg',
+                'banner' => self::IMAGE_BASE_PATH.'solar-backpack.svg',
             ],
             'orbit-care' => [
                 'name' => 'Orbit Care Center',
                 'description' => 'Robots compagnons et assistants domestiques.',
                 'contact' => 'center@orbit-robotics.com',
-                'logo' => self::IMAGE_BASE_PATH . 'robot-companion.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'vr-headset.svg',
+                'logo' => self::IMAGE_BASE_PATH.'robot-companion.svg',
+                'banner' => self::IMAGE_BASE_PATH.'vr-headset.svg',
             ],
             'flux-visionary' => [
                 'name' => 'Flux Vision Experience',
                 'description' => 'Casques XR et lunettes à modulation adaptative.',
                 'contact' => 'experience@fluxvisionary.com',
-                'logo' => self::IMAGE_BASE_PATH . 'vr-headset.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'hologram-projector.svg',
+                'logo' => self::IMAGE_BASE_PATH.'vr-headset.svg',
+                'banner' => self::IMAGE_BASE_PATH.'hologram-projector.svg',
             ],
             'solara-motion' => [
                 'name' => 'Solara Motion Lab',
                 'description' => 'Textiles solaires et accessoires d’énergie nomade.',
                 'contact' => 'lab@solaramotion.eu',
-                'logo' => self::IMAGE_BASE_PATH . 'solar-backpack.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'smart-speaker.svg',
+                'logo' => self::IMAGE_BASE_PATH.'solar-backpack.svg',
+                'banner' => self::IMAGE_BASE_PATH.'smart-speaker.svg',
             ],
             'quantum-ring' => [
                 'name' => 'Quantum Ring Store',
                 'description' => 'Wearables biométriques et soins prédictifs.',
                 'contact' => 'store@quantumring.io',
-                'logo' => self::IMAGE_BASE_PATH . 'wearable-ring.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'ai-laptop.svg',
+                'logo' => self::IMAGE_BASE_PATH.'wearable-ring.svg',
+                'banner' => self::IMAGE_BASE_PATH.'ai-laptop.svg',
             ],
             'helios-drones' => [
                 'name' => 'Helios Flight Shop',
                 'description' => 'Drones cargo et prises de vue autonomes.',
                 'contact' => 'flight@heliosdrones.fr',
-                'logo' => self::IMAGE_BASE_PATH . 'autonomous-drone.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'smart-scooter.svg',
+                'logo' => self::IMAGE_BASE_PATH.'autonomous-drone.svg',
+                'banner' => self::IMAGE_BASE_PATH.'smart-scooter.svg',
             ],
             'axon-dynamics' => [
                 'name' => 'Axon Experience',
                 'description' => 'Interfaces neuronales et accessoires immersifs.',
                 'contact' => 'hello@axondynamics.com',
-                'logo' => self::IMAGE_BASE_PATH . 'hologram-projector.svg',
-                'banner' => self::IMAGE_BASE_PATH . 'ai-laptop.svg',
+                'logo' => self::IMAGE_BASE_PATH.'hologram-projector.svg',
+                'banner' => self::IMAGE_BASE_PATH.'ai-laptop.svg',
             ],
         ];
     }
@@ -692,6 +693,7 @@ class AppFixtures extends Fixture
 
     /**
      * @param array<int, array<string, mixed>> $definitions
+     *
      * @return array<int, array{
      *     attribute: ProductAttribute,
      *     values: array<int, array{entity: ProductAttributeValue, definition: array}>
@@ -762,11 +764,11 @@ class AppFixtures extends Fixture
                 $metadata[$selection['attribute']->getSlug()] = $selection['value']->getValue();
             }
 
-            $stock = random_int(3, 25);
+            $stock = \random_int(3, 25);
             $totalStock += $stock;
 
             $promoPrice = null;
-            if ($index % 4 === 0) {
+            if (0 === $index % 4) {
                 $promoPrice = round($price * 0.9, 2);
             }
 
@@ -776,7 +778,7 @@ class AppFixtures extends Fixture
                 ->setPromoPrice($promoPrice)
                 ->setStock($stock)
                 ->setIsAvailable(true)
-                ->setImagePath($product->getImages()->first()?->getUrl())
+                ->setImagePath(($product->getImages()->first() ?: null)?->getUrl())
                 ->setConfiguration($configuration ?: null)
                 ->setMetadata($metadata ?: null)
                 ->setSku(sprintf(
@@ -788,7 +790,7 @@ class AppFixtures extends Fixture
 
             $manager->persist($variant);
             $product->addVariant($variant);
-            $index++;
+            ++$index;
         }
 
         return $totalStock;
@@ -858,11 +860,11 @@ class AppFixtures extends Fixture
     {
         $prefix = strtoupper(substr($brandSlug, 0, 3));
 
-        return sprintf('%s-%04d', $prefix, random_int(1000, 9999));
+        return sprintf('%s-%04d', $prefix, \random_int(1000, 9999));
     }
 
     private function generateBarcode(): string
     {
-        return (string) random_int(100000000000, 999999999999);
+        return (string) \random_int(100000000000, 999999999999);
     }
 }

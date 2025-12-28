@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Form\Vendor;
 
 use App\Entity\Shop;
@@ -10,9 +12,10 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Email;
-use Symfony\Component\Validator\Constraints\NotBlank;
-use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\File;
+use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Regex;
 
 final class ShopProfileType extends AbstractType
 {
@@ -22,18 +25,31 @@ final class ShopProfileType extends AbstractType
             ->add('name', TextType::class, [
                 'constraints' => [
                     new NotBlank(message: 'Le nom de la boutique est requis.'),
-                    new Length(max: 255),
+                    new Length(min: 2, max: 255),
                 ],
             ])
             ->add('slug', TextType::class, [
                 'required' => false,
                 'attr' => ['placeholder' => 'boutique-slug'],
+                'constraints' => [
+                    new Length(max: 255),
+                    new Regex(
+                        pattern: '/^[a-z0-9-]*$/',
+                        message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets.',
+                    ),
+                ],
             ])
             ->add('description', TextareaType::class, [
                 'required' => false,
+                'constraints' => [
+                    new Length(max: 2000),
+                ],
             ])
             ->add('policies', TextareaType::class, [
                 'required' => false,
+                'constraints' => [
+                    new Length(max: 2000),
+                ],
             ])
             ->add('contactEmail', TextType::class, [
                 'constraints' => [

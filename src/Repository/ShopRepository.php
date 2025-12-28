@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Shop;
@@ -44,11 +46,11 @@ class ShopRepository extends ServiceEntityRepository
         if (!empty($filters['search'])) {
             $qb
                 ->andWhere('LOWER(s.name) LIKE :term OR LOWER(vendor.companyName) LIKE :term')
-                ->setParameter('term', '%' . mb_strtolower($filters['search']) . '%');
+                ->setParameter('term', '%'.mb_strtolower($filters['search']).'%');
         }
 
         if (!empty($filters['vendor'])) {
-            $term = '%' . mb_strtolower($filters['vendor']) . '%';
+            $term = '%'.mb_strtolower($filters['vendor']).'%';
             $qb
                 ->andWhere('LOWER(vendor.companyName) LIKE :vendorTerm OR LOWER(vendorUser.firstname) LIKE :vendorTerm OR LOWER(vendorUser.lastname) LIKE :vendorTerm OR LOWER(CONCAT(vendorUser.firstname, \' \', vendorUser.lastname)) LIKE :vendorTerm')
                 ->setParameter('vendorTerm', $term);

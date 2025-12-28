@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Entity\User;
@@ -11,9 +13,9 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 #[Route('/api/profile')]
 #[OA\Tag(name: 'Profile')]
@@ -25,7 +27,7 @@ class ProfileApiController extends AbstractController
     public function __construct(
         private readonly Security $security,
         private readonly UserProfileService $profileService,
-        private readonly UserAnonymizer $userAnonymizer
+        private readonly UserAnonymizer $userAnonymizer,
     ) {
     }
 
@@ -69,7 +71,7 @@ class ProfileApiController extends AbstractController
                     ],
                     type: 'object'
                 )
-            )
+            ),
         ]
     )]
     public function show(): JsonResponse
@@ -131,7 +133,7 @@ class ProfileApiController extends AbstractController
                             new OA\Property(property: 'isShipping', type: 'boolean', nullable: true),
                             new OA\Property(property: 'isBilling', type: 'boolean', nullable: true),
                         ]
-                    )
+                    ),
                 ],
                 type: 'object'
             )

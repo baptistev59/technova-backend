@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Repository\CategoryRepository;
@@ -16,13 +18,14 @@ class HomepageController extends AbstractController
     #[Route('/', name: 'homepage')]
     public function __invoke(
         ProductRepository $productRepository,
-        CategoryRepository $categoryRepository
+        CategoryRepository $categoryRepository,
     ): Response {
         // Derniers produits mis en avant (fixtures)
         $latestProducts = $productRepository->findLatestPublished(10);
         $featuredProducts = $productRepository->findFeaturedPublished(10);
         // Quelques catégories pour alimenter les cartes
         $popularCategories = $categoryRepository->findBy([], ['name' => 'ASC'], 6);
+
         return $this->render('catalog/homepage.html.twig', [
             'latestProducts' => $latestProducts,
             'featuredProducts' => $featuredProducts,

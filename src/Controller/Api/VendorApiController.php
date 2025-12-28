@@ -1,18 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Entity\CustomerOrder;
-use App\Enum\OrderStatus;
 use App\Entity\Media;
+use App\Entity\OrderDocument;
 use App\Entity\Product;
 use App\Entity\ProductAttribute;
 use App\Entity\ProductAttributeValue;
 use App\Entity\ProductImage;
 use App\Entity\ProductVariant;
 use App\Entity\Shop;
+use App\Entity\User;
 use App\Entity\Vendor;
 use App\Enum\DocumentType;
+use App\Enum\OrderStatus;
 use App\Form\Vendor\ProductType;
 use App\Form\Vendor\ShopProfileType;
 use App\Form\Vendor\VendorProfileType;
@@ -24,20 +28,20 @@ use App\Repository\ProductRepository;
 use App\Repository\ShopRepository;
 use App\Service\OrderDocumentGenerator;
 use Doctrine\ORM\EntityManagerInterface;
-use Nelmio\ApiDocBundle\Annotation\Security;
+use Nelmio\ApiDocBundle\Attribute\Security;
 use OpenApi\Attributes as OA;
 use OpenApi\Attributes\MediaType;
 use OpenApi\Attributes\Schema;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Workflow\WorkflowInterface;
 
 #[Route('/api/vendor', name: 'api_vendor_')]
@@ -63,13 +67,18 @@ final class VendorApiController extends AbstractController
     private function getShop(): Shop
     {
         $user = $this->getUser();
-        if (!$user) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException('Connexion requise');
         }
-        $shop = $this->shopRepository->findOneBy(['owner' => $user->getVendor()]);
+        $vendor = $user->getVendor();
+        if (!$vendor) {
+            throw $this->createNotFoundException('Aucun vendeur trouvé.');
+        }
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
         if (!$shop) {
             throw $this->createNotFoundException('Aucune boutique enregistrée.');
         }
+
         return $shop;
     }
 
@@ -78,12 +87,13 @@ final class VendorApiController extends AbstractController
         summary: 'Retourne la boutique du vendeur connecté',
         responses: [
             new OA\Response(response: 200, description: 'Boutique trouvée'),
-            new OA\Response(response: 404, description: 'Pas de boutique')
+            new OA\Response(response: 404, description: 'Pas de boutique'),
         ]
     )]
     public function fetchShop(): JsonResponse
     {
         $shop = $this->getShop();
+
         return $this->json($this->serializeShop($shop));
     }
 
@@ -97,7 +107,7 @@ final class VendorApiController extends AbstractController
     )]
     #[OA\RequestBody(
         required: true,
-        content: new OA\MediaType(
+        content: new MediaType(
             mediaType: 'multipart/form-data',
             schema: new Schema(
                 required: ['name', 'contactEmail'],
@@ -152,7 +162,7 @@ final class VendorApiController extends AbstractController
         ]
     )]
     #[OA\RequestBody(
-        content: new OA\MediaType(
+        content: new MediaType(
             mediaType: 'multipart/form-data',
             schema: new Schema(
                 properties: [
@@ -192,6 +202,7 @@ final class VendorApiController extends AbstractController
     public function getProfile(): JsonResponse
     {
         $vendor = $this->requireVendor();
+
         return $this->json($this->serializeVendor($vendor));
     }
 
@@ -234,9 +245,9 @@ final class VendorApiController extends AbstractController
     #[OA\Get(
         summary: 'Liste paginée des produits du vendeur',
         parameters: [
-            new OA\Parameter(name: 'perPage', in: 'query', schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: ['published', 'draft'])),
+            new OA\Parameter(name: 'perPage', in: 'query', schema: new Schema(type: 'integer')),
+            new OA\Parameter(name: 'page', in: 'query', schema: new Schema(type: 'integer')),
+            new OA\Parameter(name: 'status', in: 'query', schema: new Schema(type: 'string', enum: ['published', 'draft'])),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Liste paginée'),
@@ -245,8 +256,8 @@ final class VendorApiController extends AbstractController
     public function listProducts(Request $request): JsonResponse
     {
         $shop = $this->getShop();
-        $page = max(1, (int) $request->query->get('page', 1));
-        $limit = max(1, min(50, (int) $request->query->get('perPage', 10)));
+        $page = max(1, (int) $request->query->get('page', '1'));
+        $limit = max(1, min(50, (int) $request->query->get('perPage', '10')));
 
         $filters = ['shop' => $shop];
         if ($status = $request->query->get('status')) {
@@ -281,7 +292,7 @@ final class VendorApiController extends AbstractController
                 new OA\Property(property: 'shortDescription', type: 'string', nullable: true),
                 new OA\Property(property: 'description', type: 'string', nullable: true),
                 new OA\Property(property: 'price', type: 'number', format: 'float'),
-                new OA\Property(property: 'isPublished', type: 'boolean')
+                new OA\Property(property: 'isPublished', type: 'boolean'),
             ]
         )
     )]
@@ -338,7 +349,7 @@ final class VendorApiController extends AbstractController
                 new OA\Property(property: 'shortDescription', type: 'string', nullable: true),
                 new OA\Property(property: 'description', type: 'string', nullable: true),
                 new OA\Property(property: 'price', type: 'number', format: 'float'),
-                new OA\Property(property: 'isPublished', type: 'boolean')
+                new OA\Property(property: 'isPublished', type: 'boolean'),
             ]
         )
     )]
@@ -409,7 +420,7 @@ final class VendorApiController extends AbstractController
         $shop = $this->getShop(); // vérifie que le vendeur dispose d’une boutique
         $vendor = $shop->getOwner() ?? $this->requireVendor();
         $profileKey = (string) ($request->request->get('profile') ?? '');
-        if ($profileKey === '') {
+        if ('' === $profileKey) {
             return $this->json(['error' => 'Profil requis (shop_banner, shop_logo, product_image, avatar).'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -441,7 +452,7 @@ final class VendorApiController extends AbstractController
             'id' => $media->getId(),
             'profile' => $media->getProfile(),
             'path' => $media->getPath(),
-            'url' => '/' . ltrim((string) $media->getPath(), '/'),
+            'url' => '/'.ltrim((string) $media->getPath(), '/'),
             'width' => $media->getWidth(),
             'height' => $media->getHeight(),
             'mimeType' => $media->getMimeType(),
@@ -452,16 +463,16 @@ final class VendorApiController extends AbstractController
     #[OA\Get(
         summary: 'Liste les commandes du vendeur',
         parameters: [
-            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Shipped->value, OrderStatus::Cancelled->value])),
-            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'perPage', in: 'query', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'status', in: 'query', schema: new Schema(type: 'string', enum: [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Shipped->value, OrderStatus::Cancelled->value])),
+            new OA\Parameter(name: 'page', in: 'query', schema: new Schema(type: 'integer')),
+            new OA\Parameter(name: 'perPage', in: 'query', schema: new Schema(type: 'integer')),
         ]
     )]
     public function listOrders(Request $request): JsonResponse
     {
         $shop = $this->getShop();
-        $page = max(1, (int) $request->query->get('page', 1));
-        $limit = max(1, min(50, (int) $request->query->get('perPage', 10)));
+        $page = max(1, (int) $request->query->get('page', '1'));
+        $limit = max(1, min(50, (int) $request->query->get('perPage', '10')));
         $status = $request->query->get('status');
 
         $pagination = $this->orderRepository->paginateForShop($shop, $page, $limit, $status ?: null);
@@ -537,7 +548,7 @@ final class VendorApiController extends AbstractController
             return $this->json(['error' => 'Transition de statut non autorisée.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        if ($transition === 'pay') {
+        if ('pay' === $transition) {
             $order->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
         }
 
@@ -575,7 +586,7 @@ final class VendorApiController extends AbstractController
     {
         $shop = $this->getShop();
         $order = $this->findOrderForShop($shop, $id);
-        $typeRaw = (string) ($request->request->get('type', 'invoice'));
+        $typeRaw = (string) $request->request->get('type', 'invoice');
 
         try {
             $type = DocumentType::from($typeRaw);
@@ -624,6 +635,7 @@ final class VendorApiController extends AbstractController
         foreach ($form->getErrors(true) as $error) {
             $errors[] = $error->getMessage();
         }
+
         return array_values(array_unique($errors));
     }
 
@@ -675,6 +687,7 @@ final class VendorApiController extends AbstractController
 
     /**
      * @param array<int, CustomerOrder> $orders
+     *
      * @return array<int, true>
      */
     private function mapShopProductIds(Shop $shop, array $orders): array
@@ -686,7 +699,7 @@ final class VendorApiController extends AbstractController
             }
         }
         $productIds = array_values(array_unique(array_filter($productIds, static fn ($id) => is_int($id) || ctype_digit((string) $id))));
-        if ($productIds === []) {
+        if ([] === $productIds) {
             return [];
         }
 
@@ -796,7 +809,7 @@ final class VendorApiController extends AbstractController
     {
         return [
             'id' => $image->getId(),
-            'url' => '/' . ltrim($image->getUrl(), '/'),
+            'url' => '/'.ltrim($image->getUrl(), '/'),
             'alt' => $image->getAlt(),
             'caption' => $image->getCaption(),
             'isMain' => $image->isMain(),
@@ -815,7 +828,7 @@ final class VendorApiController extends AbstractController
             'promoPrice' => $variant->getPromoPrice(),
             'stock' => $variant->getStock(),
             'isAvailable' => $variant->isAvailable(),
-            'image' => $variant->getImagePath() ? '/' . ltrim($variant->getImagePath(), '/') : null,
+            'image' => $variant->getImagePath() ? '/'.ltrim($variant->getImagePath(), '/') : null,
             'configuration' => $variant->getConfiguration(),
             'metadata' => $variant->getMetadata(),
         ];
@@ -861,7 +874,7 @@ final class VendorApiController extends AbstractController
 
     private function handleProductImagesUpload(Product $product, ?UploadedFile $mainImage, array $galleryFiles): void
     {
-        if (!$mainImage && $galleryFiles === []) {
+        if (!$mainImage && [] === $galleryFiles) {
             return;
         }
 
@@ -891,9 +904,10 @@ final class VendorApiController extends AbstractController
 
     /**
      * @param iterable<mixed> $files
+     *
      * @return UploadedFile[]
      */
-    private function normalizeGalleryUploads(iterable|null $files): array
+    private function normalizeGalleryUploads(?iterable $files): array
     {
         if (!is_iterable($files)) {
             return [];
@@ -1035,7 +1049,7 @@ final class VendorApiController extends AbstractController
     private function requireVendor(): Vendor
     {
         $user = $this->getUser();
-        if (!$user) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException('Connexion requise.');
         }
         $vendor = $user->getVendor();
@@ -1065,7 +1079,7 @@ final class VendorApiController extends AbstractController
             return;
         }
 
-        $absolute = $this->getParameter('kernel.project_dir') . '/public/' . ltrim($relativePath, '/');
+        $absolute = $this->getParameter('kernel.project_dir').'/public/'.ltrim($relativePath, '/');
         if (is_file($absolute)) {
             @unlink($absolute);
         }

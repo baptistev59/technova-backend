@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Product;
@@ -59,7 +61,7 @@ class ProductRepository extends ServiceEntityRepository
      */
     public function findNamesContaining(string $query, int $limit = 40): array
     {
-        if ($query === '') {
+        if ('' === $query) {
             return [];
         }
 
@@ -67,7 +69,7 @@ class ProductRepository extends ServiceEntityRepository
             ->select('DISTINCT p.name AS name, p.keywords AS keywords')
             ->andWhere('(LOWER(p.name) LIKE :query OR LOWER(p.keywords) LIKE :query)')
             ->andWhere('p.isPublished = :published')
-            ->setParameter('query', '%' . mb_strtolower($query) . '%')
+            ->setParameter('query', '%'.mb_strtolower($query).'%')
             ->setParameter('published', true)
             ->orderBy('p.name', 'ASC')
             ->setMaxResults($limit);
@@ -77,16 +79,16 @@ class ProductRepository extends ServiceEntityRepository
         $suggestions = [];
         foreach ($rows as $row) {
             $name = (string) ($row['name'] ?? '');
-            if ($name !== '') {
+            if ('' !== $name) {
                 $suggestions[] = $name;
             }
 
             $keywords = (string) ($row['keywords'] ?? '');
-            if ($keywords !== '') {
+            if ('' !== $keywords) {
                 $tokens = preg_split('/[\s,;]+/', $keywords);
                 foreach ($tokens as $token) {
                     $token = trim($token);
-                    if ($token !== '') {
+                    if ('' !== $token) {
                         $suggestions[] = $token;
                     }
                 }
@@ -94,7 +96,8 @@ class ProductRepository extends ServiceEntityRepository
         }
 
         $queryNormalized = mb_strtolower($query);
-        $unique = array_values(array_unique(array_filter($suggestions, static fn (string $value) => $value !== '' && str_contains(mb_strtolower($value), $queryNormalized)), SORT_STRING));
+        $unique = array_values(array_unique(array_filter($suggestions, static fn (string $value) => '' !== $value && str_contains(mb_strtolower($value), $queryNormalized)), SORT_STRING));
+
         return array_slice($unique, 0, $limit);
     }
 
@@ -113,6 +116,7 @@ class ProductRepository extends ServiceEntityRepository
                 ['field' => 'p.isPublished', 'value' => true],
             ]
         );
+
         return $this->loadProductsByIdsWithRelations($ids);
     }
 
@@ -127,6 +131,7 @@ class ProductRepository extends ServiceEntityRepository
                 ['field' => 'p.isFeatured', 'value' => true],
             ]
         );
+
         return $this->loadProductsByIdsWithRelations($ids);
     }
 
@@ -138,8 +143,8 @@ class ProductRepository extends ServiceEntityRepository
             ->setParameter('shop', $shop);
 
         foreach ($conditions as $index => $condition) {
-            $paramKey = 'cond_' . $index;
-            $qb->andWhere($condition['field'] . ' = :' . $paramKey)
+            $paramKey = 'cond_'.$index;
+            $qb->andWhere($condition['field'].' = :'.$paramKey)
                ->setParameter($paramKey, $condition['value']);
         }
 
@@ -150,41 +155,41 @@ class ProductRepository extends ServiceEntityRepository
         $qb->setMaxResults($limit);
 
         $result = $qb->getQuery()->getScalarResult();
+
         return array_map(static fn (array $row): int => (int) $row['id'], $result);
     }
 
     private function loadProductsByIdsWithRelations(array $ids): array
-{
-    if ($ids === []) {
-        return [];
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('p')
+            ->select('DISTINCT p')
+            ->leftJoin('p.images', 'img')
+            ->addSelect('img')
+            ->leftJoin('p.brand', 'b')
+            ->addSelect('b')
+            ->andWhere('p.id IN (:ids)')
+            ->setParameter('ids', $ids);
+
+        // CASE pour l’ordre
+        $case = 'CASE';
+        foreach ($ids as $index => $id) {
+            $param = 'order_'.$index;
+            $case .= ' WHEN p.id = :'.$param.' THEN '.$index;
+            $qb->setParameter($param, $id);
+        }
+        $case .= ' ELSE '.count($ids).' END';
+
+        // 👇 OBLIGATOIRE pour PostgreSQL
+        $qb
+            ->addSelect($case.' AS HIDDEN sort_order')
+            ->addOrderBy('sort_order', 'ASC');
+
+        return $qb->getQuery()->getResult();
     }
-
-    $qb = $this->createQueryBuilder('p')
-        ->select('DISTINCT p')
-        ->leftJoin('p.images', 'img')
-        ->addSelect('img')
-        ->leftJoin('p.brand', 'b')
-        ->addSelect('b')
-        ->andWhere('p.id IN (:ids)')
-        ->setParameter('ids', $ids);
-
-    // CASE pour l’ordre
-    $case = 'CASE';
-    foreach ($ids as $index => $id) {
-        $param = 'order_' . $index;
-        $case .= ' WHEN p.id = :' . $param . ' THEN ' . $index;
-        $qb->setParameter($param, $id);
-    }
-    $case .= ' ELSE ' . count($ids) . ' END';
-
-    // 👇 OBLIGATOIRE pour PostgreSQL
-    $qb
-        ->addSelect($case . ' AS HIDDEN sort_order')
-        ->addOrderBy('sort_order', 'ASC');
-
-    return $qb->getQuery()->getResult();
-}
-
 
     /**
      * Sélectionne les produits mis à la une.
@@ -210,14 +215,14 @@ class ProductRepository extends ServiceEntityRepository
      * @param array{
      *     category?: string|null,
      *     brand?: string|null,
+     *     shop?: Shop|null,
      *     minPrice?: float|null,
      *     maxPrice?: float|null,
      *     search?: string|null,
      *     sort?: string|null
      * } $filters
-     * @return Product[]
      */
-    private function createFilterQueryBuilder(array $filters, bool &$hasSearchOrdering = null): QueryBuilder
+    private function createFilterQueryBuilder(array $filters, ?bool &$hasSearchOrdering = null): QueryBuilder
     {
         $qb = $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')
@@ -245,41 +250,38 @@ class ProductRepository extends ServiceEntityRepository
                 ->setParameter('shopFilter', $filters['shop']);
         }
 
-        if (!empty($filters['shop']) && $filters['shop'] instanceof Shop) {
-            $qb->andWhere('p.shop = :shopFilter')
-                ->setParameter('shopFilter', $filters['shop']);
-        }
-
-        if (isset($filters['minPrice']) && is_numeric($filters['minPrice'])) {
+        $minPrice = $filters['minPrice'] ?? null;
+        if (null !== $minPrice) {
             $qb->andWhere('p.price >= :minPrice')
-                ->setParameter('minPrice', (float) $filters['minPrice']);
+                ->setParameter('minPrice', (float) $minPrice);
         }
 
-        if (isset($filters['maxPrice']) && is_numeric($filters['maxPrice'])) {
+        $maxPrice = $filters['maxPrice'] ?? null;
+        if (null !== $maxPrice) {
             $qb->andWhere('p.price <= :maxPrice')
-                ->setParameter('maxPrice', (float) $filters['maxPrice']);
+                ->setParameter('maxPrice', (float) $maxPrice);
         }
 
         if (!empty($filters['search'])) {
             $normalized = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $filters['search'])));
-            if ($normalized !== '') {
+            if ('' !== $normalized) {
                 $terms = array_values(array_filter(explode(' ', $normalized)));
-                if ($terms !== []) {
+                if ([] !== $terms) {
                     $scoreParts = [];
 
                     foreach ($terms as $index => $term) {
-                        $param = 'term_' . $index;
+                        $param = 'term_'.$index;
                         $condition = sprintf(
                             '(LOWER(p.name) LIKE :%1$s OR LOWER(p.shortDescription) LIKE :%1$s OR LOWER(p.keywords) LIKE :%1$s)',
                             $param
                         );
                         $scoreParts[] = sprintf('CASE WHEN %s THEN 1 ELSE 0 END', $condition);
                         $qb->andWhere($condition);
-                        $qb->setParameter($param, '%' . $term . '%');
+                        $qb->setParameter($param, '%'.$term.'%');
                     }
 
-                    if ($scoreParts !== []) {
-                        $qb->addSelect('(' . implode(' + ', $scoreParts) . ') AS HIDDEN relevance');
+                    if ([] !== $scoreParts) {
+                        $qb->addSelect('('.implode(' + ', $scoreParts).') AS HIDDEN relevance');
                         $qb->addOrderBy('relevance', 'DESC');
                         $hasSearchOrdering = true;
                         $orderMethod = 'addOrderBy';
@@ -302,6 +304,7 @@ class ProductRepository extends ServiceEntityRepository
     public function filterBy(array $filters): array
     {
         $qb = $this->createFilterQueryBuilder($filters, $hasSearchOrdering);
+
         return $qb->getQuery()->getResult();
     }
 
@@ -343,7 +346,7 @@ class ProductRepository extends ServiceEntityRepository
      *     status?: string|null
      * } $filters
      *
-     * @return Product[]
+     * @return array{items: list<Product>, total: int}
      */
     public function filterForVendor(Shop $shop, array $filters = [], int $page = 1, int $limit = 15, string $sort = 'updated_desc'): array
     {
@@ -382,24 +385,24 @@ class ProductRepository extends ServiceEntityRepository
             };
         }
 
-        if (isset($filters['status']) && $filters['status'] !== '') {
+        if (isset($filters['status']) && '' !== $filters['status']) {
             $qb->andWhere('p.isPublished = :publishedStatus')
                 ->setParameter('publishedStatus', filter_var($filters['status'], FILTER_VALIDATE_BOOLEAN));
         }
 
         if (!empty($filters['search'])) {
             $normalized = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $filters['search'])));
-            if ($normalized !== '') {
+            if ('' !== $normalized) {
                 $terms = array_values(array_filter(explode(' ', $normalized)));
-                if ($terms !== []) {
+                if ([] !== $terms) {
                     $orExpressions = [];
                     foreach ($terms as $index => $term) {
-                        $param = 'vendor_search_' . $index;
+                        $param = 'vendor_search_'.$index;
                         $orExpressions[] = sprintf(
                             '(LOWER(p.name) LIKE :%1$s OR LOWER(p.sku) LIKE :%1$s OR LOWER(p.description) LIKE :%1$s)',
                             $param
                         );
-                        $qb->setParameter($param, '%' . $term . '%');
+                        $qb->setParameter($param, '%'.$term.'%');
                     }
                     $qb->andWhere(implode(' OR ', $orExpressions));
                 }

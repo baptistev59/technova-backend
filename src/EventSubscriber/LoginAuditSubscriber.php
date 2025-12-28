@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\EventSubscriber;
 
+use App\Entity\User;
 use App\Enum\AuditAction;
 use App\Service\AuditLoggerService;
+use Lexik\Bundle\JWTAuthenticationBundle\Event\AuthenticationFailureEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
-use Lexik\Bundle\JWTAuthenticationBundle\Event\AuthenticationFailureEvent;
-use App\Entity\User;
 
 /**
  * Observe les succès/échecs de connexion pour alimenter la table audit_log.
@@ -15,8 +17,9 @@ use App\Entity\User;
 class LoginAuditSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private readonly AuditLoggerService $audit
-    ) {}
+        private readonly AuditLoggerService $audit,
+    ) {
+    }
 
     public static function getSubscribedEvents(): array
     {
@@ -74,7 +77,7 @@ class LoginAuditSubscriber implements EventSubscriberInterface
             resource: 'user',
             data: [
                 'email' => $email,
-                'error' => $exception?->getMessage(),
+                'error' => $exception->getMessage(),
             ]
         );
     }

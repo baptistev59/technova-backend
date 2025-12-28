@@ -54,7 +54,7 @@ final class TwoFactorSetupEnforcerSubscriber implements EventSubscriberInterface
         }
 
         $acceptHeader = (string) $request->headers->get('Accept');
-        if ($acceptHeader !== '' && !str_contains($acceptHeader, 'text/html')) {
+        if ('' !== $acceptHeader && !str_contains($acceptHeader, 'text/html')) {
             return;
         }
 

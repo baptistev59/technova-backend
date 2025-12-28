@@ -189,7 +189,7 @@ final class ConversationControllerTest extends WebTestCase
     private function createUser(string $email, array $roles): User
     {
         $user = (new User())
-            ->setEmail(uniqid('', true) . '_' . $email)
+            ->setEmail(uniqid('', true).'_'.$email)
             ->setRoles($roles)
             ->setFirstname('Tech')
             ->setLastname('Nova');
@@ -207,7 +207,7 @@ final class ConversationControllerTest extends WebTestCase
     {
         $shop = (new Shop())
             ->setName($name)
-            ->setSlug(strtolower(str_replace(' ', '-', $name)) . '-' . uniqid())
+            ->setSlug(strtolower(str_replace(' ', '-', $name)).'-'.uniqid())
             ->setContactEmail('shop@technova.test')
             ->setOwner($vendor);
 
@@ -220,13 +220,13 @@ final class ConversationControllerTest extends WebTestCase
     {
         $category = (new Category())
             ->setName('Cat Test')
-            ->setSlug('cat-test-' . uniqid());
+            ->setSlug('cat-test-'.uniqid());
 
         $this->em->persist($category);
 
         $product = (new Product())
             ->setName('Produit Test')
-            ->setSlug('produit-test-' . uniqid())
+            ->setSlug('produit-test-'.uniqid())
             ->setPrice(99.99)
             ->setStock(10)
             ->setCategory($category)
@@ -240,13 +240,13 @@ final class ConversationControllerTest extends WebTestCase
     private function createOrder(User $client, Product $product): CustomerOrder
     {
         // ⚠️ IMPORTANT : s'assurer que le produit a un ID
-        if ($product->getId() === null) {
+        if (null === $product->getId()) {
             $this->em->flush();
         }
 
         $order = (new CustomerOrder())
             ->setOwner($client)
-            ->setReference('ORD-' . uniqid())
+            ->setReference('ORD-'.uniqid())
             ->setTotalAmount('99.99')
             ->setCurrency('EUR')
             ->setShippingAddress(['line1' => 'Rue du test']);
@@ -268,7 +268,6 @@ final class ConversationControllerTest extends WebTestCase
         return $order;
     }
 
-
     /* ============================================================
      * HELPERS
      * ============================================================
@@ -277,7 +276,7 @@ final class ConversationControllerTest extends WebTestCase
     private function authHeaders(string $token): array
     {
         return [
-            'HTTP_AUTHORIZATION' => 'Bearer ' . $token,
+            'HTTP_AUTHORIZATION' => 'Bearer '.$token,
         ];
     }
 }

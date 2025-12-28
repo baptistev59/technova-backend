@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Entity\Product;
@@ -23,7 +25,7 @@ class CartController extends AbstractController
 {
     public function __construct(
         private readonly CartService $cartService,
-        private readonly ProductRepository $productRepository
+        private readonly ProductRepository $productRepository,
     ) {
     }
 
@@ -34,7 +36,7 @@ class CartController extends AbstractController
         $summary = $this->cartService->getSummary();
 
         $items = array_map(static function (array $item) {
-            /** @var \App\Entity\Product $product */
+            /** @var Product $product */
             $product = $item['product'];
 
             return [

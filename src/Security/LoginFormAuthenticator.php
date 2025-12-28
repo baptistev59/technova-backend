@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Security;
 
 use App\Entity\User;
@@ -38,7 +40,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $password = (string) ($formData['password'] ?? '');
         $csrfToken = (string) ($formData['_token'] ?? '');
 
-        $request->getSession()?->set('_security.last_username', $email);
+        $request->getSession()->set('_security.last_username', $email);
 
         return new Passport(
             new UserBadge($email),
@@ -55,7 +57,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $user = $token->getUser();
         $session = $request->getSession();
 
-        if ($session && $user instanceof User) {
+        if ($user instanceof User) {
             $session->set('recent_user_id', $user->getId());
             if (!$this->requiresTwoFactor($user)) {
                 $session->set('jwt_token', $this->jwtManager->create($user));

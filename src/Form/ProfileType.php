@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Form;
 
 use App\Entity\Address;
@@ -12,6 +14,10 @@ use Symfony\Component\Form\Extension\Core\Type\TelType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\File;
+use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Regex;
 
 class ProfileType extends AbstractType
 {
@@ -23,19 +29,40 @@ class ProfileType extends AbstractType
         $builder
             ->add('firstname', TextType::class, [
                 'label' => 'Prénom',
+                'constraints' => [
+                    new NotBlank(message: 'Le prénom est requis.'),
+                    new Length(min: 2, max: 255, minMessage: 'Le prénom doit contenir au moins {{ limit }} caractères.'),
+                ],
             ])
             ->add('lastname', TextType::class, [
                 'label' => 'Nom',
+                'constraints' => [
+                    new NotBlank(message: 'Le nom est requis.'),
+                    new Length(min: 2, max: 255, minMessage: 'Le nom doit contenir au moins {{ limit }} caractères.'),
+                ],
             ])
             ->add('phone', TelType::class, [
                 'label' => 'Téléphone',
                 'required' => false,
+                'constraints' => [
+                    new Regex(
+                        pattern: '/^$|^[0-9+().\s-]{6,25}$/',
+                        message: 'Le téléphone doit contenir uniquement des chiffres et caractères usuels.',
+                    ),
+                ],
             ])
             ->add('avatarFile', FileType::class, [
                 'label' => 'Avatar',
                 'mapped' => false,
                 'required' => false,
                 'help' => 'PNG ou JPG jusqu’à 2 Mo',
+                'constraints' => [
+                    new File(
+                        maxSize: '2M',
+                        mimeTypes: ['image/jpeg', 'image/png'],
+                        mimeTypesMessage: 'Formats autorisés : JPG ou PNG.',
+                    ),
+                ],
             ])
             ->add('avatarPath', HiddenType::class, [
                 'required' => false,

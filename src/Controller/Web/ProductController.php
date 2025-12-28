@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Web;
 
 use App\Entity\Product;
 use App\Entity\Shop;
 use App\Repository\ProductRepository;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -30,7 +32,7 @@ class ProductController extends AbstractController
         }
 
         $optionGroups = $this->buildOptionGroupsFromSelections($product);
-        if ($optionGroups === []) {
+        if ([] === $optionGroups) {
             $optionGroups = $this->buildOptionGroupsFromLegacyAttributes($product);
         }
 
@@ -64,7 +66,7 @@ class ProductController extends AbstractController
     public function modal(Product $product): Response
     {
         $optionGroups = $this->buildOptionGroupsFromSelections($product);
-        if ($optionGroups === []) {
+        if ([] === $optionGroups) {
             $optionGroups = $this->buildOptionGroupsFromLegacyAttributes($product);
         }
 
@@ -97,14 +99,14 @@ class ProductController extends AbstractController
                 ];
             }
 
-            if ($values === []) {
+            if ([] === $values) {
                 continue;
             }
 
             usort($values, static fn (array $a, array $b) => strcmp((string) $a['label'], (string) $b['label']));
 
             $groups[] = [
-                'slug' => $attribute->getSlug() ?? ('attribute_' . $attribute->getId()),
+                'slug' => $attribute->getSlug() ?? ('attribute_'.$attribute->getId()),
                 'name' => $attribute->getName() ?? 'Attribut',
                 'type' => $attribute->getInputType(),
                 'values' => $values,
@@ -132,7 +134,7 @@ class ProductController extends AbstractController
                 ];
             }
 
-            if ($values === []) {
+            if ([] === $values) {
                 continue;
             }
 
@@ -163,7 +165,7 @@ class ProductController extends AbstractController
 
     private function computeGroupedStock(Product $product): ?int
     {
-        if ($product->getType() !== 'grouped') {
+        if ('grouped' !== $product->getType()) {
             return null;
         }
 
@@ -188,7 +190,7 @@ class ProductController extends AbstractController
             }
         }
 
-        if ($stocks === []) {
+        if ([] === $stocks) {
             return null;
         }
 
@@ -203,7 +205,7 @@ class ProductController extends AbstractController
     private function computeProductPriceRange(Product $product, array $visited = []): array
     {
         $prices = $this->collectEffectivePrices($product, $visited);
-        if ($prices === []) {
+        if ([] === $prices) {
             return ['min' => null, 'max' => null, 'label' => '—'];
         }
 
@@ -211,7 +213,7 @@ class ProductController extends AbstractController
         $min = $prices[0];
         $max = $prices[count($prices) - 1];
         $label = $min === $max
-            ? number_format($min, 2, ',', ' ') . ' €'
+            ? number_format($min, 2, ',', ' ').' €'
             : sprintf('%s – %s', number_format($min, 2, ',', ' '), number_format($max, 2, ',', ' '));
 
         return [
@@ -228,14 +230,14 @@ class ProductController extends AbstractController
     {
         $prices = [];
         $productId = $product->getId();
-        if ($productId !== null) {
+        if (null !== $productId) {
             if (in_array($productId, $visited, true)) {
                 return [];
             }
             $visited[] = $productId;
         }
 
-        if ($product->getType() === 'grouped') {
+        if ('grouped' === $product->getType()) {
             foreach ($product->getBundleItems() as $item) {
                 $component = $item->getComponent();
                 if ($component) {
@@ -255,7 +257,7 @@ class ProductController extends AbstractController
             }
         } else {
             $price = $product->getPromoPrice();
-            if ($price === null || $price <= 0 || $price >= $product->getPrice()) {
+            if (null === $price || $price <= 0 || $price >= $product->getPrice()) {
                 $price = $product->getPrice();
             }
             if ($price > 0) {
@@ -298,7 +300,7 @@ class ProductController extends AbstractController
 
     private function buildBundleComponents(Product $product): array
     {
-        if ($product->getType() !== 'grouped') {
+        if ('grouped' !== $product->getType()) {
             return [];
         }
 
@@ -333,12 +335,12 @@ class ProductController extends AbstractController
      */
     private function computeBundlePriceRange(Product $product, ?array $components = null): ?array
     {
-        if ($product->getType() !== 'grouped') {
+        if ('grouped' !== $product->getType()) {
             return null;
         }
 
         $components ??= $this->buildBundleComponents($product);
-        if ($components === []) {
+        if ([] === $components) {
             return null;
         }
 
@@ -349,30 +351,30 @@ class ProductController extends AbstractController
             if (!is_array($range)) {
                 continue;
             }
-            if (isset($range['min']) && $range['min'] !== null) {
+            if (isset($range['min']) && null !== $range['min']) {
                 $value = (float) $range['min'];
-                $globalMin = $globalMin === null ? $value : min($globalMin, $value);
+                $globalMin = null === $globalMin ? $value : min($globalMin, $value);
             }
-            if (isset($range['max']) && $range['max'] !== null) {
+            if (isset($range['max']) && null !== $range['max']) {
                 $value = (float) $range['max'];
-                $globalMax = $globalMax === null ? $value : max($globalMax, $value);
+                $globalMax = null === $globalMax ? $value : max($globalMax, $value);
             }
         }
 
-        if ($globalMin === null && $globalMax === null) {
+        if (null === $globalMin && null === $globalMax) {
             return null;
         }
 
-        $formatter = static fn (float $value): string => number_format($value, 2, ',', ' ') . ' €';
+        $formatter = static fn (float $value): string => number_format($value, 2, ',', ' ').' €';
 
         $label = '—';
-        if ($globalMin !== null && $globalMax !== null) {
+        if (null !== $globalMin && null !== $globalMax) {
             $label = $globalMin === $globalMax
                 ? $formatter($globalMin)
                 : sprintf('%s – %s', $formatter($globalMin), $formatter($globalMax));
-        } elseif ($globalMin !== null) {
+        } elseif (null !== $globalMin) {
             $label = $formatter($globalMin);
-        } elseif ($globalMax !== null) {
+        } elseif (null !== $globalMax) {
             $label = $formatter($globalMax);
         }
 

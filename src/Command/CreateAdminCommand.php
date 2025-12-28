@@ -1,16 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Question\QuestionHelper;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[AsCommand(
@@ -25,7 +27,7 @@ class CreateAdminCommand extends Command
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private UserPasswordHasherInterface $passwordHasher
+        private UserPasswordHasherInterface $passwordHasher,
     ) {
         parent::__construct();
     }
@@ -43,17 +45,19 @@ class CreateAdminCommand extends Command
 
         if (!$email) {
             $output->writeln("<error>L'email est obligatoire.</error>");
+
             return Command::FAILURE;
         }
 
         $existing = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
 
         if ($existing) {
-            $output->writeln("<comment>Un utilisateur avec cet email existe déjà.</comment>");
+            $output->writeln('<comment>Un utilisateur avec cet email existe déjà.</comment>');
             $confirm = new ConfirmationQuestion("Voulez-vous l'écraser ? (yes/no) ", false);
 
             if (!$helper->ask($input, $output, $confirm)) {
-                $output->writeln("<info>Opération annulée.</info>");
+                $output->writeln('<info>Opération annulée.</info>');
+
                 return Command::SUCCESS;
             }
         }
@@ -61,27 +65,28 @@ class CreateAdminCommand extends Command
         // -------------------------
         // MOT DE PASSE
         // -------------------------
-        $passwordQuestion = new Question("Mot de passe admin : ");
+        $passwordQuestion = new Question('Mot de passe admin : ');
         $passwordQuestion->setHidden(true);
         $passwordQuestion->setHiddenFallback(false);
 
         $password = $helper->ask($input, $output, $passwordQuestion);
 
         if (!$password) {
-            $output->writeln("<error>Le mot de passe est obligatoire.</error>");
+            $output->writeln('<error>Le mot de passe est obligatoire.</error>');
+
             return Command::FAILURE;
         }
 
         // -------------------------
         // PRENOM
         // -------------------------
-        $firstnameQuestion = new Question("Prénom (default: Admin) : ", "Admin");
+        $firstnameQuestion = new Question('Prénom (default: Admin) : ', 'Admin');
         $firstname = $helper->ask($input, $output, $firstnameQuestion);
 
         // -------------------------
         // NOM
         // -------------------------
-        $lastnameQuestion = new Question("Nom (default: TechNova) : ", "TechNova");
+        $lastnameQuestion = new Question('Nom (default: TechNova) : ', 'TechNova');
         $lastname = $helper->ask($input, $output, $lastnameQuestion);
 
         // -------------------------
@@ -104,7 +109,7 @@ class CreateAdminCommand extends Command
         $this->em->persist($user);
         $this->em->flush();
 
-        $output->writeln("<info>Utilisateur administrateur créé / mis à jour avec succès.</info>");
+        $output->writeln('<info>Utilisateur administrateur créé / mis à jour avec succès.</info>');
 
         return Command::SUCCESS;
     }

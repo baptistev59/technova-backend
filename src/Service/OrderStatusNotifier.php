@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\CustomerOrder;
@@ -11,7 +13,7 @@ class OrderStatusNotifier
     public function __construct(
         private readonly OrderMailer $orderMailer,
         #[Autowire(service: 'monolog.logger.order')]
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
     ) {
     }
 

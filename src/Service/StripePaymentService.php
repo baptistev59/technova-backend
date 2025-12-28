@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\CustomerOrder;
@@ -13,11 +15,11 @@ class StripePaymentService
     public function __construct(
         private readonly string $secretKey,
         private readonly string $publishableKey,
-        private readonly ?string $webhookSecret = null,
         private readonly HttpClientInterface $httpClient,
         private readonly string $defaultBaseUrl,
         #[Autowire(service: 'monolog.logger.payment')]
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly ?string $webhookSecret = null,
     ) {
     }
 
@@ -36,7 +38,7 @@ class StripePaymentService
      */
     public function createCheckoutSession(CustomerOrder $order, string $successUrl, string $cancelUrl): array
     {
-        if ($this->secretKey === '') {
+        if ('' === $this->secretKey) {
             throw new \RuntimeException('Stripe n\'est pas configuré sur cet environnement.');
         }
 
@@ -64,7 +66,7 @@ class StripePaymentService
         try {
             $response = $this->httpClient->request('POST', 'https://api.stripe.com/v1/checkout/sessions', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->secretKey,
+                    'Authorization' => 'Bearer '.$this->secretKey,
                     'Content-Type' => 'application/x-www-form-urlencoded',
                 ],
                 'body' => $body,
@@ -98,6 +100,6 @@ class StripePaymentService
             return $path;
         }
 
-        return rtrim($this->defaultBaseUrl, '/') . '/' . ltrim($path, '/');
+        return rtrim($this->defaultBaseUrl, '/').'/'.ltrim($path, '/');
     }
 }

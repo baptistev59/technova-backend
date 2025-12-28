@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Admin;
 
 use App\Entity\AttributeDefinition;
@@ -24,7 +26,6 @@ class AttributeDefinitionCrudController extends AbstractCrudController
             ->add(Action::EDIT, Action::DETAIL);
     }
 
-    
     public function configureFields(string $pageName): iterable
     {
         return [
@@ -36,5 +37,4 @@ class AttributeDefinitionCrudController extends AbstractCrudController
                 ->setFormTypeOption('choice_label', 'name'),
         ];
     }
-    
 }

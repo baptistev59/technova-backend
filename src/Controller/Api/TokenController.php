@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -15,7 +17,7 @@ class TokenController extends AbstractController
 {
     public function __construct(
         private readonly JWTTokenManagerInterface $jwtManager,
-        private readonly Security $security
+        private readonly Security $security,
     ) {
     }
 

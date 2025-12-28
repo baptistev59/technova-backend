@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Security;
 
 use App\Enum\AuditAction;
 use App\Service\AuditLoggerService;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
 
@@ -19,8 +21,9 @@ class LoginFailureHandler implements AuthenticationFailureHandlerInterface
     public function __construct(
         private readonly AuditLoggerService $audit,
         #[Autowire(service: 'monolog.logger.security')]
-        private readonly LoggerInterface $securityLogger
-    ) {}
+        private readonly LoggerInterface $securityLogger,
+    ) {
+    }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): JsonResponse
     {
@@ -43,7 +46,7 @@ class LoginFailureHandler implements AuthenticationFailureHandlerInterface
         // Réponse standard Lexik
         return new JsonResponse([
             'code' => 401,
-            'message' => 'Invalid credentials.'
+            'message' => 'Invalid credentials.',
         ], 401);
     }
 }

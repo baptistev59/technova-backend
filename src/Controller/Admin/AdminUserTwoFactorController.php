@@ -26,7 +26,7 @@ final class AdminUserTwoFactorController extends AbstractController
     public function reset(User $user, Request $request, EntityManagerInterface $entityManager): RedirectResponse
     {
         $token = (string) $request->query->get('_token');
-        if (!$this->isCsrfTokenValid('reset2fa' . $user->getId(), $token)) {
+        if (!$this->isCsrfTokenValid('reset2fa'.$user->getId(), $token)) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
 

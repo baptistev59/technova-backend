@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Entity\Shop;
+use App\Entity\Traits\Timestampable;
 use App\Repository\VendorRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use App\Entity\Traits\Timestampable;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: VendorRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -20,21 +22,31 @@ class Vendor
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Le nom de la société est requis.')]
+    #[Assert\Length(min: 2, max: 255)]
     private ?string $companyName = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Length(max: 255)]
     private ?string $businessId = null;
 
     #[ORM\Column(length: 25, nullable: true)]
+    #[Assert\Regex(
+        pattern: '/^$|^[0-9+().\s-]{6,25}$/',
+        message: 'Le téléphone doit contenir uniquement des chiffres et caractères usuels.'
+    )]
     private ?string $phone = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Assert\Length(max: 50)]
     private ?string $businessIdType = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Email(message: 'Adresse e-mail invalide.')]
     private ?string $email = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Url(message: 'Le site web doit être une URL valide.')]
     private ?string $website = null;
 
     #[ORM\Column(options: ['default' => false])]
@@ -142,6 +154,7 @@ class Vendor
     public function setIsSuspended(bool $isSuspended): self
     {
         $this->isSuspended = $isSuspended;
+
         return $this;
     }
 
@@ -165,12 +178,12 @@ class Vendor
     public function setOwner(?User $owner): static
     {
         // unset the owning side of the relation if necessary
-        if ($owner === null && $this->owner !== null) {
+        if (null === $owner && null !== $this->owner) {
             $this->owner->setVendor(null);
         }
 
         // set the owning side of the relation if necessary
-        if ($owner !== null && $owner->getVendor() !== $this) {
+        if (null !== $owner && $owner->getVendor() !== $this) {
             $owner->setVendor($this);
         }
 

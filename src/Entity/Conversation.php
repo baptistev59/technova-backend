@@ -1,15 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Repository\ConversationRepository;
 use App\Entity\Traits\Timestampable;
+use App\Repository\ConversationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use App\Entity\CustomerOrder;
-use App\Entity\Message;
-use App\Entity\Shop;
 
 #[ORM\Entity(repositoryClass: ConversationRepository::class)]
 #[ORM\Table(name: 'conversation')]
@@ -56,7 +55,6 @@ class Conversation
 
         return $this;
     }
-
 
     public function getShop(): Shop
     {
