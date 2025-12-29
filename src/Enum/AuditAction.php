@@ -16,6 +16,7 @@ enum AuditAction: string
     case AdminLogsDownload = 'ADMIN_LOGS_DOWNLOAD';
     case AdminLogsClear = 'ADMIN_LOGS_CLEAR';
     case AdminTwoFactorReset = 'ADMIN_TWO_FACTOR_RESET';
+    case StockLow = 'STOCK_LOW';
     case LoginSuccess = 'LOGIN_SUCCESS';
     case LoginFailure = 'LOGIN_FAILURE';
     case AuditTest = 'AUDIT_TEST';

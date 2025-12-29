@@ -41,6 +41,7 @@ class ProductCrudController extends AbstractCrudController
             NumberField::new('promoPrice')->hideOnIndex(),
             NumberField::new('bundleDiscountPercent')->hideOnIndex(),
             NumberField::new('stock'),
+            NumberField::new('lowStockThreshold')->hideOnIndex(),
             TextField::new('sku')->hideOnIndex(),
             TextField::new('barcode')->hideOnIndex(),
             TextField::new('type')->hideOnIndex(),

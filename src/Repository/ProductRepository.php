@@ -377,10 +377,15 @@ class ProductRepository extends ServiceEntityRepository
         }
 
         if (!empty($filters['stock'])) {
+            $qb->setParameter('lowStockThreshold', 10)
+                ->setParameter('groupedType', 'grouped');
             match ($filters['stock']) {
-                'out_of_stock' => $qb->andWhere('p.stock <= 0'),
-                'low_stock' => $qb->andWhere('p.stock > 0')->andWhere('p.stock <= 10'),
-                'in_stock' => $qb->andWhere('p.stock > 10'),
+                'out_of_stock' => $qb->andWhere('p.type != :groupedType')->andWhere('p.stock <= 0'),
+                'low_stock' => $qb->andWhere('p.type != :groupedType')
+                    ->andWhere('p.stock > 0')
+                    ->andWhere('p.stock <= COALESCE(p.lowStockThreshold, :lowStockThreshold)'),
+                'in_stock' => $qb->andWhere('p.type != :groupedType')
+                    ->andWhere('p.stock > COALESCE(p.lowStockThreshold, :lowStockThreshold)'),
                 default => null,
             };
         }
@@ -444,6 +449,20 @@ class ProductRepository extends ServiceEntityRepository
         return $this->createAdjacentQuery($product, $shopScope, false)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    public function countLowStockForShop(Shop $shop, int $threshold): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->andWhere('p.shop = :shop')
+            ->andWhere('p.type != :grouped')
+            ->andWhere('p.stock <= COALESCE(p.lowStockThreshold, :threshold)')
+            ->setParameter('shop', $shop)
+            ->setParameter('grouped', 'grouped')
+            ->setParameter('threshold', $threshold)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     private function createAdjacentQuery(Product $product, ?Shop $shopScope, bool $isPrevious)

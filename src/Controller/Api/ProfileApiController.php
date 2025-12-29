@@ -104,7 +104,7 @@ class ProfileApiController extends AbstractController
     /**
      * Met à jour les informations du profil depuis un JSON envoyé par le front.
      */
-    #[Route('', name: 'api_profile_update', methods: ['POST'])]
+    #[Route('', name: 'api_profile_update', methods: ['POST', 'PUT', 'PATCH'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     #[OA\Post(
         summary: 'Mise à jour du profil utilisateur',

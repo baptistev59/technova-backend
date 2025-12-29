@@ -111,4 +111,37 @@ class CartController extends AbstractController
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
     }
+
+    #[Route('/{id}', name: 'api_cart_update', methods: ['PUT', 'PATCH'])]
+    #[OA\Patch(
+        summary: 'Mettre à jour la quantité d’un produit',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['quantity'],
+                properties: [
+                    new OA\Property(property: 'quantity', type: 'integer', example: 2),
+                    new OA\Property(property: 'variantId', type: 'integer', nullable: true, example: 5),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Quantité mise à jour'),
+            new OA\Response(response: 400, description: 'Données invalides'),
+        ]
+    )]
+    public function update(Request $request, Product $product): JsonResponse
+    {
+        $requestData = json_decode($request->getContent() ?: '[]', true) ?? [];
+        $quantity = isset($requestData['quantity']) ? (int) $requestData['quantity'] : null;
+        $variantId = isset($requestData['variantId']) ? (int) $requestData['variantId'] : null;
+
+        if ($quantity === null) {
+            return $this->json(['error' => 'quantity manquant'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->cartService->setProductQuantity($product, $quantity, variantId: $variantId);
+
+        return $this->json(['message' => 'Quantité mise à jour'], Response::HTTP_OK);
+    }
 }

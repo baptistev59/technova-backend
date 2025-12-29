@@ -6,6 +6,8 @@ namespace App\Controller\Api;
 
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
@@ -46,5 +48,18 @@ class AuthController extends AbstractController
     public function login(): void
     {
         throw new \LogicException('Handled by Symfony security json_login firewall.');
+    }
+
+    #[OA\Post(
+        summary: 'Déconnexion (stateless)',
+        description: 'Endpoint sans état serveur : le client supprime le JWT côté front.',
+        responses: [
+            new OA\Response(response: 204, description: 'Déconnecté côté client'),
+        ]
+    )]
+    #[Route('/api/logout', name: 'api_logout', methods: ['POST'])]
+    public function logout(): JsonResponse
+    {
+        return $this->json(null, Response::HTTP_NO_CONTENT);
     }
 }

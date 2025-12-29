@@ -32,15 +32,20 @@ class AuditLoggerService
         ?string $resource = null,
         ?int $resourceId = null,
         ?array $data = null,
+        ?User $owner = null,
     ): void {
         $request = $this->requestStack->getCurrentRequest();
 
         $log = new AuditLog();
 
-        // User connecté (si existe)
-        $user = $this->security->getUser();
-        if ($user instanceof User) {
-            $log->setOwner($user);
+        if ($owner instanceof User) {
+            $log->setOwner($owner);
+        } else {
+            // User connecté (si existe)
+            $user = $this->security->getUser();
+            if ($user instanceof User) {
+                $log->setOwner($user);
+            }
         }
 
         // Action

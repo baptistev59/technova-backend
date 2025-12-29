@@ -36,28 +36,40 @@ class ProductApiController extends AbstractController
             new OA\QueryParameter(name: 'maxPrice', description: 'Prix maximum', schema: new OA\Schema(type: 'number', format: 'float')),
             new OA\QueryParameter(name: 'search', description: 'Terme recherché dans le nom ou le résumé', schema: new OA\Schema(type: 'string')),
             new OA\QueryParameter(name: 'sort', description: 'Tri (newest, oldest, price_asc, price_desc)', schema: new OA\Schema(type: 'string')),
+            new OA\QueryParameter(name: 'page', description: 'Page', schema: new OA\Schema(type: 'integer')),
+            new OA\QueryParameter(name: 'perPage', description: 'Résultats par page', schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
             new OA\Response(
                 response: 200,
                 description: 'Liste de produits',
                 content: new OA\JsonContent(
-                    type: 'array',
-                    items: new OA\Items(
-                        type: 'object',
-                        properties: [
-                            new OA\Property(property: 'id', type: 'integer'),
-                            new OA\Property(property: 'name', type: 'string'),
-                            new OA\Property(property: 'slug', type: 'string'),
-                            new OA\Property(property: 'shortDescription', type: 'string', nullable: true),
-                            new OA\Property(property: 'price', type: 'number', format: 'float'),
-                            new OA\Property(property: 'brand', type: 'string', nullable: true),
-                            new OA\Property(property: 'brandSlug', type: 'string', nullable: true),
-                            new OA\Property(property: 'category', type: 'string'),
-                            new OA\Property(property: 'categorySlug', type: 'string'),
-                            new OA\Property(property: 'thumbnail', type: 'string', nullable: true),
-                        ]
-                    )
+                    type: 'object',
+                    properties: [
+                        new OA\Property(
+                            property: 'items',
+                            type: 'array',
+                            items: new OA\Items(
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'integer'),
+                                    new OA\Property(property: 'name', type: 'string'),
+                                    new OA\Property(property: 'slug', type: 'string'),
+                                    new OA\Property(property: 'shortDescription', type: 'string', nullable: true),
+                                    new OA\Property(property: 'price', type: 'number', format: 'float'),
+                                    new OA\Property(property: 'brand', type: 'string', nullable: true),
+                                    new OA\Property(property: 'brandSlug', type: 'string', nullable: true),
+                                    new OA\Property(property: 'category', type: 'string'),
+                                    new OA\Property(property: 'categorySlug', type: 'string'),
+                                    new OA\Property(property: 'thumbnail', type: 'string', nullable: true),
+                                ]
+                            )
+                        ),
+                        new OA\Property(property: 'total', type: 'integer'),
+                        new OA\Property(property: 'page', type: 'integer'),
+                        new OA\Property(property: 'pages', type: 'integer'),
+                        new OA\Property(property: 'perPage', type: 'integer'),
+                    ]
                 )
             ),
         ]
@@ -73,9 +85,18 @@ class ProductApiController extends AbstractController
             'sort' => $request->query->get('sort'),
         ];
 
-        $products = $this->productRepository->filterBy($filters);
+        $page = max(1, (int) $request->query->get('page', '1'));
+        $perPage = max(1, min(100, (int) $request->query->get('perPage', '20')));
+        $pagination = $this->productRepository->filterByPaginated($filters, $page, $perPage);
+        $items = array_map(fn (Product $product) => $this->serializeProduct($product), $pagination['items']);
 
-        return $this->json(array_map(fn (Product $product) => $this->serializeProduct($product), $products));
+        return $this->json([
+            'items' => $items,
+            'total' => $pagination['total'],
+            'page' => $pagination['page'],
+            'pages' => $pagination['pages'],
+            'perPage' => $pagination['per_page'],
+        ]);
     }
 
     #[Route('/{slug}', name: 'api_products_show', methods: ['GET'])]

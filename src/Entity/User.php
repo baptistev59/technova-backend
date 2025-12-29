@@ -33,6 +33,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTw
     #[ORM\Column(length: 180)]
     private ?string $email = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $isEmailVerified = false;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $emailVerificationToken = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $emailVerificationExpiresAt = null;
+
     /**
      * @var list<string> The user roles
      */
@@ -116,6 +125,51 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, EmailTw
     public function setEmail(string $email): static
     {
         $this->email = $email;
+
+        return $this;
+    }
+
+    public function isEmailVerified(): bool
+    {
+        return $this->isEmailVerified;
+    }
+
+    public function setIsEmailVerified(bool $isEmailVerified): static
+    {
+        $this->isEmailVerified = $isEmailVerified;
+
+        return $this;
+    }
+
+    public function getEmailVerificationToken(): ?string
+    {
+        return $this->emailVerificationToken;
+    }
+
+    public function setEmailVerificationToken(?string $emailVerificationToken): static
+    {
+        $this->emailVerificationToken = $emailVerificationToken;
+
+        return $this;
+    }
+
+    public function getEmailVerificationExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->emailVerificationExpiresAt;
+    }
+
+    public function setEmailVerificationExpiresAt(?\DateTimeImmutable $emailVerificationExpiresAt): static
+    {
+        $this->emailVerificationExpiresAt = $emailVerificationExpiresAt;
+
+        return $this;
+    }
+
+    public function clearEmailVerification(): static
+    {
+        $this->emailVerificationToken = null;
+        $this->emailVerificationExpiresAt = null;
+        $this->isEmailVerified = true;
 
         return $this;
     }

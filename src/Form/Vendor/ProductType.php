@@ -143,6 +143,18 @@ class ProductType extends AbstractType
                     new GreaterThanOrEqual(0),
                 ],
             ])
+            ->add('lowStockThreshold', IntegerType::class, [
+                'label' => 'Stock faible (seuil)',
+                'required' => false,
+                'attr' => [
+                    'min' => 0,
+                    'placeholder' => 'Ex : 10',
+                ],
+                'constraints' => [
+                    new GreaterThanOrEqual(0),
+                ],
+                'help' => 'Seuil d’alerte stock faible (produit simple ou valeur par défaut des variantes).',
+            ])
             ->add('sku', TextType::class, [
                 'label' => 'SKU',
                 'required' => false,

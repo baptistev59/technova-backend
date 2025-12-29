@@ -29,6 +29,7 @@ class CheckoutService
         private readonly OrderMailer $orderMailer,
         private readonly ProductRepository $productRepository,
         private readonly ProductVariantRepository $productVariantRepository,
+        private readonly StockAlertService $stockAlertService,
         #[Autowire(service: 'state_machine.customer_order')]
         private readonly WorkflowInterface $orderWorkflow,
         #[Autowire(service: 'monolog.logger.stock')]
@@ -186,9 +187,21 @@ class CheckoutService
             $this->guardStockLevel($product, $variant, $quantity);
 
             if ($variant) {
-                $variant->setStock(max(0, $variant->getStock() - $quantity));
+                $previous = $variant->getStock();
+                $newStock = max(0, $previous - $quantity);
+                $variant->setStock($newStock);
+                $threshold = $this->stockAlertService->resolveThreshold($product, $variant);
+                if (null !== $threshold && $previous > $threshold && $newStock <= $threshold) {
+                    $this->stockAlertService->notifyLowStock($product, $variant, $newStock, $threshold);
+                }
             } else {
-                $product->setStock(max(0, $product->getStock() - $quantity));
+                $previous = $product->getStock();
+                $newStock = max(0, $previous - $quantity);
+                $product->setStock($newStock);
+                $threshold = $this->stockAlertService->resolveThreshold($product, null);
+                if (null !== $threshold && $previous > $threshold && $newStock <= $threshold) {
+                    $this->stockAlertService->notifyLowStock($product, null, $newStock, $threshold);
+                }
             }
         }
     }

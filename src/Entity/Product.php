@@ -73,6 +73,10 @@ class Product
     #[Assert\GreaterThanOrEqual(0)]
     private int $stock = 0;
 
+    #[ORM\Column(nullable: true)]
+    #[Assert\GreaterThanOrEqual(0)]
+    private ?int $lowStockThreshold = null;
+
     #[ORM\Column(length: 100, nullable: true)]
     #[Assert\Length(max: 100)]
     private ?string $sku = null;
@@ -225,6 +229,18 @@ class Product
     public function setStock(int $stock): self
     {
         $this->stock = $stock;
+
+        return $this;
+    }
+
+    public function getLowStockThreshold(): ?int
+    {
+        return $this->lowStockThreshold;
+    }
+
+    public function setLowStockThreshold(?int $lowStockThreshold): self
+    {
+        $this->lowStockThreshold = $lowStockThreshold;
 
         return $this;
     }

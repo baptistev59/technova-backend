@@ -29,11 +29,13 @@ use App\Repository\BrandRepository;
 use App\Repository\CategoryRepository;
 use App\Repository\CustomerOrderRepository;
 use App\Repository\ProductRepository;
+use App\Repository\ProductVariantRepository;
 use App\Repository\ShopRepository;
 use App\Repository\UserRepository;
 use App\Security\ViewerAccessChecker;
 use App\Security\Voter\OrderVoter;
 use App\Security\Voter\ProductVoter;
+use App\Service\StockAlertService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -59,6 +61,8 @@ class VendorShopController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly SluggerInterface $slugger,
         private readonly ProductRepository $productRepository,
+        private readonly ProductVariantRepository $productVariantRepository,
+        private readonly StockAlertService $stockAlertService,
         private readonly CategoryRepository $categoryRepository,
         private readonly BrandRepository $brandRepository,
         private readonly AttributeDefinitionRepository $attributeDefinitionRepository,
@@ -106,11 +110,16 @@ class VendorShopController extends AbstractController
                 'revenue' => (float) $dashboardOrders['revenue'],
             ];
 
+            $threshold = $this->stockAlertService->getThreshold();
+            $lowStockCount = $this->productRepository->countLowStockForShop($existingShop, $threshold)
+                + $this->productVariantRepository->countLowStockForShop($existingShop, $threshold);
+
             $statCards = [
                 ['label' => 'Commandes totales', 'value' => $metrics['totalOrders'], 'trend' => 'Depuis l’ouverture', 'icon' => '🧾'],
                 ['label' => 'En attente', 'value' => $metrics['pendingOrders'], 'trend' => 'Statut pending', 'icon' => '⏳'],
                 ['label' => 'Payées / expédiées', 'value' => $metrics['paidOrders'], 'trend' => 'Commandes validées', 'icon' => '✅'],
                 ['label' => 'Revenus cumulés', 'value' => number_format($metrics['revenue'], 2, ',', ' ').' €', 'trend' => 'Cumul boutique', 'icon' => '💶'],
+                ['label' => 'Stock faible', 'value' => $lowStockCount, 'trend' => sprintf('≤ %d unités', $threshold), 'icon' => '⚠️'],
             ];
 
             $ordersPreview = [];
@@ -362,7 +371,7 @@ class VendorShopController extends AbstractController
 
         $stockFilters = [
             'in_stock' => 'En stock',
-            'low_stock' => 'Stock faible (≤10)',
+            'low_stock' => 'Stock faible (seuil configuré)',
             'out_of_stock' => 'Rupture de stock',
         ];
 
@@ -841,6 +850,7 @@ class VendorShopController extends AbstractController
             if ('grouped' === $product->getType()) {
                 $this->syncProductBundleItems($product, $bundleState);
                 $this->ensureGroupedCategory($product);
+                $product->setLowStockThreshold(null);
             } else {
                 $this->clearProductBundleItems($product);
             }
@@ -934,6 +944,7 @@ class VendorShopController extends AbstractController
             if ('grouped' === $product->getType()) {
                 $this->syncProductBundleItems($product, $bundleState);
                 $this->ensureGroupedCategory($product);
+                $product->setLowStockThreshold(null);
             } else {
                 $this->clearProductBundleItems($product);
             }
@@ -1601,6 +1612,7 @@ class VendorShopController extends AbstractController
                 ->setPrice($product->getPrice())
                 ->setPromoPrice(null)
                 ->setStock($product->getStock())
+                ->setLowStockThreshold($product->getLowStockThreshold())
                 ->setIsAvailable(true)
                 ->setConfiguration($configuration)
                 ->setMetadata($metadata)
@@ -1741,6 +1753,7 @@ class VendorShopController extends AbstractController
             ->setPrice($source->getPrice())
             ->setPromoPrice($source->getPromoPrice())
             ->setStock($source->getStock())
+            ->setLowStockThreshold($source->getLowStockThreshold())
             ->setSku(null)
             ->setBarcode(null)
             ->setKeywords($source->getKeywords())
@@ -1802,6 +1815,7 @@ class VendorShopController extends AbstractController
                 ->setPrice($variant->getPrice())
                 ->setPromoPrice($variant->getPromoPrice())
                 ->setStock($variant->getStock())
+                ->setLowStockThreshold($variant->getLowStockThreshold())
                 ->setIsAvailable($variant->isAvailable())
                 ->setImagePath($variant->getImagePath())
                 ->setConfiguration($variant->getConfiguration())
@@ -1862,6 +1876,13 @@ class VendorShopController extends AbstractController
             $stock = $this->normalizeInt($data['stock'] ?? null);
             if (null !== $stock && $stock >= 0) {
                 $variant->setStock($stock);
+            }
+
+            $lowStock = $this->normalizeInt($data['lowStockThreshold'] ?? null);
+            if (null !== $lowStock && $lowStock >= 0) {
+                $variant->setLowStockThreshold($lowStock);
+            } elseif (array_key_exists('lowStockThreshold', $data)) {
+                $variant->setLowStockThreshold(null);
             }
 
             if (array_key_exists('sku', $data)) {

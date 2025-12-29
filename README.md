@@ -9,6 +9,9 @@ Sommaire
 --------
 
 - [Stack & modules clés](#stack--modules-clés)
+- [Audit des endpoints API](#audit-des-endpoints-api)
+- [Qualité de code (PSR-12 & Best Practices)](#qualité-de-code-psr-12--best-practices)
+- [Confirmation email](#confirmation-email)
 - [Endpoints disponibles](#endpoints-disponibles)
 - [Installation locale (dev)](#installation-locale-dev)
 - [Authentification JWT & Postman](#authentification-jwt--postman)
@@ -33,6 +36,18 @@ Stack & modules clés
 - **Catalogue avancé** – Attributs/valeurs/variantes (prix/promo/stock/image par combinaison) + sélection d’options côté front.  
 - **Monitoring** – Monolog JSON sur `php://stderr` en prod (Alwaysdata récupère les logs PHP).
 - **Paiement** – Stripe Checkout + webhook `/stripe/webhook` pour confirmer les commandes.
+
+Audit des endpoints API
+-----------------------
+
+Un audit pédagogique complet des endpoints (attendu vs exposé) est disponible ici :
+`docs/api-audit.md`
+
+Confirmation email
+------------------
+
+Guide d’usage (token, expiration, relance) :
+`docs/email-verification.md`
 
 ### Webpack Encore vs Asset Mapper (justification)
 

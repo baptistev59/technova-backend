@@ -795,6 +795,7 @@ final class VendorApiController extends AbstractController
             'price' => $product->getPrice(),
             'promoPrice' => $product->getPromoPrice(),
             'stock' => $product->getStock(),
+            'lowStockThreshold' => $product->getLowStockThreshold(),
             'status' => $product->isPublished() ? 'published' : 'draft',
             'type' => $product->getType(),
             'keywords' => $product->getKeywords(),
@@ -827,6 +828,7 @@ final class VendorApiController extends AbstractController
             'price' => $variant->getPrice(),
             'promoPrice' => $variant->getPromoPrice(),
             'stock' => $variant->getStock(),
+            'lowStockThreshold' => $variant->getLowStockThreshold(),
             'isAvailable' => $variant->isAvailable(),
             'image' => $variant->getImagePath() ? '/'.ltrim($variant->getImagePath(), '/') : null,
             'configuration' => $variant->getConfiguration(),
@@ -954,6 +956,11 @@ final class VendorApiController extends AbstractController
             }
             if (isset($variantData['stock'])) {
                 $variant->setStock((int) $variantData['stock']);
+            }
+            if (isset($variantData['lowStockThreshold'])) {
+                $variant->setLowStockThreshold($variantData['lowStockThreshold'] !== null ? (int) $variantData['lowStockThreshold'] : null);
+            } elseif ($product->getLowStockThreshold() !== null) {
+                $variant->setLowStockThreshold($product->getLowStockThreshold());
             }
             if (isset($variantData['isAvailable'])) {
                 $variant->setIsAvailable((bool) $variantData['isAvailable']);

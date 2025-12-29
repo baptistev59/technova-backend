@@ -36,6 +36,9 @@ class ProductVariant
     #[ORM\Column(options: ['default' => 0])]
     private int $stock = 0;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $lowStockThreshold = null;
+
     #[ORM\Column(options: ['default' => true])]
     private bool $isAvailable = true;
 
@@ -121,6 +124,18 @@ class ProductVariant
     public function setStock(int $stock): self
     {
         $this->stock = $stock;
+
+        return $this;
+    }
+
+    public function getLowStockThreshold(): ?int
+    {
+        return $this->lowStockThreshold;
+    }
+
+    public function setLowStockThreshold(?int $lowStockThreshold): self
+    {
+        $this->lowStockThreshold = $lowStockThreshold;
 
         return $this;
     }

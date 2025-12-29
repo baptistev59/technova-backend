@@ -1,0 +1,8 @@
+Alerte stock faible
+
+Le stock est faible pour l’article suivant :
+- {{ product.name }}{% if variant_label %} — {{ variant_label }}{% endif %}
+- Stock restant : {{ remaining_stock }} (seuil {{ threshold }})
+{% if shop %}- Boutique : {{ shop.name }}{% endif %}
+
+Accéder à l’espace vendeur : {{ dashboard_url }}

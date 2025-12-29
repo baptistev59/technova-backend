@@ -254,21 +254,34 @@
                                             {% endif %}
                                         {% elseif product.variants|length > 0 %}
                                             {% set totalStock = 0 %}
+                                            {% set lowVariantCount = 0 %}
                                             {% for variant in product.variants %}
-                                                {% set totalStock = totalStock + (variant.stock ?? 0) %}
+                                                {% set variantStock = variant.stock ?? 0 %}
+                                                {% set totalStock = totalStock + variantStock %}
+                                                {% set lowThreshold = variant.lowStockThreshold ?? product.lowStockThreshold ?? 10 %}
+                                                {% if variantStock > 0 and variantStock <= lowThreshold %}
+                                                    {% set lowVariantCount = lowVariantCount + 1 %}
+                                                {% endif %}
                                             {% endfor %}
-                                            {% if totalStock <= 0 %}
-                                                <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
-                                            {% elseif totalStock <= 10 %}
-                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-600">Faible ({{ totalStock }})</span>
-                                            {% else %}
-                                                <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ totalStock }} en stock</span>
-                                            {% endif %}
+                                            {% set totalLowThreshold = product.lowStockThreshold ?? 10 %}
+                                            <div class="flex flex-col gap-1">
+                                                {% if totalStock <= 0 %}
+                                                    <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
+                                                {% elseif totalStock <= totalLowThreshold %}
+                                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-600">Faible ({{ totalStock }})</span>
+                                                {% else %}
+                                                    <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ totalStock }} en stock</span>
+                                                {% endif %}
+                                                {% if lowVariantCount > 0 %}
+                                                    <span class="text-xs text-amber-600">⚠ {{ lowVariantCount }} variante{{ lowVariantCount > 1 ? 's' : '' }} en stock faible</span>
+                                                {% endif %}
+                                            </div>
                                         {% else %}
                                             {% set totalStock = product.stock %}
+                                            {% set totalLowThreshold = product.lowStockThreshold ?? 10 %}
                                             {% if totalStock <= 0 %}
                                                 <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">Rupture</span>
-                                            {% elseif totalStock <= 10 %}
+                                            {% elseif totalStock <= totalLowThreshold %}
                                                 <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-600">Faible ({{ totalStock }})</span>
                                             {% else %}
                                                 <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">{{ totalStock }} en stock</span>

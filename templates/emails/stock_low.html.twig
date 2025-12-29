@@ -1,0 +1,11 @@
+<h1>Alerte stock faible</h1>
+<p>Bonjour,</p>
+<p>Le stock est faible pour l’article suivant :</p>
+<ul>
+    <li><strong>{{ product.name }}</strong>{% if variant_label %} — {{ variant_label }}{% endif %}</li>
+    <li>Stock restant : <strong>{{ remaining_stock }}</strong> (seuil {{ threshold }})</li>
+    {% if shop %}<li>Boutique : {{ shop.name }}</li>{% endif %}
+</ul>
+{% if dashboard_url %}
+    <p><a href="{{ dashboard_url }}">Accéder à l’espace vendeur</a></p>
+{% endif %}

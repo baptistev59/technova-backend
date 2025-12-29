@@ -23,6 +23,7 @@ class UserRegistrationService
         private readonly UserRepository $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly JWTTokenManagerInterface $jwtManager,
+        private readonly EmailVerificationService $emailVerificationService,
     ) {
     }
 
@@ -66,10 +67,12 @@ class UserRegistrationService
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $requestData['password']);
         $user->setPassword($hashedPassword);
+        $verificationToken = $this->emailVerificationService->prepareVerification($user);
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
+        $this->emailVerificationService->sendVerification($user, $verificationToken);
         $token = $this->jwtManager->create($user);
 
         return [

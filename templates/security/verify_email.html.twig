@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Confirmation email - TechNova{% endblock %}
+
+{% block body %}
+    <section class="mx-auto max-w-3xl py-16 text-center space-y-4">
+        {% if status == 'verified' %}
+            <h1 class="text-3xl font-semibold text-slate-900">Adresse confirmée ✅</h1>
+            <p class="text-slate-600">Ton compte est activé. Tu peux te connecter.</p>
+            <a class="btn btn-primary mt-4" href="{{ path('app_login') }}">Se connecter</a>
+        {% elseif status == 'already_verified' %}
+            <h1 class="text-3xl font-semibold text-slate-900">Déjà confirmé</h1>
+            <p class="text-slate-600">Ton adresse email est déjà validée.</p>
+            <a class="btn btn-outline mt-4" href="{{ path('homepage') }}">Retour à l’accueil</a>
+        {% elseif status == 'expired' %}
+            <h1 class="text-3xl font-semibold text-slate-900">Lien expiré</h1>
+            <p class="text-slate-600">Ce lien n’est plus valide. Merci de relancer une inscription ou de contacter le support.</p>
+            <a class="btn btn-outline mt-4" href="{{ path('homepage') }}">Retour à l’accueil</a>
+        {% else %}
+            <h1 class="text-3xl font-semibold text-slate-900">Lien invalide</h1>
+            <p class="text-slate-600">Le lien de confirmation est incorrect.</p>
+            <a class="btn btn-outline mt-4" href="{{ path('homepage') }}">Retour à l’accueil</a>
+        {% endif %}
+    </section>
+{% endblock %}
