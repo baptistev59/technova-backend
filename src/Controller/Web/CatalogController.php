@@ -7,6 +7,7 @@ namespace App\Controller\Web;
 use App\Repository\BrandRepository;
 use App\Repository\CategoryRepository;
 use App\Repository\ProductRepository;
+use App\Repository\ProductReviewRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,6 +23,7 @@ class CatalogController extends AbstractController
     public function index(
         Request $request,
         ProductRepository $productRepository,
+        ProductReviewRepository $productReviewRepository,
         CategoryRepository $categoryRepository,
         BrandRepository $brandRepository,
     ): Response {
@@ -49,11 +51,14 @@ class CatalogController extends AbstractController
         }
         $pagination = $productRepository->filterByPaginated($filters, $page, $limit);
         $products = $pagination['items'];
+        $productIds = array_map(static fn ($product) => $product->getId(), $products);
+        $reviewSummaries = $productReviewRepository->getSummariesForProducts($productIds);
         $categories = $categoryRepository->findAll();
         $brands = $brandRepository->findAll();
 
         return $this->render('catalog/index.html.twig', [
             'products' => $products,
+            'review_summaries' => $reviewSummaries,
             'categories' => $categories,
             'brands' => $brands,
             'activeFilters' => $filters,

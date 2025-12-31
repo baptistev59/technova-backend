@@ -32,10 +32,17 @@
                             alt="{{ mainImage ? mainImage.alt : 'Visuel produit' }}"
                         >
                     </div>
-                    <h3 class="tn-product-card__title mt-4" title="{{ product.name }}">{{ product.name }}</h3>
+                    <h3 class="tn-product-card__title tn-title--truncate mt-4" title="{{ product.name }}">{{ product.name }}</h3>
                     {% if product.shortDescription %}
-                        <p class="tn-product-card__excerpt">{{ product.shortDescription }}</p>
+                        <p class="tn-product-card__excerpt line-clamp-2">{{ product.shortDescription }}</p>
                     {% endif %}
+                    {% set reviewSummary = review_summaries[product.id] ?? null %}
+                    {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
+                    {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
+                    <div class="flex items-center gap-2">
+                        {{ include('partials/_rating_display.html.twig', { rating: avgRating }) }}
+                        <span class="tn-rating__count">({{ reviewCount }})</span>
+                    </div>
                     <div class="tn-product-card__meta">
                         <span>{{ product.brand ? product.brand.name : shop.name }}</span>
                         <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>

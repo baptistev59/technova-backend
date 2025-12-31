@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    {{ importmap('app') }}
     <style>
         /* Suggestions de recherche */
         .tn-search__form {
@@ -74,8 +75,10 @@
             <div class="tn-actions">
                 <div class="tn-search max-w-xs w-full">
                     <form class="tn-search__form relative" method="get" action="{{ path('catalog_index') }}">
+                        <label for="global-search" class="sr-only">Rechercher un produit</label>
                         <input
                             type="search"
+                            id="global-search"
                             name="search"
                             placeholder="Rechercher un produit…"
                             value="{{ app.request.get('search') }}"
@@ -104,7 +107,7 @@
                                 {% endif %}
                             </span>
                             <span class="tn-user-name">{{ viewer.firstname }}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="tn-user-chevron" viewBox="0 0 20 20" fill="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="tn-user-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false">
                                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.252l3.71-4.02a.75.75 0 111.08 1.04l-4.25 4.61a.75.75 0 01-1.08 0l-4.25-4.61a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                             </svg>
                         </summary>
@@ -151,28 +154,28 @@
         </div>
         <div class="tn-footer__grid">
             <div>
-                <h5>À propos</h5>
+                <h2>À propos</h2>
                 <a href="#">Qui sommes-nous</a>
                 <a href="#">Carrières</a>
                 <a href="#">Blog</a>
                 <a href="#">Presse</a>
             </div>
             <div>
-                <h5>Aide</h5>
+                <h2>Aide</h2>
                 <a href="#">Centre d’aide</a>
                 <a href="#">Livraison</a>
                 <a href="#">Retours</a>
                 <a href="#">Contact</a>
             </div>
             <div>
-                <h5>Légal</h5>
+                <h2>Légal</h2>
                 <a href="#">CGV</a>
                 <a href="#">Mentions légales</a>
                 <a href="#">Confidentialité</a>
                 <a href="#">Cookies</a>
             </div>
             <div class="tn-footer__social">
-                <h5>Réseaux</h5>
+                <h2>Réseaux</h2>
                 <div class="tn-social-icons">
                     <span>✕</span>
                     <span>📸</span>
@@ -187,6 +190,7 @@
     {% block javascripts %}
         <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
         <script>
+            (() => {
             const initSwipers = () => {
                 document.querySelectorAll('[data-swiper-init]').forEach((swiperEl) => {
 
@@ -444,6 +448,7 @@
                 initCatalogSuggestion();
                 initRowsPagination();
             });
+            })();
         </script>
         <script>
             document.addEventListener('DOMContentLoaded', () => {

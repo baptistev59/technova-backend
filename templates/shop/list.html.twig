@@ -57,16 +57,25 @@
                     >
                 </div>
 
-                <h3 class="tn-product-card__title tn-title--truncate" title="{{ shop.name }}">{{ shop.name }}</h3>
+                <h3 class="min-w-0 text-[1.05rem] font-semibold leading-tight" title="{{ shop.name }}">{{ shop.name }}</h3>
 
-                <p class="tn-product-card__excerpt">
+                <p class="tn-product-card__excerpt line-clamp-2 leading-relaxed min-h-[3.2em]">
+
                     {% if shop.description %}
-                        {% set desc = shop.description %}
+                        {% set desc = shop.description|striptags %}
                         {{ desc|length > 140 ? desc|slice(0, 140) ~ '…' : desc }}
                     {% else %}
                         Cette boutique n'a pas encore rédigé de présentation.
                     {% endif %}
                 </p>
+
+                {% set reviewSummary = review_summaries[shop.id] ?? null %}
+                {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
+                {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
+                <div class="flex items-center gap-2">
+                    {{ include('partials/_rating_display.html.twig', { rating: avgRating }) }}
+                    <span class="tn-rating__count">({{ reviewCount }})</span>
+                </div>
 
                 {% set vendorUser = shop.owner and shop.owner.owner ? shop.owner.owner : null %}
                 <div class="tn-product-card__meta">

@@ -10,6 +10,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ProductReviewRepository::class)]
+#[ORM\Table(uniqueConstraints: [new ORM\UniqueConstraint(name: 'uniq_review_author_product', columns: ['author_id', 'product_id'])])]
 #[ORM\HasLifecycleCallbacks]
 class ProductReview
 {
@@ -20,8 +21,11 @@ class ProductReview
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::SMALLINT)]
-    private ?int $rating = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 2, scale: 1)]
+    private string $rating = '5.0';
+
+    #[ORM\Column(options: ['default' => true])]
+    private bool $approved = true;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $comment = null;
@@ -38,14 +42,28 @@ class ProductReview
         return $this->id;
     }
 
-    public function getRating(): ?int
+    public function getRating(): float
     {
-        return $this->rating;
+        return (float) $this->rating;
     }
 
-    public function setRating(int $rating): self
+    public function setRating(float $rating): self
     {
-        $this->rating = $rating;
+        $rating = max(0.0, min(5.0, $rating));
+        $rating = round($rating * 2) / 2;
+        $this->rating = number_format($rating, 1, '.', '');
+
+        return $this;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approved;
+    }
+
+    public function setApproved(bool $approved): self
+    {
+        $this->approved = $approved;
 
         return $this;
     }

@@ -25,4 +25,11 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    'trix' => [
+        'version' => '2.1.16',
+    ],
+    'trix/dist/trix.min.css' => [
+        'version' => '2.1.16',
+        'type' => 'css',
+    ],
 ];

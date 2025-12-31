@@ -235,10 +235,14 @@ class ProductApiController extends AbstractController
                 'metadata' => $variant->getMetadata(),
             ], $product->getVariants()->toArray());
 
+            $reviews = array_filter(
+                $product->getReviews()->toArray(),
+                static fn ($review) => $review->isApproved()
+            );
             $data['reviews'] = array_map(fn ($review) => [
                 'rating' => $review->getRating(),
                 'comment' => $review->getComment(),
-            ], $product->getReviews()->toArray());
+            ], $reviews);
         }
 
         return $data;

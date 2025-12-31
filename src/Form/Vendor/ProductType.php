@@ -69,6 +69,7 @@ class ProductType extends AbstractType
                 'attr' => [
                     'rows' => 8,
                     'placeholder' => 'Décris ton produit, ses caractéristiques, son univers…',
+                    'data-trix' => 'true',
                 ],
                 'constraints' => [
                     new Length(max: 5000),

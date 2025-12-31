@@ -41,12 +41,18 @@ final class ShopProfileType extends AbstractType
             ])
             ->add('description', TextareaType::class, [
                 'required' => false,
+                'attr' => [
+                    'data-trix' => 'true',
+                ],
                 'constraints' => [
                     new Length(max: 2000),
                 ],
             ])
             ->add('policies', TextareaType::class, [
                 'required' => false,
+                'attr' => [
+                    'data-trix' => 'true',
+                ],
                 'constraints' => [
                     new Length(max: 2000),
                 ],

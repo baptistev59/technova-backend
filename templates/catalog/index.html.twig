@@ -68,11 +68,18 @@
                     >
                 </div>
 
-                <h3 class="tn-product-card__title tn-title--truncate" title="{{ product.name }}">
+                <h3 class="min-w-0 text-[1.05rem] font-semibold leading-tight" title="{{ product.name }}">
                     {{ product.name }}
                 </h3>
 
-                <p class="tn-product-card__excerpt">{{ product.shortDescription }}</p>
+                <p class="tn-product-card__excerpt line-clamp-2 leading-relaxed min-h-[3.2em]">{{ product.shortDescription }}</p>
+                {% set reviewSummary = review_summaries[product.id] ?? null %}
+                {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
+                {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
+                <div class="flex items-center gap-2">
+                    {{ include('partials/_rating_display.html.twig', { rating: avgRating }) }}
+                    <span class="tn-rating__count">({{ reviewCount }})</span>
+                </div>
 
                 <div class="tn-product-card__meta">
                     <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>

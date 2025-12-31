@@ -1,0 +1,30 @@
+{% set ratingValue = rating ?? 0 %}
+{% set ratingValue = ratingValue > 5 ? 5 : ratingValue %}
+{% set ratingValue = ratingValue < 0 ? 0 : ratingValue %}
+
+{% set size = size ?? 'sm' %}
+{% set sizeClass = {
+    'sm': 'text-sm',
+    'md': 'text-base',
+    'lg': 'text-lg',
+    'xl': 'text-xl'
+}[size] ?? 'text-sm' %}
+
+<div
+    class="flex items-center gap-1 {{ sizeClass }}"
+    aria-label="Note {{ ratingValue|number_format(1, ',', ' ') }} sur 5"
+>
+    {% for i in 1..5 %}
+        {% set diff = ratingValue - i + 1 %}
+
+        {% if diff >= 1 %}
+            <span class="text-amber-500 leading-none">★</span>
+        {% elseif diff >= 0.5 %}
+            <span class="text-transparent bg-clip-text bg-[linear-gradient(90deg,#f59e0b_50%,#e5e7eb_50%)] leading-none">
+                ★
+            </span>
+        {% else %}
+            <span class="text-gray-300 leading-none">★</span>
+        {% endif %}
+    {% endfor %}
+</div>

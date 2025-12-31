@@ -36,6 +36,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -61,6 +62,8 @@ final class VendorApiController extends AbstractController
         private readonly SluggerInterface $slugger,
         #[Autowire(service: 'state_machine.customer_order')]
         private readonly WorkflowInterface $orderWorkflow,
+        #[Autowire(service: 'html_sanitizer.sanitizer.rich_text')]
+        private readonly HtmlSanitizerInterface $richTextSanitizer,
     ) {
     }
 
@@ -144,6 +147,7 @@ final class VendorApiController extends AbstractController
             $request->files->get('logoFile'),
             $request->files->get('bannerFile')
         );
+        $this->sanitizeShopContent($shop);
 
         $this->entityManager->persist($shop);
         $this->entityManager->flush();
@@ -192,6 +196,7 @@ final class VendorApiController extends AbstractController
             $request->files->get('logoFile'),
             $request->files->get('bannerFile')
         );
+        $this->sanitizeShopContent($shop);
 
         $this->entityManager->flush();
 
@@ -867,6 +872,7 @@ final class VendorApiController extends AbstractController
             $this->normalizeUploadedFile($request->files->get('mainImageFile')),
             $this->normalizeGalleryUploads($request->files->get('galleryFiles'))
         );
+        $this->sanitizeProductContent($product);
 
         $this->applyProductVariants($product, $request->toArray()['variants'] ?? []);
         $this->applyProductAttributes($product, $request->toArray()['attributes'] ?? []);
@@ -1090,5 +1096,27 @@ final class VendorApiController extends AbstractController
         if (is_file($absolute)) {
             @unlink($absolute);
         }
+    }
+
+    private function sanitizeShopContent(Shop $shop): void
+    {
+        $shop->setDescription($this->sanitizeRichText($shop->getDescription()));
+        $shop->setPolicies($this->sanitizeRichText($shop->getPolicies()));
+    }
+
+    private function sanitizeProductContent(Product $product): void
+    {
+        $product->setDescription($this->sanitizeRichText($product->getDescription()));
+    }
+
+    private function sanitizeRichText(?string $value): ?string
+    {
+        if (null === $value) {
+            return null;
+        }
+
+        $sanitized = trim($this->richTextSanitizer->sanitize($value));
+
+        return '' === $sanitized ? null : $sanitized;
     }
 }

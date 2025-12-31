@@ -39,7 +39,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-slate-600 mb-2">Description</label>
-                                        {{ form_widget(form.description, {attr: {class: 'tn-textarea min-h-[300px] min-w-[100%] rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                                        {{ form_widget(form.description, {attr: {class: 'tn-textarea min-h-[300px] min-w-[100%] rounded-2xl border border-slate-200 bg-slate-50 p-4', 'data-trix': 'true'}}) }}
                                         <p class="tn-help">Partage ton histoire, ton positionnement ou les marques que tu représentes.</p>
                                         {{ form_errors(form.description) }}
                                     </div>
@@ -146,7 +146,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-slate-600 mb-2">Politique SAV / livraison</label>
-                                        {{ form_widget(form.policies, {attr: {class: 'tn-textarea min-h-[300px] min-w-[100%] rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                                        {{ form_widget(form.policies, {attr: {class: 'tn-textarea min-h-[300px] min-w-[100%] rounded-2xl border border-slate-200 bg-slate-50 p-4', 'data-trix': 'true'}}) }}
                                         <p class="tn-help">Délais de livraison, retours, garanties…</p>
                                         {{ form_errors(form.policies) }}
                                     </div>

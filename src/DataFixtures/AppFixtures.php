@@ -10,6 +10,7 @@ use App\Entity\Category;
 use App\Entity\Product;
 use App\Entity\ProductAttribute;
 use App\Entity\ProductAttributeValue;
+use App\Entity\ProductBundleItem;
 use App\Entity\ProductImage;
 use App\Entity\ProductReview;
 use App\Entity\ProductVariant;
@@ -29,6 +30,10 @@ class AppFixtures extends Fixture
     private const ADMIN_AVATAR = self::AVATAR_BASE_PATH.'avatar-admin.svg';
     private const VENDOR_AVATAR = self::AVATAR_BASE_PATH.'avatar-vendor.svg';
     private const CUSTOMER_AVATAR = self::AVATAR_BASE_PATH.'avatar-customer.svg';
+    /**
+     * @var array<int, User>
+     */
+    private array $customers = [];
 
     public function __construct(
         private SluggerInterface $slugger,
@@ -118,6 +123,7 @@ class AppFixtures extends Fixture
 
             $manager->persist($customer);
             $manager->persist($address);
+            $this->customers[] = $customer;
         }
     }
 
@@ -223,9 +229,11 @@ class AppFixtures extends Fixture
         $reviews = $this->getReviewPool();
         $templateCount = count($templates);
         $templateIndex = 0;
+        $createdByShop = [];
 
         foreach ($shops as $vendorKey => $shop) {
             for ($i = 0; $i < 5; ++$i) {
+                $createdByShop[$vendorKey] ??= [];
                 $template = $templates[$templateIndex % $templateCount];
                 ++$templateIndex;
 
@@ -238,18 +246,29 @@ class AppFixtures extends Fixture
                 $price = $template['price'] * (1 + (\random_int(-5, 12) / 100));
                 $price = round($price, 2);
 
+                $isPublished = random_int(1, 100) > 12;
+                $isOutOfStock = random_int(1, 100) < 8;
+                $type = $template['type'];
+
+                if (!in_array($type, ['simple', 'variable', 'grouped'], true)) {
+                    $type = 'simple';
+                }
+                if (4 === $i && count($createdByShop[$vendorKey]) >= 2) {
+                    $type = 'grouped';
+                }
+
                 $product = (new Product())
                     ->setName($productName)
                     ->setSlug($this->slug($productName.'-'.$vendorKey.'-'.$i))
                     ->setShortDescription($template['short'])
                     ->setDescription($template['description'])
                     ->setPrice($price)
-                    ->setStock(\random_int(10, 120))
                     ->setSku($this->generateSku($brand->getSlug()))
                     ->setBarcode($this->generateBarcode())
-                    ->setType($template['type'])
+                    ->setType($type)
                     ->setIsFeatured(0 === $i)
-                    ->setIsPublished(true)
+                    ->setIsPublished($isPublished)
+                    ->setStock($isOutOfStock ? 0 : random_int(10, 120))
                     ->setCategory($category)
                     ->setBrand($brand)
                     ->setShop($shop);
@@ -257,12 +276,34 @@ class AppFixtures extends Fixture
                 $this->attachImage($product, $template['image']);
                 $this->attachReviews($manager, $product, $reviews);
 
-                $attributeDefinitions = $template['attributes'] ?? $this->getAttributeBlueprint();
-                $attributeSets = $this->createAttributesForProduct($manager, $product, $attributeDefinitions);
-                $totalStock = $this->generateVariantsForProduct($manager, $product, $attributeSets, $price);
-                $product->setStock($totalStock);
+                if ('variable' === $type) {
+                    $attributeDefinitions = $template['attributes'] ?? $this->getAttributeBlueprint();
+                    $attributeSets = $this->createAttributesForProduct($manager, $product, $attributeDefinitions);
+                    $totalStock = $this->generateVariantsForProduct($manager, $product, $attributeSets, $price);
+                    $product->setStock($totalStock);
+                } elseif ('grouped' === $type) {
+                    $components = array_values(array_filter(
+                        $createdByShop[$vendorKey],
+                        static fn (Product $item) => 'grouped' !== $item->getType()
+                    ));
+                    if (count($components) >= 2) {
+                        $pickCount = min(3, count($components));
+                        $indexes = (array) array_rand($components, $pickCount);
+                        foreach ($indexes as $position => $index) {
+                            $bundleItem = (new ProductBundleItem())
+                                ->setComponent($components[$index])
+                                ->setPosition($position)
+                                ->setIsRequired($position < 2);
+                            $manager->persist($bundleItem);
+                            $product->addBundleItem($bundleItem);
+                        }
+                    } else {
+                        $product->setType('simple');
+                    }
+                }
 
                 $manager->persist($product);
+                $createdByShop[$vendorKey][] = $product;
             }
         }
     }
@@ -290,18 +331,24 @@ class AppFixtures extends Fixture
 
     private function attachReviews(ObjectManager $manager, Product $product, array $pool): void
     {
-        for ($i = 0; $i < 2; ++$i) {
-            $comment = $pool[array_rand($pool)];
+        $reviewCount = random_int(0, 6);
+
+        for ($i = 0; $i < $reviewCount; ++$i) {
+            $ratingPool = [0, 1, 2, 3, 4, 5];
+            $rating = $ratingPool[array_rand($ratingPool)];
+            $author = [] !== $this->customers ? $this->customers[array_rand($this->customers)] : null;
 
             $review = (new ProductReview())
-                ->setRating(\random_int(4, 5))
-                ->setComment($comment)
+                ->setRating((float) $rating)
+                ->setComment($pool[array_rand($pool)])
+                ->setAuthor($author)
                 ->setProduct($product);
 
-            $product->addReview($review);
             $manager->persist($review);
+            $product->addReview($review);
         }
     }
+
 
     private function getCategoryData(): array
     {
@@ -546,7 +593,7 @@ class AppFixtures extends Fixture
                 'brand' => 'aurora-dynamics',
                 'image' => 'ai-laptop.svg',
                 'price' => 1999,
-                'type' => 'computer',
+                'type' => 'variable',
                 'short' => 'Ultrabook 16" avec coprocesseur neuronal QX-5.',
                 'description' => 'Double écran OLED, module IA embarqué et batterie 30h pour coder, monter ou générer des médias hors-ligne.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -557,7 +604,7 @@ class AppFixtures extends Fixture
                 'brand' => 'flux-vision',
                 'image' => 'vr-headset.svg',
                 'price' => 1299,
-                'type' => 'xr-headset',
+                'type' => 'variable',
                 'short' => 'Casque XR multi-focal avec suivi oculaire.',
                 'description' => 'Matériau respirant, résolution 5K par œil et intégration native avec les espaces collaboratifs TechNova.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -568,7 +615,7 @@ class AppFixtures extends Fixture
                 'brand' => 'pulse-mobility',
                 'image' => 'smart-scooter.svg',
                 'price' => 1490,
-                'type' => 'mobility',
+                'type' => 'simple',
                 'short' => 'Trottinette autonome avec évitement d’obstacles.',
                 'description' => 'Autonomie 80km, recharge solaire latente et pilotage vocal sécurisé.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -579,7 +626,7 @@ class AppFixtures extends Fixture
                 'brand' => 'nexa-audio',
                 'image' => 'smart-speaker.svg',
                 'price' => 499,
-                'type' => 'speaker',
+                'type' => 'simple',
                 'short' => 'Enceinte spatiale qui adapte la musique à l’humeur.',
                 'description' => 'Analyse biométrique via les micros et génération automatique de playlists personnalisées.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -590,7 +637,7 @@ class AppFixtures extends Fixture
                 'brand' => 'pulse-mobility',
                 'image' => 'autonomous-drone.svg',
                 'price' => 2890,
-                'type' => 'drone',
+                'type' => 'variable',
                 'short' => 'Drone cargo silencieux pour la logistique urbaine.',
                 'description' => 'Charge utile 20kg, planification IA et parachute d’urgence.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -601,7 +648,7 @@ class AppFixtures extends Fixture
                 'brand' => 'lumina-home',
                 'image' => 'iot-hub.svg',
                 'price' => 799,
-                'type' => 'hub',
+                'type' => 'simple',
                 'short' => 'Hub domotique holographique multi-room.',
                 'description' => 'Projection 3D des indicateurs énergétiques, automatisation des scènes et API ouverte.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -612,7 +659,7 @@ class AppFixtures extends Fixture
                 'brand' => 'solara-tech',
                 'image' => 'solar-backpack.svg',
                 'price' => 349,
-                'type' => 'energy',
+                'type' => 'grouped',
                 'short' => 'Sac à dos solaire générant jusqu’à 120W.',
                 'description' => 'Batterie Graphène, ports USB-C 240W et charge par induction pour drones.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -623,7 +670,7 @@ class AppFixtures extends Fixture
                 'brand' => 'quantum-wear',
                 'image' => 'wearable-ring.svg',
                 'price' => 299,
-                'type' => 'wearable',
+                'type' => 'simple',
                 'short' => 'Anneau biométrique avec capteurs sanguins non invasifs.',
                 'description' => 'Algorithmes prédictifs pour anticiper fatigue et micro-stress.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -634,7 +681,7 @@ class AppFixtures extends Fixture
                 'brand' => 'orbit-robotics',
                 'image' => 'robot-companion.svg',
                 'price' => 4590,
-                'type' => 'robot',
+                'type' => 'variable',
                 'short' => 'Robot compagnon modulable pour les familles.',
                 'description' => 'Reconnaissance émotionnelle, bras articulé modulable et contrôle vocal multi-utilisateur.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -645,7 +692,7 @@ class AppFixtures extends Fixture
                 'brand' => 'flux-vision',
                 'image' => 'hologram-projector.svg',
                 'price' => 2490,
-                'type' => 'hologram',
+                'type' => 'simple',
                 'short' => 'Projecteur holographique autonome 4K.',
                 'description' => 'Streaming direct depuis Figma / Blender, interactivité tactile et enregistrement volumétrique.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -656,7 +703,7 @@ class AppFixtures extends Fixture
                 'brand' => 'aurora-dynamics',
                 'image' => 'ai-laptop.svg',
                 'price' => 259,
-                'type' => 'accessory',
+                'type' => 'simple',
                 'short' => 'Stylet neuronal qui retranscrit la pensée en croquis.',
                 'description' => 'Capteurs EMG miniaturisés et export vectoriel instantané.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -667,7 +714,7 @@ class AppFixtures extends Fixture
                 'brand' => 'pulse-mobility',
                 'image' => 'autonomous-drone.svg',
                 'price' => 990,
-                'type' => 'drone',
+                'type' => 'grouped',
                 'short' => 'Drone caméra autonome pour créateurs nomades.',
                 'description' => 'Stabilisation 8 axes, suivi IA des sujets et transmission chiffrée.',
                 'attributes' => $this->getAttributeBlueprint(),
@@ -736,6 +783,19 @@ class AppFixtures extends Fixture
         return $sets;
     }
 
+    private function stockRangeByType(string $type): array
+    {
+        return match ($type) {
+            'computer' => [5, 25],
+            'robot' => [2, 10],
+            'drone' => [3, 15],
+            'mobility' => [5, 30],
+            'hub' => [10, 60],
+            'wearable' => [20, 150],
+            default => [10, 50],
+        };
+    }
+
     /**
      * @param array<int, array{
      *     attribute: ProductAttribute,
@@ -764,7 +824,10 @@ class AppFixtures extends Fixture
                 $metadata[$selection['attribute']->getSlug()] = $selection['value']->getValue();
             }
 
-            $stock = \random_int(3, 25);
+            [$min, $max] = $this->stockRangeByType($product->getType());
+            $isAvailable = random_int(1, 100) > 10;
+            $stock = $isAvailable ? random_int(3, 25) : 0;
+
             $totalStock += $stock;
 
             $promoPrice = null;
@@ -776,8 +839,8 @@ class AppFixtures extends Fixture
                 ->setProduct($product)
                 ->setPrice(round($price, 2))
                 ->setPromoPrice($promoPrice)
+                ->setIsAvailable($isAvailable)
                 ->setStock($stock)
-                ->setIsAvailable(true)
                 ->setImagePath(($product->getImages()->first() ?: null)?->getUrl())
                 ->setConfiguration($configuration ?: null)
                 ->setMetadata($metadata ?: null)

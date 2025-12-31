@@ -116,7 +116,7 @@
             </div>
         </div>
     </div>
-    <div class="tn-product-info">
+    <div class="tn-product-info" x-data>
         <p class="tn-product-info__category">{{ product.category.name }}</p>
         <h1>{{ product.name }}</h1>
         <div id="main-price-block">
@@ -154,12 +154,12 @@
         {% if product.shortDescription %}
             <p>{{ product.shortDescription }}</p>
         {% elseif product.description %}
-            <p>{{ product.description }}</p>
+            <div>{{ product.description|raw }}</div>
         {% endif %}
         {% if product.description %}
             <div class="tn-product-description rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-sm ">
                 <h3 class="underline decoration-solid text-xl font-semibold ">Description détaillée</h3>
-                <p>{{ product.description|nl2br }}</p>
+                <div>{{ product.description|raw }}</div>
             </div>
         {% endif %}
 
@@ -482,17 +482,37 @@
 {% endif %}
 
 
-{# Avis clients fictifs issus des fixtures #}
+{# Avis clients #}
 <section class="tn-section">
     <div class="tn-section__header">
         <h2>Avis clients</h2>
     </div>
+    <div class="mb-4 flex items-center gap-3">
+        {{ include('partials/_rating_display.html.twig', {
+            rating: review_stats.avg,
+            size: 'xl'
+        }) }}
+        <span class="text-sm text-slate-600">
+            {{ review_stats.avg|number_format(1, ',', ' ') }}/5 ({{ review_stats.count }} avis)
+        </span>
+    </div>
+
     <div class="tn-reviews">
-        {% if product.reviews|length > 0 %}
-            {% for review in product.reviews %}
+        {% if approved_reviews|length > 0 %}
+            {% for review in approved_reviews %}
                 <article>
-                    <strong>{{ review.rating }}/5</strong>
-                    <p>{{ review.comment }}</p>
+                    <div class="flex items-center gap-2">
+                        {{ include('partials/_rating_display.html.twig', {
+                            rating: review.rating,
+                            size: 'lg'
+                        }) }}
+                        <span class="text-sm text-slate-600">
+                            {{ review.rating|number_format(1, ',', ' ') }}/5
+                        </span>
+                    </div>
+
+                    <div>{{ review.comment|raw }}</div>
+                    <p class="text-xs text-slate-400 mt-2">{{ review.createdAt|date('d/m/Y') }}</p>
                 </article>
             {% endfor %}
         {% else %}

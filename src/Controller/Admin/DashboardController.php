@@ -11,6 +11,7 @@ use App\Entity\Category;
 use App\Entity\Conversation;
 use App\Entity\CustomerOrder;
 use App\Entity\Product;
+use App\Entity\ProductReview;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;
@@ -63,6 +64,7 @@ class DashboardController extends AbstractDashboardController
             MenuItem::linkToCrud('Catégories', 'fas fa-layer-group', Category::class),
             MenuItem::linkToCrud('Marques', 'fas fa-tag', Brand::class),
             MenuItem::linkToCrud('Attributs', 'fas fa-bars', AttributeDefinition::class),
+            MenuItem::linkToCrud('Avis clients', 'fas fa-star', ProductReview::class),
         ]);
 
         yield MenuItem::section('Commandes');

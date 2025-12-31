@@ -7,6 +7,7 @@ namespace App\Controller\Web;
 use App\Entity\Product;
 use App\Entity\Shop;
 use App\Repository\ProductRepository;
+use App\Repository\ProductReviewRepository;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,7 +19,10 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class ProductController extends AbstractController
 {
-    public function __construct(private readonly ProductRepository $productRepository)
+    public function __construct(
+        private readonly ProductRepository $productRepository,
+        private readonly ProductReviewRepository $productReviewRepository,
+    )
     {
     }
 
@@ -48,6 +52,9 @@ class ProductController extends AbstractController
         $bundleComponents = $this->buildBundleComponents($product);
         $bundlePriceRange = $this->computeBundlePriceRange($product, $bundleComponents);
 
+        $approvedReviews = $this->productReviewRepository->findApprovedForProduct($product->getId());
+        $reviewStats = $this->productReviewRepository->getApprovedStatsForProduct($product->getId());
+
         return $this->render('catalog/product_show.html.twig', [
             'product' => $product,
             'optionGroups' => $optionGroups,
@@ -59,6 +66,8 @@ class ProductController extends AbstractController
             'contextShopId' => $shopContext?->getId(),
             'previousProduct' => $previousProduct,
             'nextProduct' => $nextProduct,
+            'approved_reviews' => $approvedReviews,
+            'review_stats' => $reviewStats,
         ]);
     }
 

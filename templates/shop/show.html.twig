@@ -4,17 +4,23 @@
 
 {% block title %}{{ shop.name }} · Boutique TechNova{% endblock %}
 
-{% macro shopProductCard(product, shop) %}
+{% macro shopProductCard(product, shop, reviewSummary) %}
     {% set mainImage = product.images|first %}
-    <article class="tn-product-card h-full flex flex-col">
+    {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
+    {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
+    <article class="tn-product-card w-full h-full flex flex-col">
         <div class="tn-product-card__media">
             <img src="{{ mainImage ? asset(mainImage.url) : asset('assets/images/product-placeholder.svg') }}" alt="{{ mainImage ? mainImage.alt : 'Visuel produit' }}">
         </div>
         <div class="mt-4">
-            <h3 class="tn-product-card__title" title="{{ product.name }}">{{ product.name }}</h3>
+            <h3 class="tn-product-card__title tn-title--truncate" title="{{ product.name }}">{{ product.name }}</h3>
             {% if product.shortDescription %}
-                <p class="text-sm text-slate-500 mt-2 line-clamp-3">{{ product.shortDescription }}</p>
+                <p class="tn-product-card__excerpt line-clamp-2 mt-2">{{ product.shortDescription }}</p>
             {% endif %}
+            <div class="flex items-center gap-2">
+                {{ include('partials/_rating_display.html.twig', { rating: avgRating }) }}
+                <span class="tn-rating__count">({{ reviewCount }})</span>
+            </div>
             <div class="tn-product-card__meta mt-3">
                 <span>{{ product.brand ? product.brand.name : shop.name }}</span>
                 <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
@@ -36,7 +42,7 @@
             <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">{{ shop.name }}</h1>
             <p class="text-slate-500 mt-3 leading-relaxed">
                 {% if shop.description %}
-                    {{ shop.description }}
+                    {{ shop.description|raw }}
                 {% else %}
                     Explorez la sélection exclusive du vendeur {{ shop.name }} sur TechNova.
                 {% endif %}
@@ -92,14 +98,14 @@
                 <div class="swiper-wrapper">
                     {% for product in latestSlides %}
                         <div class="swiper-slide p-3">
-                            {{ macros.shopProductCard(product, shop) }}
+                            {{ macros.shopProductCard(product, shop, review_summaries[product.id] ?? null) }}
                         </div>
                     {% endfor %}
                     {% if latestMissingSlides and latestSlides %}
                         {% for i in 0..(latestMissingSlides - 1) %}
                             <div class="swiper-slide p-3">
                                 {% set fallbackProduct = latestSlides[(i) % latestSlides|length] %}
-                                {{ macros.shopProductCard(fallbackProduct, shop) }}
+                                {{ macros.shopProductCard(fallbackProduct, shop, review_summaries[fallbackProduct.id] ?? null) }}
                             </div>
                         {% endfor %}
                     {% endif %}
@@ -124,14 +130,14 @@
                 <div class="swiper-wrapper">
                     {% for product in featuredSlides %}
                         <div class="swiper-slide p-3">
-                            {{ macros.shopProductCard(product, shop) }}
+                            {{ macros.shopProductCard(product, shop, review_summaries[product.id] ?? null) }}
                         </div>
                     {% endfor %}
                     {% if featuredMissingSlides and featuredSlides %}
                         {% for i in 0..(featuredMissingSlides - 1) %}
                             <div class="swiper-slide p-3">
                                 {% set fallbackProduct = featuredSlides[(i) % featuredSlides|length] %}
-                                {{ macros.shopProductCard(fallbackProduct, shop) }}
+                                {{ macros.shopProductCard(fallbackProduct, shop, review_summaries[fallbackProduct.id] ?? null) }}
                             </div>
                         {% endfor %}
                     {% endif %}
@@ -149,7 +155,11 @@
         <div class="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-5">
             <h3 class="text-xl font-semibold text-slate-900">À propos de {{ shop.name }}</h3>
             <p class="text-sm text-slate-500 leading-relaxed">
-                {{ shop.description ?: 'Maison partenaire TechNova, cette boutique sélectionne des produits testés par nos experts.' }}
+                {% if shop.description %}
+                    {{ shop.description|raw }}
+                {% else %}
+                    Maison partenaire TechNova, cette boutique sélectionne des produits testés par nos experts.
+                {% endif %}
             </p>
             <div class="flex flex-wrap gap-3">
                 <a class="btn btn-outline" href="{{ path('app_vendor_shop_new') }}">Créer / modifier ma boutique</a>

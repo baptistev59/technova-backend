@@ -4,6 +4,17 @@ framework:
 
     # Note that the session will be started ONLY if you read or write from it.
     session: true
+    html_sanitizer:
+        sanitizers:
+            rich_text:
+                allow_safe_elements: true
+                allow_elements:
+                    a: ['href', 'title', 'target', 'rel']
+                allowed_link_schemes: ['http', 'https', 'mailto']
+                force_attributes:
+                    a:
+                        rel: 'noopener noreferrer'
+                        target: '_blank'
 
     #esi: true
     #fragments: true

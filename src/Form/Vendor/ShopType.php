@@ -41,6 +41,7 @@ class ShopType extends AbstractType
                 'attr' => [
                     'rows' => 4,
                     'placeholder' => 'Présente brièvement ton activité, ton univers, etc.',
+                    'data-trix' => 'true',
                 ],
             ])
             ->add('contactEmail', EmailType::class, [
@@ -58,6 +59,7 @@ class ShopType extends AbstractType
                 'attr' => [
                     'rows' => 4,
                     'placeholder' => 'Conditions de retour, SAV, garanties…',
+                    'data-trix' => 'true',
                 ],
             ])
             ->add('logoFile', FileType::class, [

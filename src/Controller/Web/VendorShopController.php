@@ -42,6 +42,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -71,6 +72,8 @@ class VendorShopController extends AbstractController
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
         #[Autowire(service: 'state_machine.customer_order')]
         private readonly WorkflowInterface $orderWorkflow,
+        #[Autowire(service: 'html_sanitizer.sanitizer.rich_text')]
+        private readonly HtmlSanitizerInterface $richTextSanitizer,
     ) {
     }
 
@@ -293,6 +296,7 @@ class VendorShopController extends AbstractController
             $logo = $form->get('logoFile')->getData();
             $banner = $form->get('bannerFile')->getData();
             $this->handleUploads($shop, $logo, $banner);
+            $this->sanitizeShopContent($shop);
 
             if ($isNewShop) {
                 $this->entityManager->persist($shop);
@@ -838,6 +842,7 @@ class VendorShopController extends AbstractController
             $this->ensureProductSlug($product);
 
             $this->synchronizePromoFields($product, $form);
+            $this->sanitizeProductContent($product);
             $mainImageFile = $form->get('mainImageFile')->getData();
             $galleryFiles = $form->get('galleryFiles')->getData() ?? [];
             $this->handleProductImages($product, $mainImageFile, $galleryFiles);
@@ -932,6 +937,7 @@ class VendorShopController extends AbstractController
             $this->ensureProductSlug($product);
 
             $this->synchronizePromoFields($product, $form);
+            $this->sanitizeProductContent($product);
             $mainImageFile = $form->get('mainImageFile')->getData();
             $galleryFiles = $form->get('galleryFiles')->getData() ?? [];
             $this->handleProductImages($product, $mainImageFile, $galleryFiles);
@@ -2332,5 +2338,27 @@ class VendorShopController extends AbstractController
         }
 
         return $slug;
+    }
+
+    private function sanitizeShopContent(Shop $shop): void
+    {
+        $shop->setDescription($this->sanitizeRichText($shop->getDescription()));
+        $shop->setPolicies($this->sanitizeRichText($shop->getPolicies()));
+    }
+
+    private function sanitizeProductContent(Product $product): void
+    {
+        $product->setDescription($this->sanitizeRichText($product->getDescription()));
+    }
+
+    private function sanitizeRichText(?string $value): ?string
+    {
+        if (null === $value) {
+            return null;
+        }
+
+        $sanitized = trim($this->richTextSanitizer->sanitize($value));
+
+        return '' === $sanitized ? null : $sanitized;
     }
 }

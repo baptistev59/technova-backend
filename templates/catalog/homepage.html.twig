@@ -10,7 +10,7 @@
         <p>Trouvez les meilleurs produits tech, en quelques clics.</p>
         <div class="tn-hero__actions">
             <a href="{{ path('catalog_index') }}" class="btn btn-primary">Parcourir les produits</a>
-            <a href="#" class="btn btn-outline">Découvrir les vendeurs</a>
+            <a href="{{ path('shop_index') }}" class="btn btn-outline">Découvrir les boutiques</a>
         </div>
     </div>
     <div class="tn-hero__visual">
@@ -26,6 +26,9 @@
     <div class="tn-categories">
         {% for category in categories %}
             {% set iconPath = category.iconPath ?? 'images/categories/category-default.svg' %}
+            {% if iconPath and not (iconPath starts with 'images/' or iconPath starts with 'http' or iconPath starts with '/') %}
+                {% set iconPath = 'images/categories/' ~ iconPath %}
+            {% endif %}
             <a class="tn-category-card" href="{{ path('catalog_index', { category: category.slug }) }}">
                 <div class="tn-category-card__icon">
                     <img src="{{ asset(iconPath) }}" alt="Icône {{ category.name }}">
@@ -59,7 +62,14 @@
                             >
                             </div>
 
-                            <h3 class="tn-product-card__title" title="{{ product.name }}">{{ product.name }}</h3>
+                            <h3 class="tn-product-card__title tn-title--truncate" title="{{ product.name }}">{{ product.name }}</h3>
+                            {% set reviewSummary = review_summaries[product.id] ?? null %}
+                            {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
+                            {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
+                            <div class="flex items-center gap-2">
+                                {{ include('partials/_rating_display.html.twig', { rating: avgRating }) }}
+                                <span class="tn-rating__count">({{ reviewCount }})</span>
+                            </div>
 
                             <div class="tn-product-card__meta">
                                 <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
@@ -68,10 +78,6 @@
                             <div class="mt-2 text-xs text-blue-600">
                                 <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
                             </div>
-                            <div class="mt-2 text-xs text-blue-600">
-                                <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
-                            </div>
-
                             <div class="tn-product-card__cta mt-auto">
                             <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
                             </div>
@@ -110,13 +116,22 @@
                             >
                             </div>
 
-                            <h3 class="tn-product-card__title tn-title--clamp2" title="{{ product.name }}">{{ product.name }}</h3>
+                            <h3 class="tn-product-card__title tn-title--truncate" title="{{ product.name }}">{{ product.name }}</h3>
+                            {% set reviewSummary = review_summaries[product.id] ?? null %}
+                            {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
+                            {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
+                            <div class="flex items-center gap-2">
+                                {{ include('partials/_rating_display.html.twig', { rating: avgRating }) }}
+                                <span class="tn-rating__count">({{ reviewCount }})</span>
+                            </div>
 
                             <div class="tn-product-card__meta">
                             <span>{{ product.brand ? product.brand.name : product.shop.name }}</span>
                             <strong>{{ product.price|number_format(2, ',', ' ') }} €</strong>
                             </div>
-
+                            <div class="mt-2 text-xs text-blue-600">
+                                <a href="{{ path('shop_show', { slug: product.shop.slug }) }}" class="hover:underline">Boutique {{ product.shop.name }}</a>
+                            </div>
                             <div class="tn-product-card__cta mt-auto">
                             <a class="btn btn-primary" href="{{ path('product_show', {slug: product.slug}) }}">Voir le produit</a>
                             </div>

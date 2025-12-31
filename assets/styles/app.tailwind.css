@@ -3,17 +3,136 @@
 @tailwind utilities;
 
 :root {
-    --tn-primary: #1E88E5;
+    --tn-primary: #1565C0;
     --tn-secondary: #64B5F6;
     --tn-accent: #4C7DF0;
     --tn-background: #F5F6FA;
     --tn-surface: #ffffff;
     --tn-text: #212121;
-    --tn-muted: #999999;
+    --tn-muted: #4B5563;
     --tn-border: #E1E6F0;
     --tn-radius: 20px;
     --tn-shadow: 0 20px 40px rgba(18, 38, 63, 0.08);
     font-size: 16px;
+}
+.tn-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.85rem;
+    color: #f59e0b;
+}
+
+.tn-rating__star {
+    color: #f59e0b;
+}
+
+.tn-rating__star--empty {
+    color: #e5e7eb;
+}
+
+.tn-rating__count {
+    font-size: 0.75rem;
+    color: var(--tn-muted);
+    margin-left: 4px;
+}
+
+.tn-rating-input {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 4px;
+}
+
+.tn-rating-input input {
+    position: absolute;
+    opacity: 0;
+}
+
+.tn-rating-input label {
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: #d1d5db;
+}
+
+.tn-rating-input input:checked ~ label,
+.tn-rating-input label:hover,
+.tn-rating-input label:hover ~ label {
+    color: #f59e0b;
+}
+.star-rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 4px;
+    border: 0;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.star-rating__legend {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.star-rating__input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.star-rating__label {
+    display: inline-block;
+    width: 1.6rem;
+    height: 1.6rem;
+    cursor: pointer;
+    line-height: 1.6rem;
+    color: #d1d5db;
+    transition: color 0.15s ease;
+}
+
+.star-rating__label::before {
+    content: "☆";
+    font-size: 1.6rem;
+    transition: color 0.15s ease;
+}
+
+.star-rating__input:focus-visible + .star-rating__label {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.star-rating__label:hover::before,
+.star-rating__label:hover ~ .star-rating__label::before {
+    content: "★";
+    color: #f59e0b;
+}
+
+.star-rating__input:checked ~ .star-rating__label::before {
+    content: "★";
+    color: #f59e0b;
+}
+.star-rating--half .star-rating__label {
+    width: 0.8rem;
+    overflow: hidden;
+}
+.star-rating--half {
+    gap: 0;
+}
+
+.tn-rating__half {
+    position: relative;
+    display: inline-block;
+    line-height: 1;
+}
+
+.tn-rating__star--half {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 50%;
+    overflow: hidden;
+    color: #f59e0b;
 }
 
 *,
@@ -391,7 +510,7 @@ img {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* overflow: hidden; */
   margin: 0;
 }
 
@@ -462,7 +581,7 @@ img {
   display: -webkit-box;
   -webkit-line-clamp: 2;  /* ou 3 */
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* overflow: hidden; */
   margin: 0;
 }
 
@@ -470,10 +589,10 @@ img {
 .tn-title--truncate{
   display:block;
   width:100%;
-  min-width:0;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   /* neutralise le clamp si présent via .tn-product-card__title */
   -webkit-line-clamp: unset;
@@ -484,6 +603,12 @@ img {
 .tn-title--clamp2{
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tn-title--clamp3{
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -720,7 +845,7 @@ img {
     margin-top: 1.5rem;
 }
 
-.tn-footer__grid h5 {
+.tn-footer__grid h2 {
     margin: 0 0 1rem;
     text-transform: uppercase;
     letter-spacing: .08em;
