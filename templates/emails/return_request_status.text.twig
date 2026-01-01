@@ -1,0 +1,22 @@
+Demande de retour
+
+Bonjour,
+
+{% set labels = {
+    'approved': 'validée',
+    'rejected': 'refusée'
+} %}
+
+Votre demande de retour pour la commande {{ return_request.order.reference }}
+a été {{ labels[status] ?? status }}.
+
+{% if return_request.reason %}
+Motif : {{ return_request.reason }}
+{% endif %}
+
+{% if return_request.details %}
+Détails : {{ return_request.details }}
+{% endif %}
+
+Merci,
+L’équipe TechNova

@@ -191,6 +191,11 @@
                         {{ form_widget(form.stock, {attr: {class: 'tn-input rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Poids (kg)</label>
+                        {{ form_widget(form.weight, {attr: {class: 'tn-input rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                        <p class="text-xs text-slate-400 mt-1">Utilisé pour calculer les frais de livraison.</p>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-slate-600 mb-2">Stock faible (seuil)</label>
                         {{ form_widget(form.lowStockThreshold, {attr: {class: 'tn-input rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
                         <p class="text-xs text-slate-400 mt-1">Pour un produit variable, ce seuil sert de valeur par défaut aux variantes.</p>
@@ -533,6 +538,15 @@
                                                    name="variants[{{ variant.id }}][stock]"
                                                    min="0"
                                                    value="{{ variant.stock }}"
+                                                   class="tn-input rounded-2xl border border-slate-200 bg-white p-3">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-2">Poids (kg)</label>
+                                            <input type="number"
+                                                   name="variants[{{ variant.id }}][weight]"
+                                                   step="0.001"
+                                                   min="0"
+                                                   value="{{ variant.weight is not null ? variant.weight|number_format(3, '.', '') : '' }}"
                                                    class="tn-input rounded-2xl border border-slate-200 bg-white p-3">
                                         </div>
                                         <div>

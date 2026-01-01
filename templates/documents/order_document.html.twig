@@ -7,6 +7,7 @@
         body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1f2937; margin: 0; padding: 2rem; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
         .badge { border-radius: 999px; padding: 0.35rem 1rem; background: #2563eb; color: white; font-size: 0.85rem; }
+        .badge-refund { background: #e11d48; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
         th, td { border-bottom: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; }
         .total { font-size: 1.25rem; font-weight: 600; text-align: right; margin-top: 0.5rem; }
@@ -34,7 +35,9 @@
             </p>
             <p>Date : {{ order.createdAt|date('d/m/Y H:i') }}</p>
         </div>
-        <span class="badge">{{ type.label() }}</span>
+        <span class="badge {{ order.refundedAt ? 'badge-refund' : '' }}">
+            {{ order.refundedAt ? 'Remboursée' : type.label() }}
+        </span>
     </header>
 
     <section>
@@ -53,6 +56,12 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% if order.shippingTotal is defined %}
+            <p class="total">Livraison : {{ order.shippingTotal|number_format(2, ',', ' ') }} €</p>
+        {% endif %}
+        {% if order.refundedAt %}
+            <p class="total">Remboursée le {{ order.refundedAt|date('d/m/Y H:i') }}</p>
+        {% endif %}
         <p class="total">Total : {{ order.totalAmount|number_format(2, ',', ' ') }} €</p>
     </section>
 

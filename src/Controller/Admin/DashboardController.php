@@ -10,8 +10,10 @@ use App\Entity\Brand;
 use App\Entity\Category;
 use App\Entity\Conversation;
 use App\Entity\CustomerOrder;
+use App\Entity\ProductReviewReport;
 use App\Entity\Product;
 use App\Entity\ProductReview;
+use App\Entity\ReturnRequest;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;
@@ -69,10 +71,12 @@ class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Commandes');
         yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', CustomerOrder::class);
+        yield MenuItem::linkToCrud('Retours', 'fas fa-rotate-left', ReturnRequest::class);
         yield MenuItem::linkToCrud('Conversations', 'fas fa-comments', Conversation::class);
 
         yield MenuItem::section('Observabilite');
         yield MenuItem::linkToCrud('Audit log', 'fas fa-clipboard-list', AuditLog::class);
+        yield MenuItem::linkToCrud('Signalements avis', 'fas fa-flag', ProductReviewReport::class);
         yield MenuItem::linkToRoute('Logs Monolog', 'fas fa-file-lines', 'admin_logs');
     }
 }

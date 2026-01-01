@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\CustomerOrder;
 use App\Entity\Product;
+use App\Entity\User;
 use App\Entity\Shop;
 use App\Enum\OrderStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -59,6 +60,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->select('COALESCE(SUM(o.totalAmount), 0)')
             ->andWhere('o.createdAt >= :since')
             ->andWhere('o.status IN (:statuses)')
+            ->andWhere('o.refundedAt IS NULL')
             ->setParameter('since', $since)
             ->setParameter('statuses', $this->normalizeStatuses($statuses))
             ->getQuery()
@@ -101,6 +103,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
         return (float) $this->createQueryBuilder('o')
             ->select('COALESCE(SUM(o.totalAmount), 0)')
             ->andWhere('o.status IN (:statuses)')
+            ->andWhere('o.refundedAt IS NULL')
             ->setParameter('statuses', $this->normalizeStatuses($paid))
             ->getQuery()
             ->getSingleScalarResult();
@@ -128,6 +131,81 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * @return array{
+     *     orders: array<int, CustomerOrder>,
+     *     total: int,
+     *     pages: int,
+     *     page: int,
+     *     limit: int,
+     *     statusFilter: string|null
+     * }
+     */
+    public function paginateForOwner(User $owner, int $page = 1, int $limit = 10, ?string $statusFilter = null): array
+    {
+        $page = max(1, $page);
+        $limit = max(1, min(100, $limit));
+        $offset = ($page - 1) * $limit;
+
+        $baseQb = $this->createQueryBuilder('o')
+            ->andWhere('o.owner = :owner')
+            ->setParameter('owner', $owner);
+
+        $allowedStatuses = array_map(
+            static fn (OrderStatus $status): string => $status->value,
+            OrderStatus::cases()
+        );
+
+        if (null !== $statusFilter && !in_array($statusFilter, $allowedStatuses, true)) {
+            $statusFilter = null;
+        }
+
+        $filteredQb = clone $baseQb;
+        if (null !== $statusFilter) {
+            $filteredQb
+                ->andWhere('o.status = :statusFilter')
+                ->setParameter('statusFilter', $statusFilter);
+        }
+
+        $total = (int) (clone $filteredQb)
+            ->select('COUNT(o.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $idRows = (clone $filteredQb)
+            ->select('o.id AS id', 'o.createdAt AS createdAt')
+            ->orderBy('o.createdAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        $ids = array_map(static fn ($row) => (int) $row['id'], $idRows);
+
+        $orders = [];
+        if ([] !== $ids) {
+            $orders = $this->createQueryBuilder('o')
+                ->addSelect('items')
+                ->leftJoin('o.items', 'items')
+                ->where('o.id IN (:ids)')
+                ->setParameter('ids', $ids)
+                ->orderBy('o.createdAt', 'DESC')
+                ->getQuery()
+                ->getResult();
+        }
+
+        $pages = max(1, (int) ceil($total / $limit));
+
+        return [
+            'orders' => $orders,
+            'total' => $total,
+            'pages' => $pages,
+            'page' => $page,
+            'limit' => $limit,
+            'statusFilter' => $statusFilter,
+        ];
     }
 
     /**
@@ -174,6 +252,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
         $paidStatuses = [OrderStatus::Paid, OrderStatus::Shipped];
         $revenue = (float) (clone $baseQb)
             ->andWhere('o.status IN (:paidStatuses)')
+            ->andWhere('o.refundedAt IS NULL')
             ->setParameter('paidStatuses', $this->normalizeStatuses($paidStatuses))
             ->select('COALESCE(SUM(i.lineTotal), 0) AS revenue')
             ->getQuery()
@@ -247,6 +326,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
             ->innerJoin('o.items', 'items')
             ->innerJoin(Product::class, 'p', Join::WITH, 'p.id = items.productId')
             ->andWhere('p.shop = :shop')
+            ->andWhere('o.refundedAt IS NULL')
             ->andWhere('o.createdAt >= :since')
             ->groupBy('o.id')
             ->orderBy('o.createdAt', 'ASC')
@@ -320,6 +400,7 @@ class CustomerOrderRepository extends ServiceEntityRepository
             "SELECT DATE_TRUNC('month', created_at) AS month, COALESCE(SUM(total_amount), 0) AS total
             FROM customer_order
             WHERE created_at >= :since
+            AND refunded_at IS NULL
             AND status IN (:statuses)
             GROUP BY month
             ORDER BY month ASC",

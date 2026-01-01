@@ -463,16 +463,24 @@
                         }
                         const orderId = button.dataset.orderId;
                         const type = button.dataset.type ?? 'invoice';
-                        const headers = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' });
+                        const docUrl = button.dataset.docUrl;
+                        const docMethod = (button.dataset.docMethod ?? (docUrl ? 'GET' : 'POST')).toUpperCase();
+                        const headers = new Headers();
                         if (jwtToken) {
                             headers.set('Authorization', `Bearer ${jwtToken}`);
                         }
                         button.dataset.loading = '1';
                         try {
-                            const response = await fetch(`/api/vendor/orders/${orderId}/documents`, {
-                                method: 'POST',
+                            const body = docMethod === 'POST'
+                                ? new URLSearchParams({ type })
+                                : undefined;
+                            if (body) {
+                                headers.set('Content-Type', 'application/x-www-form-urlencoded');
+                            }
+                            const response = await fetch(docUrl ?? `/api/vendor/orders/${orderId}/documents`, {
+                                method: docMethod,
                                 headers,
-                                body: new URLSearchParams({ type }),
+                                body,
                             });
                             if (!response.ok) {
                                 console.error('Impossible de générer le document de commande', await response.text());

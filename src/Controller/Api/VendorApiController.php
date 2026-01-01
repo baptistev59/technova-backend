@@ -753,6 +753,8 @@ final class VendorApiController extends AbstractController
             'reference' => $order->getReference(),
             'status' => $order->getStatus(),
             'total' => (float) $order->getTotalAmount(),
+            'itemsTotal' => (float) $order->getItemsTotal(),
+            'shippingTotal' => (float) $order->getShippingTotal(),
             'currency' => $order->getCurrency(),
             'createdAt' => $order->getCreatedAt()?->format(\DateTimeInterface::ATOM),
             'updatedAt' => $order->getUpdatedAt()?->format(\DateTimeInterface::ATOM),
@@ -762,6 +764,7 @@ final class VendorApiController extends AbstractController
         if ($includeAddresses) {
             $data['shippingAddress'] = $order->getShippingAddress();
             $data['billingAddress'] = $order->getBillingAddress();
+            $data['shippingLines'] = $order->getShippingLines();
         }
 
         return $data;
@@ -833,6 +836,7 @@ final class VendorApiController extends AbstractController
             'price' => $variant->getPrice(),
             'promoPrice' => $variant->getPromoPrice(),
             'stock' => $variant->getStock(),
+            'weight' => $variant->getWeight(),
             'lowStockThreshold' => $variant->getLowStockThreshold(),
             'isAvailable' => $variant->isAvailable(),
             'image' => $variant->getImagePath() ? '/'.ltrim($variant->getImagePath(), '/') : null,
@@ -962,6 +966,9 @@ final class VendorApiController extends AbstractController
             }
             if (isset($variantData['stock'])) {
                 $variant->setStock((int) $variantData['stock']);
+            }
+            if (isset($variantData['weight'])) {
+                $variant->setWeight(null !== $variantData['weight'] ? (float) $variantData['weight'] : null);
             }
             if (isset($variantData['lowStockThreshold'])) {
                 $variant->setLowStockThreshold($variantData['lowStockThreshold'] !== null ? (int) $variantData['lowStockThreshold'] : null);

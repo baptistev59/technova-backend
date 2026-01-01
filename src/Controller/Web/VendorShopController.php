@@ -1821,6 +1821,7 @@ class VendorShopController extends AbstractController
                 ->setPrice($variant->getPrice())
                 ->setPromoPrice($variant->getPromoPrice())
                 ->setStock($variant->getStock())
+                ->setWeight($variant->getWeight())
                 ->setLowStockThreshold($variant->getLowStockThreshold())
                 ->setIsAvailable($variant->isAvailable())
                 ->setImagePath($variant->getImagePath())
@@ -1884,6 +1885,13 @@ class VendorShopController extends AbstractController
                 $variant->setStock($stock);
             }
 
+            $weight = $this->normalizeFloat($data['weight'] ?? null);
+            if (null !== $weight && $weight >= 0) {
+                $variant->setWeight($weight);
+            } elseif (array_key_exists('weight', $data)) {
+                $variant->setWeight(null);
+            }
+
             $lowStock = $this->normalizeInt($data['lowStockThreshold'] ?? null);
             if (null !== $lowStock && $lowStock >= 0) {
                 $variant->setLowStockThreshold($lowStock);
@@ -1939,6 +1947,8 @@ class VendorShopController extends AbstractController
             ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
             ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
             ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
+            ['label' => 'Retours', 'icon' => '↩️', 'active' => 'app_vendor_returns' === $activeRoute, 'path' => 'app_vendor_returns'],
+            ['label' => 'Livraison', 'icon' => '🚚', 'active' => 'app_vendor_shipping_index' === $activeRoute, 'path' => 'app_vendor_shipping_index'],
             ['label' => 'Statistiques', 'icon' => '📊', 'active' => 'app_vendor_stats' === $activeRoute, 'path' => 'app_vendor_stats'],
             ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
         ];

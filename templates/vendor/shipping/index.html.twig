@@ -1,0 +1,106 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% block title %}Livraison — {{ shop.name }}{% endblock %}
+
+{% block vendor_content %}
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Livraison</p>
+            <h1 class="text-3xl font-semibold text-slate-900">Zones & tarifs</h1>
+            <p class="text-sm text-slate-500 mt-2">Configure les zones, méthodes et tarifs de livraison par poids.</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ path('app_vendor_shipping_zone_new') }}" class="btn btn-outline btn-sm">Nouvelle zone</a>
+            <a href="{{ path('app_vendor_shipping_method_new') }}" class="btn btn-outline btn-sm">Nouvelle méthode</a>
+            <a href="{{ path('app_vendor_shipping_rate_new') }}" class="btn btn-primary btn-sm">Nouveau tarif</a>
+        </div>
+    </div>
+
+    <section class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-slate-900 mb-4">Zones</h2>
+        {% if zones %}
+            <div class="space-y-3">
+                {% for zone in zones %}
+                    <div class="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ zone.name }}</p>
+                            <p class="text-xs text-slate-500">Pays: {{ zone.countries|join(', ') }}</p>
+                            {% if zone.postalCodes %}
+                                <p class="text-xs text-slate-500">Codes: {{ zone.postalCodes|join(', ') }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ path('app_vendor_shipping_zone_edit', { id: zone.id }) }}" class="btn btn-outline btn-sm">Modifier</a>
+                            <form method="post" action="{{ path('app_vendor_shipping_zone_delete', { id: zone.id }) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('delete_zone_' ~ zone.id) }}">
+                                <button type="submit" class="btn btn-outline btn-sm text-red-600 border-red-200">Supprimer</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">Aucune zone configurée.</p>
+        {% endif %}
+    </section>
+
+    <section class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-slate-900 mb-4">Méthodes</h2>
+        {% if methods %}
+            <div class="space-y-3">
+                {% for method in methods %}
+                    <div class="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ method.name }}</p>
+                            <p class="text-xs text-slate-500">
+                                Zone: {{ method.zone ? method.zone.name : '—' }}
+                                {% if method.carrierName %} · {{ method.carrierName }}{% endif %}
+                            </p>
+                            <p class="text-xs text-slate-500">
+                                Délai: {{ method.minDays ?? '—' }} - {{ method.maxDays ?? '—' }} jours
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ path('app_vendor_shipping_method_edit', { id: method.id }) }}" class="btn btn-outline btn-sm">Modifier</a>
+                            <form method="post" action="{{ path('app_vendor_shipping_method_delete', { id: method.id }) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('delete_method_' ~ method.id) }}">
+                                <button type="submit" class="btn btn-outline btn-sm text-red-600 border-red-200">Supprimer</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">Aucune méthode configurée.</p>
+        {% endif %}
+    </section>
+
+    <section class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-slate-900 mb-4">Tarifs</h2>
+        {% if rates %}
+            <div class="space-y-3">
+                {% for rate in rates %}
+                    <div class="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ rate.method ? rate.method.name : '—' }}</p>
+                            <p class="text-xs text-slate-500">
+                                Poids: {{ rate.minWeight|number_format(3, ',', ' ') }} kg
+                                {% if rate.maxWeight is not null %}→ {{ rate.maxWeight|number_format(3, ',', ' ') }} kg{% else %}+{% endif %}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <p class="font-semibold text-slate-900">{{ rate.price|number_format(2, ',', ' ') }} €</p>
+                            <a href="{{ path('app_vendor_shipping_rate_edit', { id: rate.id }) }}" class="btn btn-outline btn-sm">Modifier</a>
+                            <form method="post" action="{{ path('app_vendor_shipping_rate_delete', { id: rate.id }) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('delete_rate_' ~ rate.id) }}">
+                                <button type="submit" class="btn btn-outline btn-sm text-red-600 border-red-200">Supprimer</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">Aucun tarif défini.</p>
+        {% endif %}
+    </section>
+{% endblock %}

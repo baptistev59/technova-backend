@@ -10,7 +10,7 @@ import 'trix';
 import 'trix/dist/trix.min.css';
 
 const initTrixEditors = () => {
-    document.querySelectorAll('textarea:not([data-trix=\"false\"])').forEach((textarea, index) => {
+    document.querySelectorAll('textarea[data-trix=\"true\"]').forEach((textarea, index) => {
         if (textarea.dataset.trixInitialized === 'true') {
             return;
         }

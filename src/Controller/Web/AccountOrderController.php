@@ -10,8 +10,10 @@ use App\Entity\User;
 use App\Repository\CustomerOrderRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ProductReviewRepository;
+use App\Repository\ReturnRequestRepository;
 use App\Repository\UserRepository;
 use App\Security\ViewerAccessChecker;
+use App\Enum\OrderStatus;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -30,6 +32,7 @@ class AccountOrderController extends AbstractController
         private readonly CustomerOrderRepository $orderRepository,
         private readonly ProductRepository $productRepository,
         private readonly ProductReviewRepository $reviewRepository,
+        private readonly ReturnRequestRepository $returnRequestRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ViewerAccessChecker $viewerAccessChecker,
         #[Autowire(service: 'html_sanitizer.sanitizer.rich_text')]
@@ -46,9 +49,18 @@ class AccountOrderController extends AbstractController
 
         $user = $this->resolveViewer($request);
         $orders = $this->orderRepository->findBy(['owner' => $user], ['createdAt' => 'DESC']);
+        $returnRequests = $this->returnRequestRepository->findBy(['requester' => $user], ['createdAt' => 'DESC']);
+        $returnsByOrder = [];
+        foreach ($returnRequests as $returnRequest) {
+            $order = $returnRequest->getOrder();
+            if ($order?->getId()) {
+                $returnsByOrder[$order->getId()] = $returnRequest;
+            }
+        }
 
         return $this->render('account/orders/index.html.twig', [
             'orders' => $orders,
+            'returns_by_order' => $returnsByOrder,
         ]);
     }
 
@@ -78,10 +90,12 @@ class AccountOrderController extends AbstractController
                 $reviewsByProduct[$productId] = $review;
             }
         }
+        $returnRequest = $this->returnRequestRepository->findOneForOrderAndUser($order, $user);
 
         return $this->render('account/orders/show.html.twig', [
             'order' => $order,
             'reviews_by_product' => $reviewsByProduct,
+            'return_request' => $returnRequest,
         ]);
     }
 
@@ -157,6 +171,64 @@ class AccountOrderController extends AbstractController
         }
 
         $this->entityManager->flush();
+
+        return $this->redirectToRoute('app_account_orders_show', ['reference' => $reference]);
+    }
+
+    #[Route('/{reference}/retour', name: 'app_account_orders_return', methods: ['POST'])]
+    public function submitReturn(string $reference, Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $order = $this->orderRepository->findOneBy(['reference' => $reference]);
+        $user = $this->resolveViewer($request);
+
+        if (!$order instanceof CustomerOrder || $order->getOwner()?->getId() !== $user->getId()) {
+            throw $this->createNotFoundException('Commande introuvable.');
+        }
+
+        $status = $order->getStatusEnum();
+        $isEligible = match ($status) {
+            OrderStatus::Paid, OrderStatus::Shipped => true,
+            default => false,
+        };
+        if (!$isEligible) {
+            $this->addFlash('error', 'La demande de retour est possible uniquement après paiement.');
+
+            return $this->redirectToRoute('app_account_orders_show', ['reference' => $reference]);
+        }
+
+        $existing = $this->returnRequestRepository->findOneForOrderAndUser($order, $user);
+        if ($existing) {
+            $this->addFlash('warning', 'Une demande de retour existe déjà pour cette commande.');
+
+            return $this->redirectToRoute('app_account_orders_show', ['reference' => $reference]);
+        }
+
+        if (!$this->isCsrfTokenValid('return_'.$order->getId(), (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+
+        $reason = trim((string) $request->request->get('reason', ''));
+        $details = trim((string) $request->request->get('details', ''));
+        if ('' === $reason) {
+            $this->addFlash('error', 'Merci d’indiquer un motif.');
+
+            return $this->redirectToRoute('app_account_orders_show', ['reference' => $reference]);
+        }
+
+        $returnRequest = (new \App\Entity\ReturnRequest())
+            ->setOrder($order)
+            ->setRequester($user)
+            ->setReason($reason)
+            ->setDetails('' !== $details ? $details : null);
+
+        $this->entityManager->persist($returnRequest);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', 'Demande de retour envoyée.');
 
         return $this->redirectToRoute('app_account_orders_show', ['reference' => $reference]);
     }

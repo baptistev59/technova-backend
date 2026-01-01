@@ -12,6 +12,7 @@ enum AuditAction: string
     case AdminProductPublish = 'ADMIN_PRODUCT_PUBLISH';
     case AdminOrderBlock = 'ADMIN_ORDER_BLOCK';
     case AdminOrderForceStatus = 'ADMIN_ORDER_FORCE_STATUS';
+    case AdminOrderRefund = 'ADMIN_ORDER_REFUND';
     case AdminLogsView = 'ADMIN_LOGS_VIEW';
     case AdminLogsDownload = 'ADMIN_LOGS_DOWNLOAD';
     case AdminLogsClear = 'ADMIN_LOGS_CLEAR';

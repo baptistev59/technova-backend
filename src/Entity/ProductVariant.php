@@ -36,6 +36,9 @@ class ProductVariant
     #[ORM\Column(options: ['default' => 0])]
     private int $stock = 0;
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 3, nullable: true)]
+    private ?string $weight = null;
+
     #[ORM\Column(nullable: true)]
     private ?int $lowStockThreshold = null;
 
@@ -124,6 +127,18 @@ class ProductVariant
     public function setStock(int $stock): self
     {
         $this->stock = $stock;
+
+        return $this;
+    }
+
+    public function getWeight(): ?float
+    {
+        return null !== $this->weight ? (float) $this->weight : null;
+    }
+
+    public function setWeight(?float $weight): self
+    {
+        $this->weight = null !== $weight ? number_format($weight, 3, '.', '') : null;
 
         return $this;
     }

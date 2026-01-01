@@ -98,6 +98,11 @@
                                 <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{ badge.class }}">
                                     {{ badge.label }}
                                 </span>
+                                {% if order.refundedAt %}
+                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                        Remboursée
+                                    </span>
+                                {% endif %}
                                 <svg class="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M19 9l-7 7-7-7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
@@ -116,6 +121,11 @@
                                 {% endif %}
                             </p>
                         <div class="flex flex-wrap items-center gap-2">
+                            {% if order.refundedAt %}
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                    Remboursée le {{ order.refundedAt|date('d/m/Y H:i') }}
+                                </span>
+                            {% endif %}
                             {% if status_code == STATUS_PENDING %}
                                     <form method="post"
                                           action="{{ path('app_vendor_orders_update', {id: order.id}) }}"
@@ -129,7 +139,7 @@
                                         <input type="hidden" name="status" value="{{ STATUS_CANCELLED }}">
                                         <button class="btn btn-outline btn-sm text-red-600 border-red-200" type="submit">Annuler</button>
                                     </form>
-                            {% elseif status_code == STATUS_PAID %}
+                            {% elseif status_code == STATUS_PAID and not order.refundedAt %}
                                     <form method="post"
                                           action="{{ path('app_vendor_orders_update', {id: order.id}) }}"
                                           onsubmit="return confirm('Marquer cette commande comme expédiée ?');">

@@ -11,6 +11,7 @@ use App\Repository\UserRepository;
 use App\Security\ViewerAccessChecker;
 use App\Service\CartService;
 use App\Service\CheckoutService;
+use App\Service\ShippingSelectionResolver;
 use App\Service\StripePaymentService;
 use App\Service\UserProfileService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,6 +31,7 @@ class CheckoutController extends AbstractController
         private readonly UserRepository $userRepository,
         private readonly CustomerOrderRepository $orderRepository,
         private readonly StripePaymentService $stripePaymentService,
+        private readonly ShippingSelectionResolver $shippingSelectionResolver,
         private readonly UrlGeneratorInterface $urlGenerator,
     ) {
     }
@@ -56,10 +58,13 @@ class CheckoutController extends AbstractController
             return $this->redirectToRoute('app_profile');
         }
 
+        $shippingByShop = $this->shippingSelectionResolver->buildOptions($summary['items'], $address);
+
         return $this->render('checkout/index.html.twig', [
             'cart' => $summary,
             'address' => $address,
             'viewer' => $user,
+            'shipping_by_shop' => $shippingByShop,
         ]);
     }
 
@@ -81,8 +86,25 @@ class CheckoutController extends AbstractController
             return $this->redirectToRoute('app_profile');
         }
 
+        $summary = $this->cartService->getSummary();
+        $shippingSelection = $this->shippingSelectionResolver->resolveSelection(
+            $summary['items'],
+            $address,
+            $request->request->all('shipping_method')
+        );
+        if (!$shippingSelection['valid']) {
+            $this->addFlash('warning', $shippingSelection['message']);
+
+            return $this->redirectToRoute('app_checkout_index');
+        }
+
         try {
-            $order = $this->checkoutService->createOrder($user, $address);
+            $order = $this->checkoutService->createOrder(
+                $user,
+                $address,
+                $shippingSelection['lines'],
+                $shippingSelection['shippingTotal']
+            );
         } catch (\RuntimeException $exception) {
             $this->addFlash('warning', $exception->getMessage());
 

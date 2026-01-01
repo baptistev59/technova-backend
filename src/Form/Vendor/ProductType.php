@@ -144,6 +144,21 @@ class ProductType extends AbstractType
                     new GreaterThanOrEqual(0),
                 ],
             ])
+            ->add('weight', NumberType::class, [
+                'label' => 'Poids (kg)',
+                'required' => false,
+                'html5' => true,
+                'scale' => 3,
+                'attr' => [
+                    'min' => 0,
+                    'step' => '0.001',
+                    'placeholder' => 'Ex : 1.250',
+                ],
+                'help' => 'Utilisé pour calculer les frais de livraison.',
+                'constraints' => [
+                    new GreaterThanOrEqual(0),
+                ],
+            ])
             ->add('lowStockThreshold', IntegerType::class, [
                 'label' => 'Stock faible (seuil)',
                 'required' => false,

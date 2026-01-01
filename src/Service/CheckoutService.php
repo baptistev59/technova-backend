@@ -37,7 +37,10 @@ class CheckoutService
     ) {
     }
 
-    public function createOrder(User $user, Address $shippingAddress): CustomerOrder
+    /**
+     * @param array<int, array<string, mixed>> $shippingLines
+     */
+    public function createOrder(User $user, Address $shippingAddress, array $shippingLines, float $shippingTotal): CustomerOrder
     {
         $summary = $this->cartService->getSummary();
         if (empty($summary['items'])) {
@@ -46,14 +49,21 @@ class CheckoutService
 
         $this->assertStockAvailability($summary['items']);
 
+        $itemsTotal = $this->formatAmount($summary['total']);
+        $shippingTotalFormatted = $this->formatAmount($shippingTotal);
+        $grandTotal = $this->formatAmount((float) $itemsTotal + $shippingTotal);
+
         $order = (new CustomerOrder())
             ->setOwner($user)
             ->setReference($this->generateReference())
             ->setStatus(OrderStatus::Pending)
             ->setCurrency('EUR')
-            ->setTotalAmount($this->formatAmount($summary['total']))
+            ->setItemsTotal($itemsTotal)
+            ->setShippingTotal($shippingTotalFormatted)
+            ->setTotalAmount($grandTotal)
             ->setShippingAddress($this->addressToArray($shippingAddress))
-            ->setBillingAddress($this->addressToArray($shippingAddress));
+            ->setBillingAddress($this->addressToArray($shippingAddress))
+            ->setShippingLines($shippingLines);
 
         foreach ($summary['items'] as $cartLine) {
             $product = $cartLine['product'];

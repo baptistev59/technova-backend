@@ -12,6 +12,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
@@ -56,6 +57,8 @@ class CustomerOrderCrudController extends AbstractCrudController
                 ->setFormTypeOption('choice_label', 'email'),
             ChoiceField::new('status')->setChoices($choices),
             TextField::new('totalAmount'),
+            TextField::new('refundId')->onlyOnDetail(),
+            DateTimeField::new('refundedAt')->onlyOnDetail(),
         ];
     }
 }

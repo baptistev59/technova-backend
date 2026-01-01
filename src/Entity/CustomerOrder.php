@@ -38,11 +38,20 @@ class CustomerOrder
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $totalAmount = '0.00';
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $itemsTotal = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $shippingTotal = '0.00';
+
     #[ORM\Column(length: 3)]
     private string $currency = 'EUR';
 
     #[ORM\Column(type: Types::JSON)]
     private array $shippingAddress = [];
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $shippingLines = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $billingAddress = null;
@@ -55,6 +64,12 @@ class CustomerOrder
 
     #[ORM\Column(length: 120, nullable: true)]
     private ?string $paymentIntentId = null;
+
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $refundId = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $refundedAt = null;
 
     #[ORM\OneToOne(mappedBy: 'order', targetEntity: Conversation::class, cascade: ['persist', 'remove'])]
     private ?Conversation $conversation = null;
@@ -163,6 +178,30 @@ class CustomerOrder
         return $this;
     }
 
+    public function getItemsTotal(): string
+    {
+        return $this->itemsTotal;
+    }
+
+    public function setItemsTotal(string $itemsTotal): self
+    {
+        $this->itemsTotal = $itemsTotal;
+
+        return $this;
+    }
+
+    public function getShippingTotal(): string
+    {
+        return $this->shippingTotal;
+    }
+
+    public function setShippingTotal(string $shippingTotal): self
+    {
+        $this->shippingTotal = $shippingTotal;
+
+        return $this;
+    }
+
     public function getCurrency(): string
     {
         return $this->currency;
@@ -183,6 +222,18 @@ class CustomerOrder
     public function setShippingAddress(array $shippingAddress): self
     {
         $this->shippingAddress = $shippingAddress;
+
+        return $this;
+    }
+
+    public function getShippingLines(): ?array
+    {
+        return $this->shippingLines;
+    }
+
+    public function setShippingLines(?array $shippingLines): self
+    {
+        $this->shippingLines = $shippingLines;
 
         return $this;
     }
@@ -231,6 +282,30 @@ class CustomerOrder
     public function setPaymentIntentId(?string $paymentIntentId): self
     {
         $this->paymentIntentId = $paymentIntentId;
+
+        return $this;
+    }
+
+    public function getRefundId(): ?string
+    {
+        return $this->refundId;
+    }
+
+    public function setRefundId(?string $refundId): self
+    {
+        $this->refundId = $refundId;
+
+        return $this;
+    }
+
+    public function getRefundedAt(): ?\DateTimeImmutable
+    {
+        return $this->refundedAt;
+    }
+
+    public function setRefundedAt(?\DateTimeImmutable $refundedAt): self
+    {
+        $this->refundedAt = $refundedAt;
 
         return $this;
     }

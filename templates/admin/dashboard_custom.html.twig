@@ -106,6 +106,22 @@
                                 </select>
                                 <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Forcer</button>
                             </form>
+                            {% if searched_order.refundedAt %}
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
+                                    Remboursée
+                                </span>
+                            {% elseif searched_order.status in ['paid', 'shipped'] %}
+                                <form method="post" action="{{ path('admin_order_refund', { id: searched_order.id }) }}" class="flex flex-wrap items-center gap-2" onsubmit="return confirm('Rembourser cette commande ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('refund_order_' ~ searched_order.id) }}">
+                                    <input
+                                        type="text"
+                                        name="refund_amount"
+                                        placeholder="Montant € (optionnel)"
+                                        class="border border-slate-200 rounded-full px-3 py-1 text-xs w-36"
+                                    >
+                                    <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Rembourser</button>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                     {% if searched_vendor %}
@@ -215,6 +231,22 @@
                                         </select>
                                         <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Forcer</button>
                                     </form>
+                                    {% if order.refundedAt %}
+                                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
+                                            Remboursée
+                                        </span>
+                                    {% elseif order.status in ['paid', 'shipped'] %}
+                                        <form method="post" action="{{ path('admin_order_refund', { id: order.id }) }}" class="flex flex-wrap items-center gap-2" onsubmit="return confirm('Rembourser cette commande ?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('refund_order_' ~ order.id) }}">
+                                            <input
+                                                type="text"
+                                                name="refund_amount"
+                                                placeholder="Montant € (optionnel)"
+                                                class="border border-slate-200 rounded-full px-3 py-1 text-xs w-36"
+                                            >
+                                            <button type="submit" class="btn btn-outline btn-sm whitespace-nowrap">Rembourser</button>
+                                        </form>
+                                    {% endif %}
                                     <a
                                         href="{{ path('admin_ea', {
                                             crudAction: 'detail',

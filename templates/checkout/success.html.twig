@@ -35,6 +35,12 @@
                     <span>Total</span>
                     <span>{{ order.totalAmount|number_format(2, ',', ' ') }} €</span>
                 </div>
+                {% if order.shippingTotal is defined %}
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>Livraison</span>
+                        <span>{{ order.shippingTotal|number_format(2, ',', ' ') }} €</span>
+                    </div>
+                {% endif %}
             </div>
 
             <div class="rounded-2xl border border-slate-200 bg-white p-6">

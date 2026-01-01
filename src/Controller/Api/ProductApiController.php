@@ -206,6 +206,7 @@ class ProductApiController extends AbstractController
         if ($includeDetails) {
             $data['description'] = $product->getDescription();
             $data['stock'] = $product->getStock();
+            $data['weight'] = $product->getWeight();
             $data['images'] = array_map(fn ($img) => [
                 'url' => $img->getUrl(),
                 'alt' => $img->getAlt(),
@@ -230,6 +231,7 @@ class ProductApiController extends AbstractController
                 'price' => $variant->getPrice(),
                 'promoPrice' => $variant->getPromoPrice(),
                 'stock' => $variant->getStock(),
+                'weight' => $variant->getWeight(),
                 'isAvailable' => $variant->isAvailable(),
                 'configuration' => $variant->getConfiguration(),
                 'metadata' => $variant->getMetadata(),

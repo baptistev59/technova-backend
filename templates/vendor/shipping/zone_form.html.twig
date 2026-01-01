@@ -1,0 +1,25 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% block title %}{{ is_edit ? 'Modifier zone' : 'Nouvelle zone' }} — {{ shop.name }}{% endblock %}
+
+{% block vendor_content %}
+    <div class="max-w-3xl space-y-6">
+        <div>
+            <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Livraison</p>
+            <h1 class="text-3xl font-semibold text-slate-900">{{ is_edit ? 'Modifier une zone' : 'Créer une zone' }}</h1>
+        </div>
+
+        {{ form_start(form, {attr: {class: 'space-y-6'}}) }}
+            <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+                {{ form_row(form.name, {attr: {class: 'tn-input rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                {{ form_row(form.countries, {attr: {class: 'tn-textarea min-h-[140px] rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                {{ form_row(form.postalCodes, {attr: {class: 'tn-textarea min-h-[140px] rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                {{ form_row(form.isActive) }}
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ path('app_vendor_shipping_index') }}" class="btn btn-outline">Retour</a>
+                <button class="btn btn-primary" type="submit">{{ is_edit ? 'Mettre à jour' : 'Créer la zone' }}</button>
+            </div>
+        {{ form_end(form) }}
+    </div>
+{% endblock %}

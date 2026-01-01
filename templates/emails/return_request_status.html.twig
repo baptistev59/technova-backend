@@ -1,0 +1,25 @@
+<h1>Demande de retour</h1>
+
+<p>Bonjour,</p>
+
+{% set labels = {
+    'approved': 'validée',
+    'rejected': 'refusée'
+} %}
+
+<p>
+    Votre demande de retour pour la commande
+    <strong>{{ return_request.order.reference }}</strong>
+    a été {{ labels[status] ?? status }}.
+</p>
+
+{% if return_request.reason %}
+    <p><strong>Motif :</strong> {{ return_request.reason }}</p>
+{% endif %}
+
+{% if return_request.details %}
+    <p><strong>Détails :</strong> {{ return_request.details }}</p>
+{% endif %}
+
+<p>Merci,</p>
+<p>L’équipe TechNova</p>

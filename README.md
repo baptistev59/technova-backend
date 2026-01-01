@@ -107,20 +107,41 @@ composer lint-fix
 Endpoints disponibles
 ---------------------
 
-| Méthode | Route                | Description                                             | Auth |
-|---------|----------------------|---------------------------------------------------------|------|
-| GET     | `/api/test`          | Vérifie l’uptime de l’API (log dans monolog).           | Publique |
-| GET     | `/api/test-audit`    | Génère une entrée dans `audit_log`.                     | JWT |
-| GET     | `/api/me`            | Infos du user connecté (id/email).                      | JWT |
-| POST    | `/api/login`         | Authentifie via email/password, renvoie JWT.            | Publique |
-| POST    | `/api/register`      | Inscription client + JWT de bienvenue.                  | Publique |
-| GET     | `/api/cart`          | Contenu du panier stocké en session navigateur.         | JWT |
-| POST    | `/api/cart`          | Ajoute un produit (JSON `{ productId, quantity }`).     | JWT |
-| DELETE  | `/api/cart/{id}`     | Supprime un produit du panier.                          | JWT |
-| POST    | `/api/token/refresh` | Régénère un JWT à partir du token courant.              | JWT |
-| GET     | `/api/products`      | Liste JSON des produits publiés (filtres catégorie/marque/prix/texte + tri). | Publique |
-| GET     | `/api/products/{slug}` | Fiche produit détaillée (prix, variantes, images, avis).         | Publique |
-| GET     | `/api/docs`          | Swagger UI (documentation interactive).                 | Publique (à protéger en prod) |
+| Méthode | Route                           | Description                                                      | Auth |
+|---------|---------------------------------|------------------------------------------------------------------|------|
+| GET     | `/api/test`                     | Vérifie l’uptime de l’API (log dans monolog).                    | Publique |
+| GET     | `/api/test-audit`               | Génère une entrée dans `audit_log`.                              | JWT |
+| POST    | `/api/login`                    | Authentifie via email/password, renvoie JWT.                     | Publique |
+| POST    | `/api/logout`                   | Déconnexion stateless (côté client).                             | JWT |
+| POST    | `/api/register`                 | Inscription client + JWT de bienvenue.                           | Publique |
+| POST    | `/api/token/refresh`            | Régénère un JWT à partir du token courant.                       | JWT |
+| GET     | `/api/me`                       | Infos du user connecté (id/email).                               | JWT |
+| GET     | `/api/email/verify/{token}`     | Confirme l’email (token).                                        | Publique |
+| POST    | `/api/email/verify/resend`      | Renvoie un lien de confirmation.                                 | JWT |
+| GET     | `/api/categories`               | Liste des catégories.                                            | Publique |
+| GET     | `/api/brands`                   | Liste des marques.                                               | Publique |
+| GET     | `/api/shops`                    | Liste des boutiques + note moyenne.                              | Publique |
+| GET     | `/api/shops/{slug}`             | Détail d’une boutique.                                           | Publique |
+| GET     | `/api/products`                 | Liste produits (filtres + tri + pagination).                     | Publique |
+| GET     | `/api/products/{slug}`          | Fiche produit détaillée (prix, variantes, images, avis).         | Publique |
+| GET     | `/api/products/{id}/reviews`    | Avis approuvés d’un produit.                                     | Publique |
+| POST    | `/api/products/{id}/reviews`    | Crée/maj un avis (achat requis).                                 | JWT |
+| GET     | `/api/cart`                     | Contenu du panier (session).                                     | JWT |
+| POST    | `/api/cart`                     | Ajoute un produit (JSON `{ productId, quantity }`).              | JWT |
+| PUT     | `/api/cart/{id}`                | Met à jour la quantité (`quantity`, `variantId`).                | JWT |
+| DELETE  | `/api/cart/{id}`                | Supprime un produit du panier.                                   | JWT |
+| GET     | `/api/addresses`                | Liste des adresses client.                                       | JWT |
+| POST    | `/api/addresses`                | Crée une adresse.                                                | JWT |
+| PUT     | `/api/addresses/{id}`           | Met à jour une adresse.                                          | JWT |
+| DELETE  | `/api/addresses/{id}`           | Supprime une adresse.                                            | JWT |
+| GET     | `/api/orders`                   | Liste paginée des commandes client.                              | JWT |
+| GET     | `/api/orders/{id}`              | Détail d’une commande client.                                    | JWT |
+| GET     | `/api/orders/{id}/invoice`      | Lien de facture (commande payée).                                | JWT |
+| POST    | `/api/returns`                  | Demande de retour.                                               | JWT |
+| POST    | `/api/report`                   | Signalement d’avis produit.                                      | JWT |
+| GET     | `/api/checkout/shipping-options`| Options de livraison par boutique (adresse).                     | JWT |
+| POST    | `/api/checkout`                 | Crée une session Stripe + commande.                              | JWT |
+| GET     | `/api/docs`                     | Swagger UI (documentation interactive).                          | Publique (à protéger en prod) |
 
 ## API Vendeur
 

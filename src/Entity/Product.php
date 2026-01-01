@@ -73,6 +73,10 @@ class Product
     #[Assert\GreaterThanOrEqual(0)]
     private int $stock = 0;
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 3, options: ['default' => '0.000'])]
+    #[Assert\GreaterThanOrEqual(0)]
+    private string $weight = '0.000';
+
     #[ORM\Column(nullable: true)]
     #[Assert\GreaterThanOrEqual(0)]
     private ?int $lowStockThreshold = null;
@@ -229,6 +233,18 @@ class Product
     public function setStock(int $stock): self
     {
         $this->stock = $stock;
+
+        return $this;
+    }
+
+    public function getWeight(): float
+    {
+        return (float) $this->weight;
+    }
+
+    public function setWeight(float $weight): self
+    {
+        $this->weight = number_format($weight, 3, '.', '');
 
         return $this;
     }
