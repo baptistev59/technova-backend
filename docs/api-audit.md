@@ -18,16 +18,15 @@ Présents :
 - POST `/api/token/refresh`
 - POST `/api/register`
 - GET `/api/me`
+- GET `/api/email/verify/{token}`
+- POST `/api/email/verify/resend`
 
 Constats :
 - Login, refresh token, inscription, “who am I”
-- Conforme aux standards marketplace
-
-Optionnel (non bloquant) :
-- Confirmation email
+- Confirmation email API en place
 
 Mise en place :
-- Confirmation email avec lien `GET /verification/email/{token}`
+- Page web de confirmation : `GET /verification/email/{token}`
 
 ## 3) Profil utilisateur (client)
 Présents :
@@ -43,12 +42,14 @@ Constats :
 Présents :
 - GET `/api/products`
 - GET `/api/products/{slug}`
+- GET `/api/categories`
+- GET `/api/brands`
+- GET `/api/shops`
+- GET `/api/shops/{slug}`
 
 Constats :
 - Liste produits + fiche produit publique
-
-Optionnel (non requis pédagogiquement) :
-- Recherche avancée
+- Endpoints catalogue/shops exposés
 
 ## 5) Panier (client)
 Présents :
@@ -60,9 +61,36 @@ Présents :
 Constats :
 - Lecture panier, ajout produit, suppression produit
 
-Optionnel :
+## 6) Commandes client
+Présents :
+- GET `/api/orders`
+- GET `/api/orders/{id}`
+- GET `/api/orders/{id}/invoice`
+- POST `/api/returns`
 
-## 6) Messagerie client ↔ vendeur (bonus)
+Constats :
+- Historique client, détails, lien de facture, retours
+
+## 7) Avis produits
+Présents :
+- GET `/api/products/{id}/reviews`
+- POST `/api/products/{id}/reviews`
+- POST `/api/report`
+
+Constats :
+- Avis réservés aux acheteurs
+- Modération et signalements disponibles
+
+## 8) Checkout & livraison
+Présents :
+- GET `/api/checkout/shipping-options`
+- POST `/api/checkout`
+
+Constats :
+- Calcul des options de livraison par boutique
+- Lignes de livraison prises en compte dans la commande
+
+## 9) Messagerie client ↔ vendeur (bonus)
 Présents :
 - GET `/api/account/conversations/{orderId}`
 - POST `/api/account/conversations/{orderId}/messages`
@@ -74,7 +102,7 @@ Constats :
 - Flux bidirectionnel par commande
 - Fonctionnalité avancée
 
-## 7) Espace vendeur – boutique & profil
+## 10) Espace vendeur – boutique & profil
 Présents :
 - GET `/api/vendor/shop`
 - POST `/api/vendor/shop`
@@ -87,7 +115,7 @@ Constats :
 - Profil vendeur
 - Conforme
 
-## 8) Produits vendeur (coeur marketplace)
+## 11) Produits vendeur (coeur marketplace)
 Présents :
 - GET `/api/vendor/products`
 - POST `/api/vendor/products`
@@ -99,7 +127,7 @@ Constats :
 - CRUD complet
 - Séparation vendeur / public
 
-## 9) Médias vendeur
+## 12) Médias vendeur
 Présent :
 - POST `/api/vendor/media`
 
@@ -107,7 +135,7 @@ Constats :
 - Upload media
 - Bonus apprécié
 
-## 10) Commandes vendeur
+## 13) Commandes vendeur
 Présents :
 - GET `/api/vendor/orders`
 - GET `/api/vendor/orders/{id}`
@@ -121,7 +149,7 @@ Constats :
 - Gestion documents
 - Très bon niveau métier
 
-## 11) Endpoints de test / audit (dev)
+## 14) Endpoints de test / audit (dev)
 Présents :
 - GET `/api/test`
 - GET `/api/test-audit`
@@ -130,7 +158,7 @@ Constats :
 - Acceptables en contexte pédagogique
 - A restreindre en prod
 
-## 12) Tableau synthèse “attendu vs exposé”
+## 15) Tableau synthèse “attendu vs exposé”
 
 | Domaine | Attendu marketplace | Exposé |
 |---|---|---|
@@ -138,6 +166,9 @@ Constats :
 | Compte utilisateur | ✅ | ✅ |
 | Catalogue produits | ✅ | ✅ |
 | Panier | ✅ | ✅ |
+| Avis produits | ⭐ Bonus | ✅ |
+| Commandes client | ✅ | ✅ |
+| Livraison / checkout | ✅ | ✅ |
 | Profil vendeur | ✅ | ✅ |
 | Produits vendeur | ✅ | ✅ |
 | Commandes vendeur | ✅ | ✅ |
@@ -145,15 +176,15 @@ Constats :
 | Médias | ⭐ Bonus | ✅ |
 | Docs API | ⭐ Bonus | ✅ |
 
-## 13) Conclusion
+## 16) Conclusion
 
 Les endpoints essentiels d’un marketplace client/vendeur sont bien exposés.
 Le périmètre couvre l’authentification, le catalogue, le panier, les profils,
-les produits et les commandes.
-Des fonctionnalités avancées (messagerie, documents, audit, documentation API)
-complètent l’ensemble et dépassent le socle minimal attendu.
+les produits, les commandes et la livraison.
+Des fonctionnalités avancées (messagerie, documents, audit, documentation API,
+avis clients) complètent l’ensemble et dépassent le socle minimal attendu.
 
-## 14) Ajouts possibles (optionnels)
-- PUT `/api/cart/{id}` (mise à jour quantité)
-- GET `/api/orders` côté client (si checkout prévu)
-- Pagination / filtres explicites
+## 17) Ajouts possibles (optionnels)
+- Endpoint stock temps réel (ex. `/api/variants/{id}/stock`).
+- Webhooks de livraison / expédition pour intégrations externes.
+- Export CSV des commandes côté vendeur/admin.

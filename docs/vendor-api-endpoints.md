@@ -1,6 +1,6 @@
 # API Vendeur / Shop / Produits
 
-Ce fichier liste les endpoints REST qu’il reste à implémenter pour couvrir l’expérience vendeur complète (profil, boutique, produits, commandes, médias). Chaque endpoint doit :
+Ce fichier documente les endpoints REST exposés pour couvrir l’expérience vendeur complète (profil, boutique, produits, commandes, médias). Chaque endpoint doit :
 
 * Valider un JWT doté du rôle `ROLE_VENDOR`.
 * Retourner `403` si le vendeur ne possède pas d’espace `Shop` ou si le JWT ne concerne pas le propriétaire.
@@ -103,6 +103,7 @@ Avant d’exécuter `php bin/phpunit`, lance `bash scripts/setup-test-db.sh`. Le
 * `GET` : liste les documents générés pour la commande (id, type, url, hash, date).
 * `POST` : génère un nouveau PDF (`invoice` ou `delivery`) via `OrderDocumentGenerator`, persiste l’entité `order_document` et retourne `{ id, type, url, hash, generatedAt }`.
 * Les documents sont stockés dans `public/uploads/documents` et peuvent être téléchargés depuis le dashboard vendeur ou partagés en back-office.
+* Côté client, la facture se récupère via `GET /api/orders/{id}/invoice` (lien PDF, commande payée).
 
 ### Messagerie interne (conversations order_id)
 
@@ -133,6 +134,6 @@ Avant d’exécuter `php bin/phpunit`, lance `bash scripts/setup-test-db.sh`. Le
 
 ## 6. Documentation & tests
 
-* Mettre à jour Swagger (`/api/docs`) avec ces endpoints, ajouter `@OA\Response` et `@Security`.
-* Ajouter au README + `docs/product-roadmap.md`.
-* Mettre à jour la collection Postman (ajouter `vendor-shop.postman_collection.json`) avec les flux auth + CRUD.
+* Maintenir Swagger (`/api/docs`) à jour avec ces endpoints, ajouter `@OA\Response` et `@Security` pour chaque ajout.
+* Mettre à jour le README + `docs/product-roadmap.md` en cas d’évolution.
+* Mettre à jour la collection Postman (flux auth + CRUD vendeur) lors d’un ajout d’endpoint.

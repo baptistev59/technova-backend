@@ -74,9 +74,7 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 
 ## 12. Vitrine publique des boutiques
 
-- Nouvelle route publique `/boutiques/{slug}` qui expose la bannière, le logo, la description et les politiques du vendeur.
-- Grille des produits associés (cards existantes réutilisées) avec pagination / CTA “Voir la boutique” depuis les fiches produit.
-- Bouton “Voir ma boutique” sur le dashboard vendeur pour prévisualiser la page publique.
+- ✅ Implémenté : pages publiques `/boutiques`, `/boutique/{slug}`, `/boutique/{slug}/catalogue` avec bannière/logo, produits phares, pagination et notes.
 
 ## 13. Produits liés (cross-sell / up-sell)
 
@@ -84,62 +82,42 @@ Ce fichier liste les pistes d’évolution concernant la gestion des produits. C
 - UI avec champ de recherche + suggestions (comportement identique à la recherche d’attributs) pour sélectionner rapidement les produits liés.
 - Fiche produit cliente : afficher ces produits de manière différenciée (carrousel ou liste dédiée) pour booster le panier moyen.
 
-## 13. Roadmap API vendeur
+## 14. Roadmap API vendeur
 
-- Ajouter une US dédiée dans le sprint technique pour exposer les endpoints `vendor` / `shop` / `product`.
-- Prévoir les routes suivantes :
-  - `GET /api/vendor/shop`, `POST /api/vendor/shop`, `PUT/PATCH /api/vendor/shop`.
-  - `GET /api/vendor/profile`, `PUT/PATCH /api/vendor/profile`.
-  - `GET /api/vendor/products`, `POST /api/vendor/products`, `GET /api/vendor/products/{id}`, `PUT/PATCH /api/vendor/products/{id}`, `DELETE /api/vendor/products/{id}`.
-  - `POST /api/vendor/media` pour l’upload des logos/bannières/visuels.
-  - (futur) `GET/POST /api/vendor/tax-rules` pour configurer le rule engine TVA.
-- Prévoir les tests Postman/Newman associés + intégration CI (GitHub Actions).
+- ✅ Implémenté : endpoints shop/profile/produits/media + commandes/documents (voir `docs/vendor-api-endpoints.md`).
+- À suivre : règles TVA (`/api/vendor/tax-rules`) + tests Postman/Newman dédiés.
 
-## 14. Actions catalogue (dupliquer / publier / supprimer)
+## 15. Actions catalogue (dupliquer / publier / supprimer)
 
 - Ajouter les routes et méthodes nécessaires dans `VendorProductController` (ou équivalent) pour `dupliquer`, `togglePublish` (publier/dépublier) et `delete`.
 - Brancher les icônes du listing `templates/vendor/product/index.html.twig` sur ces routes (POST/DELETE sécurisés avec CSRF, confirmations).
 - Renvoyer les réponses en JSON pour préparer un rafraîchissement AJAX (Alpine) et mettre à jour la table sans rechargement complet.
 
-## 15. Programmation des publications & promos
+## 16. Programmation des publications & promos
 
 - Permettre de saisir une date/heure de publication différée pour la fiche produit (statut planifié).
 - Étendre les champs promo pour renseigner une période (date début/fin) de prix remisé.
 - Côté front, ne publier que les produits dont la date est atteinte et afficher les prix promos uniquement sur leur plage de validité.
 
-## 16. Tableau de bord vendeur — commandes
+## 17. Tableau de bord vendeur — commandes
 
-- Ajouter une entrée “Commandes” dans la sidebar du dashboard vendeur (templates `vendor/layout.html.twig` et `vendor/shop/existing.html.twig`).
-- Vue synthétique listant les dernières commandes du shop : numéro, date, client, montant, statut (avec badge couleur).
-- Filtres rapides (période, statut) et pagination côté serveur pour charger les commandes par lot.
-- Actions de base : accéder au détail d’une commande, changer le statut (préparation, expédiée), télécharger la facture/proforma.
-- Préparer l’agrégation des stats (CA du jour/semaine, commandes en attente) pour affichage sur la page d’accueil du dashboard.
-- Etape suivante : ajouter un mini CRUD côté vendeur pour modifier les statuts (`pending` → `paid`, `paid` → `shipped`) et annuler la commande si nécessaire (`cancelled`).
-- À planifier : génération/chargement du bon de livraison et impression de la facture directement depuis la fiche commande vendeur.
+- ✅ Implémenté : listing des commandes, filtres, transitions de statut, accès détail et génération de documents.
 
-## 17. Documents commerciaux PDF
+## 18. Documents commerciaux PDF
 
-- Créer un service `OrderDocumentGenerator` (Twig → PDF via Dompdf/Laminas) pour produire facture + bon de livraison à partir des commandes, en respectant le layout TechNova.
-- Persister chaque document (`order_document` / `media`) avec type, référence, UUID, URL, date de génération et hash pour validation ultérieure.
-- Exposer `GET /api/vendor/orders/{id}/documents` pour lister les documents existants et `POST` pour en générer un nouveau (retourne `id`, `type`, `url`, `base64` si nécessaire).
-- Ajouter une action “Télécharger PDF” sur le dashboard vendeur et un bouton “Imprimer” côté client.
-- Prévoir un système d’expiration/rotation (facultatif) et stocker les fichiers dans `public/uploads/documents` (ou bucket S3 plus tard).
+- ✅ Implémenté : génération facture/bon de livraison via `OrderDocumentGenerator`, stockage `public/uploads/documents`, endpoints vendor GET/POST.
 
-## 18. Messagerie interne & tickets
+## 19. Messagerie interne & tickets
 
-- Créer les entités `Conversation` / `Message` liées à une commande (`order_id`) et partager un canal sécurisé client ↔ vendeur.
-- Exposer les endpoints REST décrits dans `docs/vendor-api-endpoints.md` (GET/POST `/conversations/{orderId}` pour le vendeur et le client) avec JWT et vérification des participants.
-- Ajouter un simple UI dans `templates/account/orders/show.html.twig` et `templates/vendor/order/index.html.twig` permettant de lire la conversation d’une commande et d’envoyer un message (Alpine + fetch + `<meta name="technova-jwt">`).
-- Prévoir un formulaire “Demande d’info” pour les visiteurs : soumission via `/api/support/requests`, création d’un ticket conversationnel (`status : to_review`) et notifications internes, puis conversion manuelle en `Conversation` dès qu’un compte est créé.
+- ✅ Implémenté : messagerie client ↔ vendeur par commande (API + UI Twig).
+- À suivre : formulaire “Demande d’info” pour visiteurs + conversion en conversation.
 
-## 19. Expérience publique & recherche
+## 20. Expérience publique & recherche
 
 - Les carrousels `tn-carousel` (home, vitrine, dashboard vendeur) sont désormais stylés de façon uniforme : 10 slides produits avec trois visibles, navigation/fallback, et un attribut `data-swiper-visible` pour piloter la vue.
 - La recherche catalogue / recherche globale utilise un dropdown custom (pas de datalist ou historique) ; le JS gère l’état, annule les fetchs en cours, ferme sur Enter/submit, et les suggestions proviennent exclusivement des `name` + `keywords` filtrés côté PHP.
 
-## 20. Avis produits vérifiés
+## 21. Avis produits vérifiés
 
-- Restreindre l’ajout d’avis aux clients ayant effectivement acheté le produit (commande livrée/complétée).
-- UI front pour consulter les avis (note moyenne, tri, pagination) et formulaire avec modération côté vendeur/staff.
-- API / endpoints pour créer, approuver, masquer un avis et signaler un contenu abusif.
-- Notifier le vendeur de nouveaux avis et permettre au client de modifier/supprimer son retour tant qu’il est en “pending”.
+- ✅ Implémenté : avis réservés aux acheteurs, notes demi‑étoiles, modération admin + signalements.
+- À suivre : notifications vendeur + édition/suppression client selon statut.

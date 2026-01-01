@@ -34,6 +34,9 @@ Stack & modules clés
 - **Sécurité** – Firewalls séparés (`/api/login`, `/api/docs`, zone `/api/**` protégée).  
 - **Front tooling** – AssetMapper + Stimulus pour interfacer la doc ou l’admin.  
 - **Catalogue avancé** – Attributs/valeurs/variantes (prix/promo/stock/image par combinaison) + sélection d’options côté front.  
+- **Livraison** – Zones, méthodes et tarifs par boutique + calcul au checkout (poids + adresse).  
+- **Avis produits** – Notes demi-étoiles, modération et signalements (admin).  
+- **Alertes stock** – Seuils par produit/variante + email vendeur + audit.  
 - **Monitoring** – Monolog JSON sur `php://stderr` en prod (Alwaysdata récupère les logs PHP).
 - **Paiement** – Stripe Checkout + webhook `/stripe/webhook` pour confirmer les commandes.
 
@@ -150,6 +153,7 @@ Endpoints disponibles
 - Ajoute ces appels à la collection Postman (`postman/technova-api.postman_collection.json`) quand tu travailleras sur le front vendeur.
 - `POST /api/vendor/media` centralise les uploads (profils `shop_banner|shop_logo|product_image|avatar`), stocke chaque fichier dans la table `media` et renvoie maintenant `{ id, profile, path, url, width, height, mimeType }` pour que le front puisse lier l’ID à la fiche boutique ou produit.
 - `POST /api/vendor/orders/{id}/documents` et `GET /api/vendor/orders/{id}/documents` gèrent les factures/bon de livraison (PDF, hash, URL, id) via `OrderDocumentGenerator` + table `order_document`. Les boutons “Télécharger PDF” dans le dashboard s’appuient sur ces endpoints.
+- Côté client, la facture se récupère via `GET /api/orders/{id}/invoice` (lien PDF), tandis que le dashboard vendeur utilise les endpoints `/api/vendor/orders/{id}/documents`.
 - `POST /api/vendor/conversations/{orderId}/messages` / `GET /api/vendor/conversations/{orderId}` + les variantes `/api/account/...` permettent de créer/consulter une messagerie interne client ↔ vendeur pour chaque commande (`Conversation`, `Message`). Ces endpoints seront repris par le dashboard vendeur et la fiche commande du client (fetch + Alpine + `<meta name="technova-jwt">` pour les JS calls).
 
 **Query params utiles (`/api/products`)**
@@ -167,6 +171,9 @@ Pages Twig (catalogue)
 
 - `/` : accueil + sections “Nouveautés” et “Produits à la une”.
 - Les carrousels “tn-carousel” (home, vitrine boutique, dashboard vendeur) utilisent Swiper + attribut `data-swiper-visible` pour afficher trois slides simultanés ; ils affichent jusqu’à 10 produits, en complétant les slides manquants et en conservant une UX identique sur toutes les pages.
+- `/boutiques` : annuaire public des boutiques (recherche + pagination).
+- `/boutique/{slug}` : vitrine publique d’une boutique (bannière, produits phares, notes).
+- `/boutique/{slug}/catalogue` : catalogue complet d’une boutique avec pagination.
 - `/catalogue` : listing avec filtres catégorie/marque/prix/texte + tri (soumission automatique au changement ou via Entrée).
 - `/panier` + `/commande` : panier interactif puis checkout récapitulatif avant création de la commande + page de succès.
 - `/mon-compte/commandes` : historique de commandes + détail par référence.
@@ -197,6 +204,8 @@ Espace vendeur (Sprint 4A)
 - `ShopType` (Twig) permet de créer la boutique : nom, description, email de contact, politiques SAV + upload optionnel d’un logo/bannière (stockés dans `public/uploads/shops`).
 - Le traitement des uploads y est orchestré par le service `App\Image\ImageUploader` avec les profils `shop_banner` / `shop_logo`, le reste de la logique (déplacement, création de répertoires) étant totalement centralisé.
 - Le slug est généré automatiquement (unique) et la boutique est liée au profil `Vendor` du user.
+- Gestion livraison : `/mon-espace-vendeur/livraison` permet de configurer zones, méthodes et grilles tarifaires (poids/zone).
+- Gestion stock : un seuil “stock faible” est disponible sur produit ou variante et déclenche un email vendeur.
 - Si une boutique existe déjà, la page affiche les informations en attendant les US d’édition / gestion.
 - Un client peut créer sa boutique : lors de la soumission du formulaire, un profil `Vendor` est créé/associé et le rôle `ROLE_VENDOR` est ajouté automatiquement. Les vendeurs existants ne voient que la page de gestion.
 
@@ -292,6 +301,12 @@ STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_PUBLISHABLE_KEY=pk_test_xxx      # optionnel (exposé côté front)
 STRIPE_WEBHOOK_SECRET=whsec_xxx         # récupéré via Stripe CLI ou Dashboard
 ```
+
+Stripe Checkout (front + CSP)
+--------------------------------
+
+- `STRIPE_PUBLISHABLE_KEY` expose la clé `pk_…` au navigateur. Dans `config/services.yaml`, lie-la à un paramètre (ex. `stripe.public_key: '%env(STRIPE_PUBLISHABLE_KEY)%'`) puis transmets-la au template `templates/checkout/index.html.twig` via le contrôleur `App\Controller\Web\CheckoutController` (paramètre `stripe_public_key`). Le template doit ensuite charger `<script src="https://js.stripe.com/v3/"></script>` et initialiser Stripe (`const stripe = Stripe('{{ stripe_public_key }}');`) avant d’appeler `stripe.redirectToCheckout({ sessionId: 'cs_test_...' })`.
+- `ContentSecurityPolicySubscriber` étend le CSP pour inclure un `connect-src` autorisant `https://checkout.stripe.com` et `https://api.stripe.com`, ce qui empêche les bloqueurs (`default-src 'self'`) de refuser les requêtes Stripe. Cette configuration est déjà appliquée dans `src/EventSubscriber/ContentSecurityPolicySubscriber.php`.
 
 Webhook en local (Stripe CLI) :
 

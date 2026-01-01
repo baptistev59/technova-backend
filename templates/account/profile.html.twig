@@ -32,7 +32,8 @@
                         {{ form_row(profileForm.lastname) }}
                     </div>
                     <div class="grid gap-6 md:grid-cols-[auto,1fr] items-center">
-                        <button type="button" class="group flex items-center justify-center cursor-pointer focus:outline-none" data-avatar-trigger aria-label="Choisir un nouvel avatar">
+                        {% set avatarInputId = profileForm.avatarFile.vars.id %}
+                        <label for="{{ avatarInputId }}" class="group flex items-center justify-center cursor-pointer focus:outline-none" data-avatar-trigger aria-label="Choisir un nouvel avatar" role="button" tabindex="0">
                             {% set avatarUrl = null %}
                             {% if viewer is defined and viewer and viewer.avatarPath %}
                                 {% set avatarUrl = viewer.avatarPath starts with 'http' ? viewer.avatarPath : asset(viewer.avatarPath) %}
@@ -45,7 +46,7 @@
                                 {% endif %}
                                 <div class="pointer-events-none absolute inset-0 bg-slate-900/40 text-white text-xs font-semibold uppercase tracking-wide flex items-center justify-center opacity-0 transition group-hover:opacity-100">Changer</div>
                             </div>
-                        </button>
+                        </label>
                         <div>
                             {{ form_widget(profileForm.avatarFile, {'attr': {'class': 'sr-only', 'data-avatar-input': 'true'}}) }}
                             <p class="text-xs text-slate-500 mt-1">Clique sur l’avatar pour choisir un nouveau fichier (PNG/JPG, 2 Mo max).</p>

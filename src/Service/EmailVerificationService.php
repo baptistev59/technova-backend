@@ -63,6 +63,11 @@ class EmailVerificationService
                 'verification_url' => $verificationUrl,
             ]);
 
+        $this->emailLogger->info('Attempt to send verification email', [
+            'user_id' => $user->getId(),
+            'email' => $email,
+        ]);
+
         $this->mailer->send($message);
         $this->emailLogger->info('Email verification sent', [
             'email' => $email,

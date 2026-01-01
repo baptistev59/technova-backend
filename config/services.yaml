@@ -2,6 +2,7 @@
 # Files in the packages/ subdirectory configure your dependencies.
 
 parameters:
+    stripe.public_key: '%env(STRIPE_PUBLISHABLE_KEY)%'
 
 services:
     # default configuration for services in *this* file
@@ -26,6 +27,10 @@ services:
     App\Image\ImageUploader:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Service\EmailVerificationService:
+        arguments:
+            $mailerFrom: '%env(MAILER_FROM)%'
 
     App\Security\TwoFactor\ExpiringEmailCodeGenerator:
         arguments:

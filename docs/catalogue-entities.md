@@ -9,7 +9,8 @@
 - **ProductAttribute / ProductAttributeValue** : description des attributs configurables (couleur, édition, chipset, etc.).
 - **ProductVariant** : combinaison des valeurs, prix/promo/stock/image propres, SKU spécifique.
 - **ProductImage** : ordre/position, `isMain`, méta (alt/title/caption/mime).
-- **ProductReview** : note + commentaire laissés par un `User`.
+- **ProductReview** : note (demi‑étoiles), commentaire, flag `approved` (modération).
+- **ProductReviewReport** : signalement d’avis (raison, statut, reporter).
 - **Repositories** : `ProductRepository` expose `findLatestPublished()` et `filterBy()` (catégorie, marque, texte, prix, tri).
 
 ## Utilisateurs & profils
@@ -20,11 +21,20 @@
 - **AuditLog** : trace les connexions/erreurs de sécurité (endpoint `/api/test-audit`).
 - **SavedCart** : enregistre le panier JSON (`items`) et la date de mise à jour pour chaque client (utilisé lorsqu’un utilisateur quitte la session sans commander).
 
+## Livraison & expédition
+
+- **ShippingZone** : zone de livraison par boutique (libellé + codes pays/zip).
+- **ShippingMethod** : méthode associée à une zone (nom, délai, actif, ordre).
+- **ShippingRate** : grille tarifaire par poids (min/max, prix) liée à une méthode.
+
 ## Commandes & panier
 
 - **CartService** (côté app) manipule la session, synchronise avec `SavedCart` et vérifie les stocks.
 - **CustomerOrder** : référence `TN-YYYYMMDD-hhmmss`, `status`, `totalAmount`, `currency`, snapshots des adresses, horodatages `created_at`/`paid_at`, lien vers `User`.
+- **CustomerOrderStatusHistory** : historique des transitions de statut (workflow + audit).
 - **CustomerOrderItem** : produit, libellé, quantité, prix unitaire, total de ligne, miniature persistée (`productImage`).
+- **OrderDocument** : facture/bon de livraison (type, url, hash, date de génération).
+- **ReturnRequest** : demandes de retour (raison, statut, dates).
 - **OrderMailer** : envoie un email HTML+texte après `CheckoutService::createOrder()`, avec miniatures embarquées (`cid:`).
 - **SavedCart + CustomerOrder** permettent la reprise du panier et la création d’un historique (`/mon-compte/commandes`).
 

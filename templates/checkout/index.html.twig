@@ -54,7 +54,7 @@
         {% endif %}
     {% endfor %}
 
-    <form class="space-y-6" method="post" action="{{ path('app_checkout_confirm') }}">
+    <form id="checkout-form" class="space-y-6" method="post" action="{{ path('app_checkout_confirm') }}">
         <input type="hidden" name="_token" value="{{ csrf_token('checkout_confirm') }}">
 
         <div class="rounded-[32px] border border-slate-200 bg-white/90 p-6 space-y-5">
@@ -124,4 +124,70 @@
         </div>
     </form>
 </section>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const stripePublicKey = '{{ stripe_public_key|default('')|e('js') }}';
+            console.debug('Stripe public key', stripePublicKey);
+
+            const form = document.getElementById('checkout-form');
+            if (!form) {
+                return;
+            }
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            let isSubmitting = false;
+
+            form.addEventListener('submit', async (event) => {
+                if (isSubmitting) {
+                    return;
+                }
+
+                event.preventDefault();
+                isSubmitting = true;
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.setAttribute('aria-busy', 'true');
+                }
+
+                console.debug('Checkout form submit start');
+                try {
+                    if (!stripePublicKey) {
+                        throw new Error('Clé publique Stripe manquante.');
+                    }
+
+                    const stripe = Stripe(stripePublicKey);
+
+                    const response = await fetch(form.action, {
+                        method: form.method,
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        body: new FormData(form),
+                    });
+                    const payload = await response.json().catch(() => null);
+                    console.debug('Stripe session response', response.status, payload);
+
+                    if (!response.ok || !payload?.sessionId) {
+                        throw new Error(payload?.message ?? 'Impossible de lancer Stripe.');
+                    }
+
+                    await stripe.redirectToCheckout({ sessionId: payload.sessionId });
+                } catch (error) {
+                    console.error(error);
+                    alert(error instanceof Error ? error.message : 'Une erreur est survenue.');
+                    isSubmitting = false;
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.removeAttribute('aria-busy');
+                    }
+                }
+            });
+        });
+    </script>
 {% endblock %}

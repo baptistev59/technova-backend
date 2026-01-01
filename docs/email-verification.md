@@ -2,7 +2,8 @@
 
 ## Principe
 - À l’inscription, un token est généré et envoyé par email.
-- Le lien pointe vers : `GET /verification/email/{token}`.
+- Le lien pointe vers la page web : `GET /verification/email/{token}`.
+- L’API expose un endpoint JSON équivalent : `GET /api/email/verify/{token}`.
 - Le token expire après 24h.
 
 ## Champs en base
@@ -15,11 +16,10 @@
 2) Clic sur le lien → validation, token effacé, email marqué “verifié”.
 3) Lien expiré/invalide → page d’erreur dédiée.
 
-## Relance du token (optionnel)
-Non implémenté pour l’instant. Pour ajouter :
-- Un endpoint `POST /verification/email/resend`
-- Générer un nouveau token + nouvel email
-- Respecter un “cooldown” (ex. 5 minutes)
+## Relance du token
+- Endpoint : `POST /api/email/verify/resend` (JWT requis).
+- Génère un nouveau token + renvoie un email de confirmation.
+- Pas de cooldown côté backend pour l’instant.
 
 ## Expiration
 Par défaut : 24h.  

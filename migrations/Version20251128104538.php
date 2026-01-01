@@ -32,7 +32,7 @@ final class Version20251128104538 extends AbstractMigration
         $this->addSql('CREATE UNIQUE INDEX UNIQ_IDENTIFIER_EMAIL ON "user" (email)');
         $this->addSql('COMMENT ON COLUMN "user".created_at IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('COMMENT ON COLUMN "user".updated_at IS \'(DC2Type:datetime_immutable)\'');
-        $this->addSql('CREATE TABLE vendor (id SERIAL NOT NULL, address_id INT DEFAULT NULL, company_name VARCHAR(255) NOT NULL, business_id VARCHAR(255) DEFAULT NULL, phone VARCHAR(25) DEFAULT NULL, business_id_type VARCHAR(50) DEFAULT NULL, email VARCHAR(255) DEFAULT NULL, website VARCHAR(255) DEFAULT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, PRIMARY KEY(id))');
+        $this->addSql('CREATE TABLE vendor (id SERIAL NOT NULL, address_id INT DEFAULT NULL, company_name VARCHAR(255) NOT NULL, business_id VARCHAR(255) DEFAULT NULL, phone VARCHAR(25) DEFAULT NULL, business_id_type VARCHAR(50) DEFAULT NULL, email VARCHAR(255) DEFAULT NULL, website VARCHAR(255) DEFAULT NULL, is_suspended BOOLEAN DEFAULT false NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, PRIMARY KEY(id))');
         $this->addSql('CREATE UNIQUE INDEX UNIQ_F52233F6F5B7AF75 ON vendor (address_id)');
         $this->addSql('COMMENT ON COLUMN vendor.created_at IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('COMMENT ON COLUMN vendor.updated_at IS \'(DC2Type:datetime_immutable)\'');

@@ -332,12 +332,19 @@ class AppFixtures extends Fixture
 
     private function attachReviews(ObjectManager $manager, Product $product, array $pool): void
     {
+        if ([] === $this->customers) {
+            return;
+        }
+
         $reviewCount = random_int(0, 6);
+        $reviewCount = min($reviewCount, count($this->customers));
+        $authors = $this->customers;
+        shuffle($authors);
 
         for ($i = 0; $i < $reviewCount; ++$i) {
             $ratingPool = [0, 1, 2, 3, 4, 5];
             $rating = $ratingPool[array_rand($ratingPool)];
-            $author = [] !== $this->customers ? $this->customers[array_rand($this->customers)] : null;
+            $author = $authors[$i] ?? null;
 
             $review = (new ProductReview())
                 ->setRating((float) $rating)

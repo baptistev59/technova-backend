@@ -17,6 +17,7 @@ class AuditLog
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'auditLogs')]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?User $owner = null;
 
     #[ORM\Column(length: 255)]

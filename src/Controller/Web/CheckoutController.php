@@ -65,6 +65,7 @@ class CheckoutController extends AbstractController
             'address' => $address,
             'viewer' => $user,
             'shipping_by_shop' => $shippingByShop,
+            'stripe_public_key' => $this->getParameter('stripe.public_key'),
         ]);
     }
 
@@ -127,9 +128,20 @@ class CheckoutController extends AbstractController
             $this->checkoutService->attachPaymentSession($order, $session['id']);
         } catch (\Throwable $exception) {
             $this->checkoutService->cancelOrder($order);
+            if ($this->isJsonRequest($request)) {
+                return $this->json(['message' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
+            }
+
             $this->addFlash('danger', $exception->getMessage());
 
             return $this->redirectToRoute('app_cart_show');
+        }
+
+        if ($this->isJsonRequest($request)) {
+            return $this->json([
+                'sessionId' => $session['id'],
+                'checkoutUrl' => $session['url'],
+            ]);
         }
 
         return $this->redirect($session['url']);
@@ -142,8 +154,21 @@ class CheckoutController extends AbstractController
             return $response;
         }
 
+        $sessionId = $request->query->get('session_id');
         $order = $this->orderRepository->findOneBy(['reference' => $reference]);
-        if (!$order || !$this->ownsOrder($order, $request)) {
+        if (!$order && $sessionId) {
+            $order = $this->orderRepository->findOneBy(['paymentSessionId' => $sessionId]);
+        }
+
+        if (!$order) {
+            throw $this->createNotFoundException('Commande introuvable.');
+        }
+
+        if (!$this->ownsOrder($order, $request)) {
+            $this->restoreViewerFromPaymentSession($request, $order, $sessionId);
+        }
+
+        if (!$this->ownsOrder($order, $request)) {
             throw $this->createNotFoundException('Commande introuvable.');
         }
 
@@ -200,5 +225,35 @@ class CheckoutController extends AbstractController
         }
 
         return false;
+    }
+
+    private function isJsonRequest(Request $request): bool
+    {
+        $accept = $request->headers->get('accept', '');
+
+        return $request->isXmlHttpRequest() || str_contains($accept, 'application/json');
+    }
+
+    private function restoreViewerFromPaymentSession(Request $request, CustomerOrder $order, ?string $sessionId): void
+    {
+        if (!$sessionId || $order->getPaymentSessionId() !== $sessionId) {
+            return;
+        }
+
+        $ownerId = $order->getOwner()?->getId();
+        if (null === $ownerId) {
+            return;
+        }
+
+        $session = $request->getSession();
+        if (!$session) {
+            return;
+        }
+
+        if ($session->get('recent_user_id') === $ownerId) {
+            return;
+        }
+
+        $session->set('recent_user_id', $ownerId);
     }
 }
