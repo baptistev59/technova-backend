@@ -21,6 +21,7 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             'https://cdn.jsdelivr.net',
             'http://unpkg.com',
             "'unsafe-inline'",
+            "'unsafe-eval'",
             'data:',
         ],
         'script-src-elem' => [
@@ -29,6 +30,7 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             'https://cdn.jsdelivr.net',
             'http://unpkg.com',
             "'unsafe-inline'",
+            "'unsafe-eval'",
             'data:',
         ],
         'style-src' => [
@@ -155,8 +157,8 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
     {
         $baseDirectives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com data:",
-            "script-src-elem 'self' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com data:",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com data:",
+            "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com data:",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com",
             "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com",
             "font-src 'self' https://fonts.gstatic.com data:",
