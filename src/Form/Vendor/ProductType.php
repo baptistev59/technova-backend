@@ -230,30 +230,30 @@ class ProductType extends AbstractType
                 'mapped' => false,
                 'required' => false,
                 'constraints' => [
-                    new File(
-                        maxSize: '3M',
-                        maxSizeMessage: 'La photo principale ne doit pas dépasser 3 Mo.',
-                        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-                        mimeTypesMessage: 'Formats autorisés : JPG, PNG ou WEBP.'
-                    ),
-                ],
-            ])
+                        new File(
+                            maxSize: '3M',
+                            maxSizeMessage: 'La photo principale ne doit pas dépasser 3 Mo.',
+                            mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
+                            mimeTypesMessage: 'Formats autorisés : JPG, PNG, WEBP ou AVIF.'
+                        ),
+                    ],
+                ])
             ->add('galleryFiles', FileType::class, [
                 'label' => 'Galerie produit',
                 'mapped' => false,
                 'multiple' => true,
                 'required' => false,
                 'constraints' => [
-                    new All([
-                        'constraints' => [
-                            new File(
-                                maxSize: '4M',
-                                maxSizeMessage: 'Chaque image de la galerie doit faire moins de 4 Mo.',
-                                mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-                                mimeTypesMessage: 'Formats autorisés : JPG, PNG ou WEBP.'
-                            ),
-                        ],
-                    ]),
+                        new All([
+                            'constraints' => [
+                                new File(
+                                    maxSize: '4M',
+                                    maxSizeMessage: 'Chaque image de la galerie doit faire moins de 4 Mo.',
+                                    mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
+                                    mimeTypesMessage: 'Formats autorisés : JPG, PNG, WEBP ou AVIF.'
+                                ),
+                            ],
+                        ]),
                 ],
                 'help' => 'Ajoute plusieurs images pour présenter ton produit (drag & drop bientôt disponible).',
             ]);

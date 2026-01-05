@@ -8,6 +8,7 @@ import './stimulus_bootstrap.js';
 import './styles/app.css';
 import 'trix';
 import 'trix/dist/trix.min.css';
+import './js/productPage.js';
 
 const initTrixEditors = () => {
     document.querySelectorAll('textarea[data-trix=\"true\"]').forEach((textarea, index) => {

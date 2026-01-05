@@ -63,27 +63,27 @@ class ShopType extends AbstractType
                 ],
             ])
             ->add('logoFile', FileType::class, [
-                'label' => 'Logo (PNG/JPG, 1 Mo max)',
+                'label' => 'Logo (PNG/JPG/WEBP/AVIF, 1 Mo max)',
                 'mapped' => false,
                 'required' => false,
                 'constraints' => [
                     new File([
                         'maxSize' => '1M',
-                        'mimeTypes' => ['image/png', 'image/jpeg', 'image/webp'],
-                        'mimeTypesMessage' => 'Format d’image invalide (PNG, JPG ou WEBP attendus).',
+                        'mimeTypes' => ['image/png', 'image/jpeg', 'image/webp', 'image/avif'],
+                        'mimeTypesMessage' => 'Format d’image invalide (PNG, JPG, WEBP ou AVIF attendus).',
                         'maxSizeMessage' => 'Le logo est trop volumineux ({{ size }}). Limite : {{ limit }}.',
                     ]),
                 ],
             ])
             ->add('bannerFile', FileType::class, [
-                'label' => 'Bannière (PNG/JPG, 2 Mo max)',
+                'label' => 'Bannière (PNG/JPG/WEBP/AVIF, 2 Mo max)',
                 'mapped' => false,
                 'required' => false,
                 'constraints' => [
                     new File([
                         'maxSize' => '2M',
-                        'mimeTypes' => ['image/png', 'image/jpeg', 'image/webp'],
-                        'mimeTypesMessage' => 'Format d’image invalide (PNG, JPG ou WEBP attendus).',
+                        'mimeTypes' => ['image/png', 'image/jpeg', 'image/webp', 'image/avif'],
+                        'mimeTypesMessage' => 'Format d’image invalide (PNG, JPG, WEBP ou AVIF attendus).',
                         'maxSizeMessage' => 'La bannière est trop volumineuse ({{ size }}). Limite : {{ limit }}.',
                     ]),
                 ],

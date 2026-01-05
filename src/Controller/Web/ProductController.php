@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Web;
 
 use App\Entity\Product;
+use App\Entity\ProductImage;
 use App\Entity\Shop;
 use App\Repository\ProductRepository;
 use App\Repository\ProductReviewRepository;
@@ -307,6 +308,17 @@ class ProductController extends AbstractController
         return $product->getStock() > 0 ? $product->getStock() : null;
     }
 
+    private function resolveProductMainImage(Product $product): ?ProductImage
+    {
+        foreach ($product->getImages() as $image) {
+            if ($image->isMain()) {
+                return $image;
+            }
+        }
+
+        return $product->getImages()->first() ?: null;
+    }
+
     private function buildBundleComponents(Product $product): array
     {
         if ('grouped' !== $product->getType()) {
@@ -320,6 +332,7 @@ class ProductController extends AbstractController
                 continue;
             }
 
+            $mainImage = $this->resolveProductMainImage($component);
             $components[] = [
                 'id' => $component->getId(),
                 'name' => $component->getName(),
@@ -333,6 +346,8 @@ class ProductController extends AbstractController
                 'basePrice' => $component->getPrice(),
                 'promoPrice' => $component->getPromoPrice(),
                 'modalUrl' => $this->generateUrl('product_modal', ['id' => $component->getId()]),
+                'mainImageUrl' => $mainImage ? $mainImage->getUrl() : null,
+                'mainImageAlt' => $mainImage ? ($mainImage->getAlt() ?: $component->getName()) : $component->getName(),
             ];
         }
 

@@ -20,15 +20,7 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             'https://checkout.stripe.com',
             'https://cdn.jsdelivr.net',
             'http://unpkg.com',
-            "'unsafe-inline'",
-            "'unsafe-eval'",
-            'data:',
-        ],
-        'script-src-elem' => [
-            'https://js.stripe.com',
-            'https://checkout.stripe.com',
-            'https://cdn.jsdelivr.net',
-            'http://unpkg.com',
+            'https://ga.jspm.io',
             "'unsafe-inline'",
             "'unsafe-eval'",
             'data:',
@@ -39,6 +31,7 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             'https://fonts.googleapis.com',
             'https://cdn.jsdelivr.net',
             'http://unpkg.com',
+            'https://ga.jspm.io',
         ],
         'style-src-elem' => [
             "'self'",
@@ -46,11 +39,19 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             'https://fonts.googleapis.com',
             'https://cdn.jsdelivr.net',
             'http://unpkg.com',
+            'https://ga.jspm.io',
         ],
         'font-src' => [
             "'self'",
             'https://fonts.gstatic.com',
             'data:',
+            'https://ga.jspm.io',
+        ],
+        'img-src' => [
+            "'self'",
+            'data:',
+            'blob:',
+            'https://ga.jspm.io',
         ],
         'connect-src' => [
             "'self'",
@@ -157,11 +158,11 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
     {
         $baseDirectives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com data:",
-            "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com data:",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com",
-            "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com",
-            "font-src 'self' https://fonts.gstatic.com data:",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdn.jsdelivr.net http://unpkg.com https://ga.jspm.io data:",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com https://ga.jspm.io",
+            "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com https://ga.jspm.io",
+            "font-src 'self' https://fonts.gstatic.com data: https://ga.jspm.io",
+            "img-src 'self' data: blob: https://ga.jspm.io",
             "connect-src 'self' https://checkout.stripe.com https://api.stripe.com",
             "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
         ];

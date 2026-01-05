@@ -39,6 +39,7 @@ final class ImageUploader
             IMAGETYPE_JPEG => imagecreatefromjpeg($file->getPathname()),
             IMAGETYPE_PNG => imagecreatefrompng($file->getPathname()),
             IMAGETYPE_WEBP => imagecreatefromwebp($file->getPathname()),
+            IMAGETYPE_AVIF => $this->createAvifResource($file->getPathname()),
             default => throw new \RuntimeException('Format d’image non supporté.'),
         };
 
@@ -68,5 +69,36 @@ final class ImageUploader
         imagedestroy($canvas);
 
         return $profile->directory.'/'.$filename;
+    }
+
+    private function createAvifResource(string $path): \GdImage
+    {
+        if (function_exists('imagecreatefromavif')) {
+            $resource = imagecreatefromavif($path);
+            if (false !== $resource) {
+                return $resource;
+            }
+            throw new \RuntimeException('Impossible de lire l’image AVIF.');
+        }
+
+        if (!class_exists(\Imagick::class)) {
+            throw new \RuntimeException('Le support AVIF n’est pas activé (GD et Imagick indisponibles).');
+        }
+
+        try {
+            $imagick = new \Imagick($path);
+            $imagick->setImageFormat('png');
+            $resource = imagecreatefromstring($imagick->getImagesBlob());
+            $imagick->clear();
+            $imagick->destroy();
+
+            if (false === $resource) {
+                throw new \RuntimeException('Impossible de convertir l’image AVIF.');
+            }
+
+            return $resource;
+        } catch (\ImagickException $exception) {
+            throw new \RuntimeException('Impossible de lire l’image AVIF.', previous: $exception);
+        }
     }
 }

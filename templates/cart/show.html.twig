@@ -21,8 +21,8 @@
                     {% if item.variant and item.variant.imagePath %}
                         {% set mainImage = asset(item.variant.imagePath) %}
                     {% else %}
-                        {% set firstImage = product.images|first %}
-                        {% set mainImage = firstImage ? firstImage.url : null %}
+                        {% set productImage = product.primaryImage %}
+                        {% set mainImage = productImage ? productImage.url : null %}
                     {% endif %}
                     <div data-cart-line data-line-id="{{ item.lineId }}" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <div class="flex flex-col gap-4 p-6 md:flex-row md:items-center">

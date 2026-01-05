@@ -197,7 +197,7 @@
             <div class="swiper tn-carousel" data-swiper-init data-swiper-visible="3">
                 <div class="swiper-wrapper">
                     {% for product in latest_products|slice(0, 10) %}
-                        {% set mainImage = product.images|first %}
+                        {% set mainImage = product.primaryImage %}
                         <div class="swiper-slide p-3 h-auto">
                             <article class="tn-product-card tn-product-card--carousel h-full flex flex-col">
                                 <div class="tn-product-card__media">

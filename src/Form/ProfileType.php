@@ -55,12 +55,12 @@ class ProfileType extends AbstractType
                 'label' => 'Avatar',
                 'mapped' => false,
                 'required' => false,
-                'help' => 'PNG ou JPG jusqu’à 2 Mo',
+                'help' => 'PNG, JPG ou AVIF jusqu’à 2 Mo',
                 'constraints' => [
                     new File(
                         maxSize: '2M',
-                        mimeTypes: ['image/jpeg', 'image/png'],
-                        mimeTypesMessage: 'Formats autorisés : JPG ou PNG.',
+                        mimeTypes: ['image/jpeg', 'image/png', 'image/avif'],
+                        mimeTypesMessage: 'Formats autorisés : JPG, PNG ou AVIF.',
                     ),
                 ],
             ])

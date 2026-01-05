@@ -1,0 +1,11 @@
+{% macro image_src(value, fallback = null) %}
+    {# value peut être une URL absolue ou un chemin relatif #}
+    {% set candidate = value ?? fallback %}
+    {% if candidate is empty %}
+        {{ '' }}
+    {% elseif candidate starts with('http') %}
+        {{ candidate }}
+    {% else %}
+        {{ asset(candidate) }}
+    {% endif %}
+{% endmacro %}

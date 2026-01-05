@@ -24,12 +24,12 @@
     <section class="tn-section">
         <div class="tn-products-grid">
             {% for product in products %}
-                {% set mainImage = product.images|first %}
-                <article class="tn-product-card tn-product-card--compact h-full flex flex-col">
-                    <div class="tn-product-card__media">
-                        <img
-                            src="{{ mainImage ? asset(mainImage.url) : asset('assets/images/product-placeholder.svg') }}"
-                            alt="{{ mainImage ? mainImage.alt : 'Visuel produit' }}"
+            {% set mainImage = product.primaryImage %}
+            <article class="tn-product-card tn-product-card--compact h-full flex flex-col">
+                <div class="tn-product-card__media">
+                    <img
+                        src="{{ mainImage ? asset(mainImage.url) : asset('assets/images/product-placeholder.svg') }}"
+                        alt="{{ mainImage ? mainImage.alt : 'Visuel produit' }}"
                         >
                     </div>
                     <h3 class="tn-product-card__title tn-title--truncate mt-4" title="{{ product.name }}">{{ product.name }}</h3>

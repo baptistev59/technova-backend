@@ -1,4 +1,5 @@
 {% extends 'base.html.twig' %}
+{% import '_macros/media.html.twig' as media %}
 
 {% block title %}Catalogue | TechNova{% endblock %}
 
@@ -60,11 +61,13 @@
     <div class="tn-products-grid">
         {% for product in products %}
             <article class="tn-product-card tn-product-card--compact">
-                {% set mainImage = product.images|first %}
+                {% set mainImage = product.primaryImage %}
+                {% set imageSrc = media.image_src(mainImage ? mainImage.url : null, 'assets/images/product-placeholder.svg') %}
                 <div class="tn-product-card__media">
                     <img
-                        src="{{ mainImage ? mainImage.url : asset('assets/images/product-placeholder.svg') }}"
+                        src="{{ imageSrc }}"
                         alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
+                        loading="lazy"
                     >
                 </div>
 

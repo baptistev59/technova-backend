@@ -443,11 +443,14 @@
                 rowsSelect.addEventListener('change', applyRows);
             };
 
-            document.addEventListener('DOMContentLoaded', () => {
+            const applyPageEnhancements = () => {
                 initSwipers();
                 initCatalogSuggestion();
                 initRowsPagination();
-            });
+            };
+
+            document.addEventListener('DOMContentLoaded', applyPageEnhancements);
+            document.addEventListener('turbo:load', applyPageEnhancements);
             })();
         </script>
         <script>

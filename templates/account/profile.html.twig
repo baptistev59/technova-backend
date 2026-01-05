@@ -20,7 +20,12 @@
                     </div>
                 {% endfor %}
 
-                {{ form_start(profileForm, {attr: {class: 'space-y-8'}}) }}
+                {{ form_start(profileForm, {
+                    attr: {
+                        class: 'space-y-8',
+                        enctype: 'multipart/form-data'
+                    }
+                }) }}
 
                 <div class="rounded-3xl border border-slate-100 bg-slate-50/80 p-6 space-y-4">
                     <div class="flex items-center justify-between mb-4">
@@ -49,7 +54,7 @@
                         </label>
                         <div>
                             {{ form_widget(profileForm.avatarFile, {'attr': {'class': 'sr-only', 'data-avatar-input': 'true'}}) }}
-                            <p class="text-xs text-slate-500 mt-1">Clique sur l’avatar pour choisir un nouveau fichier (PNG/JPG, 2 Mo max).</p>
+                            <p class="text-xs text-slate-500 mt-1">Clique sur l’avatar pour choisir un nouveau fichier (PNG/JPG/AVIF, 2 Mo max).</p>
                             {{ form_errors(profileForm.avatarFile) }}
                         </div>
                     </div>
@@ -177,7 +182,7 @@
 {% block javascripts %}
     {{ parent() }}
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        const initializeAvatarPreview = () => {
             const fileInput = document.querySelector('[data-avatar-input]');
             const preview = document.querySelector('[data-avatar-preview]');
             const trigger = document.querySelector('[data-avatar-trigger]');
@@ -186,10 +191,18 @@
                 return;
             }
 
+            if (fileInput.dataset.avatarPreviewHandled === 'true') {
+                return;
+            }
+
             const previewImage = dataUrl => {
-                preview.innerHTML = '<img src="' + dataUrl + '" alt="Nouvel avatar" class="absolute inset-0 h-full w-full object-cover object-center">';
+                preview.innerHTML =
+                    '<img src="' +
+                    dataUrl +
+                    '" alt="Nouvel avatar" class="absolute inset-0 h-full w-full object-cover object-center">';
                 const overlay = document.createElement('div');
-                overlay.className = 'pointer-events-none absolute inset-0 bg-slate-900/40 text-white text-xs font-semibold uppercase tracking-wide flex items-center justify-center opacity-0 transition group-hover:opacity-100';
+                overlay.className =
+                    'pointer-events-none absolute inset-0 bg-slate-900/40 text-white text-xs font-semibold uppercase tracking-wide flex items-center justify-center opacity-0 transition group-hover:opacity-100';
                 overlay.textContent = 'Changer';
                 preview.appendChild(overlay);
             };
@@ -211,6 +224,11 @@
                 reader.onload = event => previewImage(event.target.result);
                 reader.readAsDataURL(file);
             });
-        });
+
+            fileInput.dataset.avatarPreviewHandled = 'true';
+        };
+
+        document.addEventListener('DOMContentLoaded', initializeAvatarPreview);
+        document.addEventListener('turbo:load', initializeAvatarPreview);
     </script>
 {% endblock %}

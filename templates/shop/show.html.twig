@@ -5,7 +5,7 @@
 {% block title %}{{ shop.name }} · Boutique TechNova{% endblock %}
 
 {% macro shopProductCard(product, shop, reviewSummary) %}
-    {% set mainImage = product.images|first %}
+    {% set mainImage = product.primaryImage %}
     {% set avgRating = reviewSummary ? reviewSummary.avg : 0 %}
     {% set reviewCount = reviewSummary ? reviewSummary.count : 0 %}
     <article class="tn-product-card w-full h-full flex flex-col">

@@ -13,11 +13,12 @@
     <div class="space-y-5">
         {% for item in cart.items %}
             {% set product = item.product %}
-            {% set mainImage = product.images|first %}
+            {% set productImage = product.primaryImage %}
+            {% set mainImage = productImage ? productImage.url : null %}
             <article class="rounded-[32px] border border-slate-200 bg-white/90 p-5 shadow-[0_25px_60px_rgba(15,25,36,0.06)] flex items-center gap-4">
                 <div class="h-14 w-14 rounded-full bg-slate-50 overflow-hidden flex-shrink-0">
                     {% if mainImage %}
-                        <img src="{{ mainImage.url }}" alt="{{ product.name }}" class="h-full w-full object-cover">
+                        <img src="{{ mainImage }}" alt="{{ productImage ? (productImage.alt ?? product.name) : product.name }}" class="h-full w-full object-cover">
                     {% else %}
                         <img src="{{ asset('assets/images/product-placeholder.svg') }}" alt="Visuel par défaut" class="h-full w-full object-cover">
                     {% endif %}

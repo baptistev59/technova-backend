@@ -67,21 +67,21 @@ final class ShopProfileType extends AbstractType
                 'mapped' => false,
                 'required' => false,
                 'constraints' => [
-                    new File(
-                        maxSize: '3M',
-                        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-                        mimeTypesMessage: 'Formats autorisés : JPG, PNG ou WEBP.'
-                    ),
-                ],
-            ])
+                        new File(
+                            maxSize: '3M',
+                            mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
+                            mimeTypesMessage: 'Formats autorisés : JPG, PNG, WEBP ou AVIF.'
+                        ),
+                    ],
+                ])
             ->add('bannerFile', FileType::class, [
                 'mapped' => false,
                 'required' => false,
                 'constraints' => [
                     new File(
                         maxSize: '5M',
-                        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-                        mimeTypesMessage: 'Formats autorisés : JPG, PNG ou WEBP.'
+                        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
+                        mimeTypesMessage: 'Formats autorisés : JPG, PNG, WEBP ou AVIF.'
                     ),
                 ],
             ]);

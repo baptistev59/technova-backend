@@ -114,10 +114,7 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-sm text-slate-600">
                             {% for product in products %}
-                                {% set mainImage = product.images|filter(image => image.isMain)|first %}
-                                {% if mainImage is null and product.images|length > 0 %}
-                                    {% set mainImage = product.images|first %}
-                                {% endif %}
+                            {% set mainImage = product.primaryImage %}
                                 {% set promoPrice = product.promoPrice %}
                                 {% set typeLabel = product_types[product.type|default('')] ?? 'Produit simple' %}
                                 <tr class="hover:bg-slate-50 transition">

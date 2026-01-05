@@ -50,6 +50,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
+use Psr\Log\LoggerInterface;
 
 #[Route('/mon-espace-vendeur')]
 class VendorShopController extends AbstractController
@@ -72,6 +73,7 @@ class VendorShopController extends AbstractController
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
         #[Autowire(service: 'state_machine.customer_order')]
         private readonly WorkflowInterface $orderWorkflow,
+        private readonly LoggerInterface $logger,
         #[Autowire(service: 'html_sanitizer.sanitizer.rich_text')]
         private readonly HtmlSanitizerInterface $richTextSanitizer,
     ) {
@@ -266,6 +268,10 @@ class VendorShopController extends AbstractController
 
         $form = $this->createForm(ShopType::class, $shop);
         $form->handleRequest($request);
+
+        if ($form->isSubmitted() && !$form->isValid()) {
+            $this->logFormErrors($form);
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             $isNewShop = null === $shop->getId();
@@ -2305,6 +2311,27 @@ class VendorShopController extends AbstractController
             $this->deleteUploadFile($shop->getBanner());
             $shop->setBanner($this->imageUploader->upload($bannerUpload, ImageProfileRegistry::get('shop_banner')));
         }
+    }
+
+    private function logFormErrors(FormInterface $form): void
+    {
+        $errors = [];
+        foreach ($form->getErrors(true) as $error) {
+            $origin = $error->getOrigin();
+            $errors[] = [
+                'field' => $origin ? $origin->getName() : null,
+                'message' => $error->getMessage(),
+            ];
+        }
+
+        if ([] === $errors) {
+            return;
+        }
+
+        $this->logger->info('Shop form validation failed', [
+            'errors' => $errors,
+            'route' => 'app_vendor_shop_new',
+        ]);
     }
 
     private function deleteUploadFile(?string $relativePath): void

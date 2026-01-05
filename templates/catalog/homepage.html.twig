@@ -19,6 +19,8 @@
 </section>
 
 {# Mise en avant des catégories clés #}
+{% import '_macros/media.html.twig' as media %}
+
 <section class="tn-section">
     <div class="tn-section__header">
         <h2>Catégories populaires</h2>
@@ -55,11 +57,13 @@
                     <div class="swiper-slide p-3 h-auto">
                         <article class="tn-product-card tn-product-card--carousel h-full flex flex-col">
                             <div class="tn-product-card__media">
-                            {% set mainImage = product.images|first %}
-                            <img
-                                src="{{ mainImage ? mainImage.url : asset('assets/images/product-placeholder.svg') }}"
-                                alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
-                            >
+                                {% set mainImage = product.primaryImage %}
+                                {% set imageSrc = media.image_src(mainImage ? mainImage.url : null, 'assets/images/product-placeholder.svg') %}
+                                <img
+                                    src="{{ imageSrc }}"
+                                    alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
+                                    loading="lazy"
+                                >
                             </div>
 
                             <h3 class="tn-product-card__title tn-title--truncate" title="{{ product.name }}">{{ product.name }}</h3>
@@ -109,10 +113,19 @@
                     <div class="swiper-slide p-3 h-auto">
                         <article class="tn-product-card tn-product-card--carousel h-full flex flex-col">
                             <div class="tn-product-card__media">
-                            {% set mainImage = product.images|first %}
+                            {% set mainImage = product.primaryImage %}
+                            {% set imageSrc = mainImage
+                                ? (mainImage.url starts with 'http'
+                                    ? mainImage.url
+                                    : asset(mainImage.url)
+                                )
+                                : asset('assets/images/product-placeholder.svg')
+                            %}
+
                             <img
-                                src="{{ mainImage ? mainImage.url : asset('assets/images/product-placeholder.svg') }}"
+                                src="{{ imageSrc }}"
                                 alt="{{ mainImage ? mainImage.alt : 'Visuel par défaut' }}"
+                                loading="lazy"
                             >
                             </div>
 

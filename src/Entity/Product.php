@@ -401,6 +401,47 @@ class Product
         return $this->images;
     }
 
+    public function getPrimaryImage(array $visited = []): ?ProductImage
+    {
+        $id = $this->getId();
+        if (null !== $id && in_array($id, $visited, true)) {
+            return null;
+        }
+
+        if (null !== $id) {
+            $visited[] = $id;
+        }
+
+        foreach ($this->images as $image) {
+            if ($image->isMain()) {
+                return $image;
+            }
+        }
+
+        $firstImage = $this->images->first();
+        if ($firstImage) {
+            return $firstImage;
+        }
+
+        if ('grouped' !== $this->type) {
+            return null;
+        }
+
+        foreach ($this->bundleItems as $item) {
+            $component = $item->getComponent();
+            if (!$component || $component === $this) {
+                continue;
+            }
+
+            $componentImage = $component->getPrimaryImage($visited);
+            if ($componentImage) {
+                return $componentImage;
+            }
+        }
+
+        return null;
+    }
+
     public function addImage(ProductImage $image): self
     {
         if (!$this->images->contains($image)) {

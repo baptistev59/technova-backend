@@ -44,7 +44,7 @@
             </div>
         </header>
 
-        {{ form_start(form, { attr: { class: 'space-y-10' } }) }}
+        {{ form_start(form, { attr: { class: 'space-y-10', 'data-turbo': 'false' }, multipart: true }) }}
             {% if form_errors(form) %}
                 <div class="rounded-3xl border border-red-200 bg-red-50/70 p-5 text-sm text-red-700">
                     {{ form_errors(form) }}

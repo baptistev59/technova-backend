@@ -313,8 +313,10 @@ class AppFixtures extends Fixture
     {
         $absolutePath = sprintf('%s/public%s%s', dirname(__DIR__, 2), self::IMAGE_BASE_PATH, $file);
 
+        $imageUrl = str_starts_with($file, 'http') ? $file : self::IMAGE_BASE_PATH.$file;
+
         $image = (new ProductImage())
-            ->setUrl(self::IMAGE_BASE_PATH.$file)
+            ->setUrl($imageUrl)
             ->setAlt($product->getName())
             ->setTitle($product->getName())
             ->setCaption('Visual concept du produit')
@@ -323,7 +325,9 @@ class AppFixtures extends Fixture
             ->setProduct($product)
             ->setMimeType('image/svg+xml');
 
-        if (is_file($absolutePath)) {
+        if (str_starts_with($file, 'http')) {
+            $image->setFileSize(null);
+        } elseif (is_file($absolutePath)) {
             $image->setFileSize(filesize($absolutePath) ?: null);
         }
 
@@ -595,140 +599,116 @@ class AppFixtures extends Fixture
     private function getProductTemplates(): array
     {
         return [
+            // === LAPTOPS / BUREAUTIQUE ===
             [
-                'name' => 'NovaBook Quantum',
+                'name' => 'TechNova Ultrabook 14 Pro',
                 'category' => 'future-laptops',
                 'brand' => 'aurora-dynamics',
-                'image' => 'ai-laptop.svg',
-                'price' => 1999,
+                'image' => 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
+                'price' => 1399,
                 'type' => 'variable',
-                'short' => 'Ultrabook 16" avec coprocesseur neuronal QX-5.',
-                'description' => 'Double écran OLED, module IA embarqué et batterie 30h pour coder, monter ou générer des médias hors-ligne.',
-                'attributes' => $this->getAttributeBlueprint(),
+                'short' => 'Ultrabook 14" fin et léger pour le travail hybride.',
+                'description' => 'Processeur dernière génération, autonomie longue durée, idéal pour télétravail et mobilité.',
+                'attributes' => [
+                    [
+                        'slug' => 'color',
+                        'name' => 'Couleur',
+                        'type' => 'chips',
+                        'values' => [
+                            ['slug' => 'silver', 'label' => 'Argent', 'hex' => '#C0C0C0'],
+                            ['slug' => 'black', 'label' => 'Noir', 'hex' => '#111111'],
+                        ],
+                    ],
+                    [
+                        'slug' => 'ram',
+                        'name' => 'Mémoire RAM',
+                        'type' => 'select',
+                        'values' => [
+                            ['slug' => '16gb', 'label' => '16 Go', 'priceDelta' => 0],
+                            ['slug' => '32gb', 'label' => '32 Go', 'priceDelta' => 0.15],
+                        ],
+                    ],
+                ],
             ],
             [
-                'name' => 'Helix Fold X',
-                'category' => 'immersive-vr',
-                'brand' => 'flux-vision',
-                'image' => 'vr-headset.svg',
-                'price' => 1299,
-                'type' => 'variable',
-                'short' => 'Casque XR multi-focal avec suivi oculaire.',
-                'description' => 'Matériau respirant, résolution 5K par œil et intégration native avec les espaces collaboratifs TechNova.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'Pulse Glide S',
-                'category' => 'smart-mobility',
-                'brand' => 'pulse-mobility',
-                'image' => 'smart-scooter.svg',
-                'price' => 1490,
+                'name' => 'TechNova Dock USB-C Pro',
+                'category' => 'future-laptops',
+                'brand' => 'aurora-dynamics',
+                'image' => 'https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04',
+                'price' => 189,
                 'type' => 'simple',
-                'short' => 'Trottinette autonome avec évitement d’obstacles.',
-                'description' => 'Autonomie 80km, recharge solaire latente et pilotage vocal sécurisé.',
-                'attributes' => $this->getAttributeBlueprint(),
+                'short' => 'Station d’accueil USB-C multi-ports.',
+                'description' => 'HDMI, Ethernet, USB-A, USB-C et charge rapide 100W.',
             ],
+
+            // === AUDIO / CREATION ===
             [
-                'name' => 'Nexa Cubic',
+                'name' => 'NexaSound Studio Headphones',
                 'category' => 'creative-ai',
                 'brand' => 'nexa-audio',
-                'image' => 'smart-speaker.svg',
-                'price' => 499,
-                'type' => 'simple',
-                'short' => 'Enceinte spatiale qui adapte la musique à l’humeur.',
-                'description' => 'Analyse biométrique via les micros et génération automatique de playlists personnalisées.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'Helios Freight',
-                'category' => 'smart-mobility',
-                'brand' => 'pulse-mobility',
-                'image' => 'autonomous-drone.svg',
-                'price' => 2890,
+                'image' => 'https://images.unsplash.com/photo-1518443895471-75f53c2d2c46',
+                'price' => 249,
                 'type' => 'variable',
-                'short' => 'Drone cargo silencieux pour la logistique urbaine.',
-                'description' => 'Charge utile 20kg, planification IA et parachute d’urgence.',
-                'attributes' => $this->getAttributeBlueprint(),
+                'short' => 'Casque studio fermé haute précision.',
+                'description' => 'Idéal pour montage audio, podcast et musique.',
+                'attributes' => [
+                    [
+                        'slug' => 'color',
+                        'name' => 'Couleur',
+                        'type' => 'select',
+                        'values' => [
+                            ['slug' => 'black', 'label' => 'Noir'],
+                            ['slug' => 'white', 'label' => 'Blanc'],
+                        ],
+                    ],
+                ],
             ],
             [
-                'name' => 'Lumina Core Home',
-                'category' => 'smart-home',
-                'brand' => 'lumina-home',
-                'image' => 'iot-hub.svg',
-                'price' => 799,
-                'type' => 'simple',
-                'short' => 'Hub domotique holographique multi-room.',
-                'description' => 'Projection 3D des indicateurs énergétiques, automatisation des scènes et API ouverte.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'Solara Trek Pack',
-                'category' => 'smart-mobility',
-                'brand' => 'solara-tech',
-                'image' => 'solar-backpack.svg',
-                'price' => 349,
-                'type' => 'grouped',
-                'short' => 'Sac à dos solaire générant jusqu’à 120W.',
-                'description' => 'Batterie Graphène, ports USB-C 240W et charge par induction pour drones.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'Quantum Ring Pulse',
-                'category' => 'bio-wearables',
-                'brand' => 'quantum-wear',
-                'image' => 'wearable-ring.svg',
-                'price' => 299,
-                'type' => 'simple',
-                'short' => 'Anneau biométrique avec capteurs sanguins non invasifs.',
-                'description' => 'Algorithmes prédictifs pour anticiper fatigue et micro-stress.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'Orbit Neo Companion',
-                'category' => 'personal-robotics',
-                'brand' => 'orbit-robotics',
-                'image' => 'robot-companion.svg',
-                'price' => 4590,
-                'type' => 'variable',
-                'short' => 'Robot compagnon modulable pour les familles.',
-                'description' => 'Reconnaissance émotionnelle, bras articulé modulable et contrôle vocal multi-utilisateur.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'HoloBeam Studio',
-                'category' => 'immersive-vr',
-                'brand' => 'flux-vision',
-                'image' => 'hologram-projector.svg',
-                'price' => 2490,
-                'type' => 'simple',
-                'short' => 'Projecteur holographique autonome 4K.',
-                'description' => 'Streaming direct depuis Figma / Blender, interactivité tactile et enregistrement volumétrique.',
-                'attributes' => $this->getAttributeBlueprint(),
-            ],
-            [
-                'name' => 'Axon Neural Pen',
+                'name' => 'NexaSound USB Podcast Micro',
                 'category' => 'creative-ai',
-                'brand' => 'aurora-dynamics',
-                'image' => 'ai-laptop.svg',
-                'price' => 259,
+                'brand' => 'nexa-audio',
+                'image' => 'https://images.unsplash.com/photo-1590602844147-3b8c5d3f7d6c',
+                'price' => 129,
                 'type' => 'simple',
-                'short' => 'Stylet neuronal qui retranscrit la pensée en croquis.',
-                'description' => 'Capteurs EMG miniaturisés et export vectoriel instantané.',
-                'attributes' => $this->getAttributeBlueprint(),
+                'short' => 'Microphone USB plug-and-play.',
+                'description' => 'Qualité studio pour streaming et visioconférence.',
             ],
+
+            // === MOBILITÉ / DRONES ===
             [
-                'name' => 'Helix Micro Drone',
+                'name' => 'PulseRide Urban E-Scooter S2',
                 'category' => 'smart-mobility',
                 'brand' => 'pulse-mobility',
-                'image' => 'autonomous-drone.svg',
-                'price' => 990,
-                'type' => 'grouped',
-                'short' => 'Drone caméra autonome pour créateurs nomades.',
-                'description' => 'Stabilisation 8 axes, suivi IA des sujets et transmission chiffrée.',
-                'attributes' => $this->getAttributeBlueprint(),
+                'image' => 'https://images.unsplash.com/photo-1606813902919-dfd7f5e6b7b7',
+                'price' => 999,
+                'type' => 'variable',
+                'short' => 'Trottinette électrique urbaine.',
+                'description' => 'Autonomie étendue, freinage sécurisé, pliable.',
+                'attributes' => [
+                    [
+                        'slug' => 'autonomy',
+                        'name' => 'Autonomie',
+                        'type' => 'select',
+                        'values' => [
+                            ['slug' => '30km', 'label' => '30 km'],
+                            ['slug' => '45km', 'label' => '45 km', 'priceDelta' => 0.12],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'name' => 'Helios Drone 4K Explorer',
+                'category' => 'smart-mobility',
+                'brand' => 'pulse-mobility',
+                'image' => 'https://images.unsplash.com/photo-1508614999368-9260051291ea',
+                'price' => 1190,
+                'type' => 'simple',
+                'short' => 'Drone caméra 4K stabilisée.',
+                'description' => 'Idéal pour prises de vue aériennes et loisirs.',
             ],
         ];
     }
+
 
     private function getReviewPool(): array
     {

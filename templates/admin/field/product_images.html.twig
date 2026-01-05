@@ -1,0 +1,26 @@
+<div class="space-y-3">
+    {% if field.value is not empty %}
+        <div class="grid gap-4 md:grid-cols-3">
+            {% for image in field.value %}
+                <article class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="h-36 overflow-hidden rounded-t-2xl bg-slate-100">
+                        <img src="{{ asset(image.url) }}"
+                             alt="{{ image.alt ?? image.title ?? 'Visuel produit' }}"
+                             class="h-full w-full object-cover">
+                    </div>
+                    <div class="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-500">
+                        <span>{{ image.title ?? 'Image #' ~ loop.index }}</span>
+                        {% if image.isMain %}
+                            <span class="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">Photo principale</span>
+                        {% endif %}
+                    </div>
+                    <div class="px-3 pb-3 text-[11px] uppercase tracking-[0.25em] text-slate-400">
+                        Position {{ image.position ?? '?'}}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-sm text-slate-500">Aucune image enregistrée pour ce produit.</p>
+    {% endif %}
+</div>

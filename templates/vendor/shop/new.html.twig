@@ -24,7 +24,14 @@
                     </header>
 
                     {% set form_action = is_edit ? path('app_vendor_shop_new', { edit: 1 }) : path('app_vendor_shop_new') %}
-                    {{ form_start(form, {attr: {class: 'space-y-10'}, action: form_action}) }}
+                    {{ form_start(form, {
+                        attr: {
+                            class: 'space-y-10',
+                            'data-turbo': 'false',
+                            enctype: 'multipart/form-data'
+                        },
+                        action: form_action
+                    }) }}
                         <section class="space-y-6 rounded-3xl border border-slate-100 bg-white shadow-sm p-6">
                             <div>
                                 <div class="flex items-center justify-between mb-3">
@@ -162,7 +169,7 @@
                                 </div>
                                 <div class="grid md:grid-cols-2 gap-6">
                                     <div class="tn-upload" x-data="{ preview: {{ existingLogo ? '\'' ~ existingLogo|e('js') ~ '\'' : 'null' }} }">
-                                        <label class="block text-sm font-medium text-slate-600 mb-2">Logo (PNG/JPG)</label>
+                                        <label class="block text-sm font-medium text-slate-600 mb-2">Logo (PNG/JPG/WEBP/AVIF)</label>
                                         {{ form_widget(form.logoFile, {
                                             attr: {
                                                 class: 'sr-only',
