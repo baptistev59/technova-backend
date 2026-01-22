@@ -36,16 +36,21 @@ final class TwoFactorSetupController extends AbstractController
             throw $this->createAccessDeniedException('Acces refuse.');
         }
 
-        if (null === $user->getTotpSecret()) {
-            $user->setTotpSecret($totpAuthenticator->generateSecret());
-            $entityManager->flush();
+        $session = $request->getSession();
+        $pendingSecret = $session->get('two_factor_pending_secret');
+        if (null === $pendingSecret) {
+            $pendingSecret = $totpAuthenticator->generateSecret();
+            $session->set('two_factor_pending_secret', $pendingSecret);
         }
+        $user->setTotpSecret($pendingSecret);
 
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('two_factor_setup', (string) $request->request->get('_token'))) {
                 throw $this->createAccessDeniedException('Jeton CSRF invalide.');
             }
 
+            $entityManager->flush();
+            $session->remove('two_factor_pending_secret');
             $this->addFlash('success', '2FA activee.');
 
             return new RedirectResponse($request->headers->get('referer') ?? $this->generateUrl('homepage'));

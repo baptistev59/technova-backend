@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\OrderItemFulfillmentStatus;
 use App\Repository\CustomerOrderItemRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -43,6 +44,12 @@ class CustomerOrderItem
 
     #[ORM\Column(nullable: true)]
     private ?int $variantId = null;
+
+    #[ORM\Column(length: 16, enumType: OrderItemFulfillmentStatus::class)]
+    private OrderItemFulfillmentStatus $fulfillmentStatus = OrderItemFulfillmentStatus::Pending;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $fulfilledAt = null;
 
     public function getId(): ?int
     {
@@ -153,6 +160,43 @@ class CustomerOrderItem
     public function setVariantId(?int $variantId): self
     {
         $this->variantId = $variantId;
+
+        return $this;
+    }
+
+    public function getFulfillmentStatus(): OrderItemFulfillmentStatus
+    {
+        return $this->fulfillmentStatus;
+    }
+
+    public function setFulfillmentStatus(OrderItemFulfillmentStatus $status): self
+    {
+        $this->fulfillmentStatus = $status;
+
+        return $this;
+    }
+
+    public function getFulfilledAt(): ?\DateTimeImmutable
+    {
+        return $this->fulfilledAt;
+    }
+
+    public function setFulfilledAt(?\DateTimeImmutable $fulfilledAt): self
+    {
+        $this->fulfilledAt = $fulfilledAt;
+
+        return $this;
+    }
+
+    public function isFulfilled(): bool
+    {
+        return $this->fulfillmentStatus->isShipped();
+    }
+
+    public function markFulfilled(\DateTimeImmutable $date = null): self
+    {
+        $this->fulfillmentStatus = OrderItemFulfillmentStatus::Shipped;
+        $this->fulfilledAt = $date ?? new \DateTimeImmutable();
 
         return $this;
     }

@@ -42,12 +42,13 @@
 
     <section>
         <h2>Détails de commande</h2>
+        {% set document_items = vendor_items is defined ? vendor_items : order.items %}
         <table>
             <thead>
                 <tr><th>Produit</th><th>Qté</th><th>Prix ligne</th></tr>
             </thead>
             <tbody>
-                {% for item in order.items %}
+                {% for item in document_items %}
                     <tr>
                         <td>{{ item.productName }}</td>
                         <td>{{ item.quantity }}</td>
@@ -56,13 +57,20 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% if order.shippingTotal is defined %}
-            <p class="total">Livraison : {{ order.shippingTotal|number_format(2, ',', ' ') }} €</p>
+        {% set DELIVERY = constant('App\\Enum\\DocumentType::DELIVERY') %}
+        {% if not (type is same as(DELIVERY)) %}
+            {% if show_invoice_total %}
+                {% if show_shipping and order.shippingTotal is defined %}
+                    <p class="total">Livraison : {{ order.shippingTotal|number_format(2, ',', ' ') }} €</p>
+                {% endif %}
+                {% if order.refundedAt %}
+                    <p class="total">Remboursée le {{ order.refundedAt|date('d/m/Y H:i') }}</p>
+                {% endif %}
+                <p class="total">Total : {{ order.totalAmount|number_format(2, ',', ' ') }} €</p>
+            {% else %}
+                <p class="total">Montant boutique : {{ order.itemsTotal|number_format(2, ',', ' ') }} €</p>
+            {% endif %}
         {% endif %}
-        {% if order.refundedAt %}
-            <p class="total">Remboursée le {{ order.refundedAt|date('d/m/Y H:i') }}</p>
-        {% endif %}
-        <p class="total">Total : {{ order.totalAmount|number_format(2, ',', ' ') }} €</p>
     </section>
 
     <section>

@@ -12,7 +12,10 @@ use App\Repository\ProductRepository;
 use App\Repository\ProductReviewRepository;
 use App\Repository\ReturnRequestRepository;
 use App\Repository\UserRepository;
+use App\Repository\OrderDocumentRepository;
 use App\Security\ViewerAccessChecker;
+use App\Service\OrderDocumentGenerator;
+use App\Enum\DocumentType;
 use App\Enum\OrderStatus;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,6 +24,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/mon-compte/commandes')]
@@ -35,8 +40,12 @@ class AccountOrderController extends AbstractController
         private readonly ReturnRequestRepository $returnRequestRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ViewerAccessChecker $viewerAccessChecker,
+        private readonly OrderDocumentRepository $documentRepository,
+        private readonly OrderDocumentGenerator $documentGenerator,
         #[Autowire(service: 'html_sanitizer.sanitizer.rich_text')]
         private readonly HtmlSanitizerInterface $richTextSanitizer,
+        #[Autowire('%kernel.project_dir%')]
+        private readonly string $projectDir,
     ) {
     }
 
@@ -97,6 +106,63 @@ class AccountOrderController extends AbstractController
             'reviews_by_product' => $reviewsByProduct,
             'return_request' => $returnRequest,
         ]);
+    }
+
+    #[Route('/{reference}/facture', name: 'app_account_orders_invoice', methods: ['GET'])]
+    public function invoice(string $reference, Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $order = $this->orderRepository->findOneBy(['reference' => $reference]);
+        $user = $this->resolveViewer($request);
+
+        if (!$order instanceof CustomerOrder || $order->getOwner()?->getId() !== $user->getId()) {
+            throw $this->createNotFoundException('Commande introuvable.');
+        }
+
+        $status = $order->getStatusEnum();
+        $isEligible = match ($status) {
+            OrderStatus::Paid, OrderStatus::Shipped => true,
+            default => false,
+        };
+
+        if (!$isEligible) {
+            $this->addFlash('error', 'Facture disponible uniquement après paiement.');
+
+            return $this->redirectToRoute('app_account_orders_show', ['reference' => $reference]);
+        }
+
+        $document = $this->documentRepository->findOneBy([
+            'order' => $order,
+            'type' => DocumentType::INVOICE,
+        ]);
+
+        if (null === $document) {
+            $document = $this->documentGenerator->generate($order, DocumentType::INVOICE, $request->getSchemeAndHttpHost());
+            $this->entityManager->persist($document);
+            $this->entityManager->flush();
+        }
+
+        $relativePath = ltrim($document->getPath(), '/');
+        $absolutePath = $this->projectDir.'/public/'.$relativePath;
+        if (!is_file($absolutePath)) {
+            throw $this->createNotFoundException('Le document facture est introuvable.');
+        }
+
+        $response = new BinaryFileResponse($absolutePath, 200, [
+            'Content-Type' => 'application/pdf',
+        ]);
+
+        $disposition = $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            sprintf('facture-%s.pdf', $order->getReference())
+        );
+
+        $response->headers->set('Content-Disposition', $disposition);
+
+        return $response;
     }
 
     #[Route('/{reference}/avis', name: 'app_account_orders_review', methods: ['POST'])]

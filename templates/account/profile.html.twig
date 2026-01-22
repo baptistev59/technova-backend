@@ -55,6 +55,7 @@
                         <div>
                             {{ form_widget(profileForm.avatarFile, {'attr': {'class': 'sr-only', 'data-avatar-input': 'true'}}) }}
                             <p class="text-xs text-slate-500 mt-1">Clique sur l’avatar pour choisir un nouveau fichier (PNG/JPG/AVIF, 2 Mo max).</p>
+                            <p class="mt-2 text-sm font-semibold text-red-600" data-avatar-inline-error aria-live="polite"></p>
                             {{ form_errors(profileForm.avatarFile) }}
                         </div>
                     </div>
@@ -120,12 +121,21 @@
                 {{ form_end(profileForm) }}
 
                 {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_VENDOR') %}
+                    {% set totpEnabled = viewer is defined and viewer and viewer.isTotpAuthenticationEnabled() %}
                     <div class="mt-8 rounded-3xl border border-slate-200 bg-slate-50/80 p-6 flex items-center justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-900">Double authentification</h2>
-                            <p class="text-sm text-slate-600">Active la verification TOTP pour securiser ton compte.</p>
+                            {% if totpEnabled %}
+                                <p class="text-sm text-slate-600">La double authentification est active sur ton compte.</p>
+                            {% else %}
+                                <p class="text-sm text-slate-600">Active la verification TOTP pour securiser ton compte.</p>
+                            {% endif %}
                         </div>
-                        <a href="{{ path('app_two_factor_setup') }}" class="btn btn-outline">Configurer</a>
+                        {% if totpEnabled %}
+                            <span class="text-sm font-semibold text-emerald-600 uppercase tracking-wide">Activée</span>
+                        {% else %}
+                            <a href="{{ path('app_two_factor_setup') }}" class="btn btn-outline">Configurer</a>
+                        {% endif %}
                     </div>
                 {% endif %}
 
@@ -176,59 +186,118 @@
             </aside>
         </div>
     </div>
+    </div>
 </section>
+
+<div id="avatar-error-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4" role="alert" aria-live="assertive">
+    <div class="w-full max-w-md rounded-3xl bg-white shadow-xl ring-1 ring-slate-900/10">
+        <header class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Avatar non valide</h3>
+            <button type="button" class="text-slate-400 hover:text-slate-700" data-avatar-error-close aria-label="Fermer">
+                ✕
+            </button>
+        </header>
+        <div class="p-6">
+            <p id="avatar-error-message" class="text-sm text-red-600"></p>
+        </div>
+        <footer class="flex justify-end border-t border-slate-200 px-6 py-4">
+            <button type="button" class="btn btn-primary px-6" data-avatar-error-close>J’ai compris</button>
+        </footer>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
     <script>
-        const initializeAvatarPreview = () => {
-            const fileInput = document.querySelector('[data-avatar-input]');
-            const preview = document.querySelector('[data-avatar-preview]');
-            const trigger = document.querySelector('[data-avatar-trigger]');
+        (() => {
+            const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+            const avatarInlineError = document.querySelector('[data-avatar-inline-error]');
+            const avatarModal = document.getElementById('avatar-error-modal');
+            const avatarModalMessage = document.getElementById('avatar-error-message');
+            const modalCloseButtons = avatarModal
+                ? Array.from(avatarModal.querySelectorAll('[data-avatar-error-close]'))
+                : [];
+            const serverAvatarErrors = {{ profileForm.avatarFile.vars.errors|length > 0 ? profileForm.avatarFile.vars.errors|map(e => e.message)|json_encode() : '[]' }};
 
-            if (!fileInput || !preview || !trigger) {
-                return;
-            }
-
-            if (fileInput.dataset.avatarPreviewHandled === 'true') {
-                return;
-            }
-
-            const previewImage = dataUrl => {
-                preview.innerHTML =
-                    '<img src="' +
-                    dataUrl +
-                    '" alt="Nouvel avatar" class="absolute inset-0 h-full w-full object-cover object-center">';
-                const overlay = document.createElement('div');
-                overlay.className =
-                    'pointer-events-none absolute inset-0 bg-slate-900/40 text-white text-xs font-semibold uppercase tracking-wide flex items-center justify-center opacity-0 transition group-hover:opacity-100';
-                overlay.textContent = 'Changer';
-                preview.appendChild(overlay);
-            };
-
-            trigger.addEventListener('click', () => fileInput.click());
-            trigger.addEventListener('keydown', event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    fileInput.click();
-                }
-            });
-
-            fileInput.addEventListener('change', () => {
-                const [file] = fileInput.files ?? [];
-                if (!file) {
+            const showAvatarError = message => {
+                if (!message) {
                     return;
                 }
-                const reader = new FileReader();
-                reader.onload = event => previewImage(event.target.result);
-                reader.readAsDataURL(file);
-            });
+                if (avatarInlineError) {
+                    avatarInlineError.textContent = message;
+                }
+                if (avatarModal) {
+                    if (avatarModalMessage) {
+                        avatarModalMessage.textContent = message;
+                    }
+                    avatarModal.classList.remove('hidden');
+                }
+            };
 
-            fileInput.dataset.avatarPreviewHandled = 'true';
-        };
+            const initializeAvatarPreview = () => {
+                const fileInput = document.querySelector('[data-avatar-input]');
+                const preview = document.querySelector('[data-avatar-preview]');
+                const trigger = document.querySelector('[data-avatar-trigger]');
 
-        document.addEventListener('DOMContentLoaded', initializeAvatarPreview);
-        document.addEventListener('turbo:load', initializeAvatarPreview);
+                if (!fileInput || !preview || !trigger) {
+                    return;
+                }
+
+                if (fileInput.dataset.avatarPreviewHandled === 'true') {
+                    return;
+                }
+
+                const previewImage = dataUrl => {
+                    preview.innerHTML =
+                        '<img src="' +
+                        dataUrl +
+                        '" alt="Nouvel avatar" class="absolute inset-0 h-full w-full object-cover object-center">';
+                    const overlay = document.createElement('div');
+                    overlay.className =
+                        'pointer-events-none absolute inset-0 bg-slate-900/40 text-white text-xs font-semibold uppercase tracking-wide flex items-center justify-center opacity-0 transition group-hover:opacity-100';
+                    overlay.textContent = 'Changer';
+                    preview.appendChild(overlay);
+                };
+
+                trigger.addEventListener('click', () => fileInput.click());
+                trigger.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        fileInput.click();
+                    }
+                });
+
+                fileInput.addEventListener('change', () => {
+                    const [file] = fileInput.files ?? [];
+                    if (!file) {
+                        return;
+                    }
+                    if (file.size > MAX_AVATAR_BYTES) {
+                        const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+                        showAvatarError(`Ton fichier fait ${sizeInMb} Mo, il dépasse la limite de 2 Mo.`);
+                        fileInput.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = event => previewImage(event.target.result);
+                    reader.readAsDataURL(file);
+                });
+
+                fileInput.dataset.avatarPreviewHandled = 'true';
+            };
+
+            document.addEventListener('DOMContentLoaded', initializeAvatarPreview);
+            document.addEventListener('turbo:load', initializeAvatarPreview);
+
+            modalCloseButtons.forEach(button => button.addEventListener('click', () => {
+                avatarModal?.classList.add('hidden');
+            }));
+
+            if (serverAvatarErrors.length > 0) {
+                showAvatarError(serverAvatarErrors[0]);
+            }
+        })();
     </script>
 {% endblock %}

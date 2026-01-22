@@ -26,13 +26,15 @@ final class OrderDocumentGenerator
     ) {
     }
 
-    public function generate(CustomerOrder $order, DocumentType $type, string $baseUrl = ''): OrderDocument
+    public function generate(CustomerOrder $order, DocumentType $type, string $baseUrl = '', array $context = []): OrderDocument
     {
         $html = $this->twig->render('documents/order_document.html.twig', [
             'order' => $order,
             'type' => $type,
             'base_url' => rtrim($this->resolveBaseUrl($baseUrl), '/'),
-        ]);
+            'show_shipping' => DocumentType::INVOICE === $type,
+            'show_invoice_total' => DocumentType::INVOICE === $type,
+        ] + $context);
 
         $dompdf = new Dompdf($this->dompdfOptions ?? new Options());
         $dompdf->loadHtml($html);

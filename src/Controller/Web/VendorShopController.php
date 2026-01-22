@@ -19,6 +19,9 @@ use App\Entity\ProductVariant;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;
+use App\Entity\CustomerOrderItem;
+use App\Entity\OrderDocument;
+use App\Enum\DocumentType;
 use App\Enum\OrderStatus;
 use App\Form\Vendor\ProductType;
 use App\Form\Vendor\ShopType;
@@ -32,9 +35,12 @@ use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
 use App\Repository\ShopRepository;
 use App\Repository\UserRepository;
+use App\Repository\OrderDocumentRepository;
 use App\Security\ViewerAccessChecker;
 use App\Security\Voter\OrderVoter;
 use App\Security\Voter\ProductVoter;
+use App\Service\OrderDocumentGenerator;
+use App\Service\OrderFulfillmentManager;
 use App\Service\StockAlertService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -46,7 +52,9 @@ use Symfony\Component\HtmlSanitizer\HtmlSanitizerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
@@ -69,6 +77,9 @@ class VendorShopController extends AbstractController
         private readonly BrandRepository $brandRepository,
         private readonly AttributeDefinitionRepository $attributeDefinitionRepository,
         private readonly CustomerOrderRepository $orderRepository,
+        private readonly OrderDocumentRepository $documentRepository,
+        private readonly OrderDocumentGenerator $documentGenerator,
+        private readonly OrderFulfillmentManager $orderFulfillmentManager,
         private readonly ImageUploader $imageUploader,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
         #[Autowire(service: 'state_machine.customer_order')]
@@ -495,7 +506,6 @@ class VendorShopController extends AbstractController
 
         $result = $this->orderRepository->paginateForShop($shop, $page, $perPage, $statusFilter);
         $orders = $result['orders'];
-        $shopProductMap = $this->mapShopProductIds($shop, $orders);
 
         $orderViews = [];
         $pageRevenue = 0.0;
@@ -503,10 +513,8 @@ class VendorShopController extends AbstractController
             $lines = [];
             $subtotal = 0.0;
             $quantity = 0;
-            foreach ($order->getItems() as $item) {
-                if (!isset($shopProductMap[$item->getProductId()])) {
-                    continue;
-                }
+            $items = $this->orderFulfillmentManager->getShopItems($shop, $order);
+            foreach ($items as $item) {
                 $lineAmount = (float) $item->getLineTotal();
                 $lines[] = [
                     'name' => $item->getProductName(),
@@ -525,6 +533,8 @@ class VendorShopController extends AbstractController
                 'lineTotal' => $subtotal,
                 'quantity' => $quantity,
                 'customer' => $this->resolveOrderCustomerName($order),
+                'items' => $items,
+                'shop_status' => $this->orderFulfillmentManager->describeShopStatus($shop, $order),
             ];
         }
 
@@ -559,6 +569,181 @@ class VendorShopController extends AbstractController
             'per_page_options' => $perPageOptions,
             'vendor_nav' => $this->buildVendorNav('app_vendor_orders'),
         ]);
+    }
+
+    private function streamOrderDocument(CustomerOrder $order, DocumentType $type, string $filenamePrefix, Request $request, array $context = []): Response
+    {
+        $document = $this->findOrGenerateDocument($order, $type, $request->getSchemeAndHttpHost(), $context);
+
+        $absolutePath = $this->getDocumentAbsolutePath($document);
+        if (!is_file($absolutePath)) {
+            throw $this->createNotFoundException('Le document est introuvable.');
+        }
+
+        $response = new BinaryFileResponse($absolutePath, 200, [
+            'Content-Type' => 'application/pdf',
+        ]);
+
+        $disposition = $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            sprintf('%s-%s.pdf', $filenamePrefix, $order->getReference() ?? 'commande')
+        );
+
+        $response->headers->set('Content-Disposition', $disposition);
+
+        return $response;
+    }
+
+    private function findOrGenerateDocument(CustomerOrder $order, DocumentType $type, string $baseUrl, array $context = []): OrderDocument
+    {
+        $document = null;
+        if ([] === $context) {
+            $document = $this->documentRepository->findOneBy([
+                'order' => $order,
+                'type' => $type,
+            ]);
+
+            if ($document instanceof OrderDocument) {
+                $absolutePath = $this->getDocumentAbsolutePath($document);
+                if (is_file($absolutePath)) {
+                    return $document;
+                }
+
+                $this->deleteDocumentFile($document);
+                $this->entityManager->remove($document);
+                $this->entityManager->flush();
+            }
+        }
+
+        $this->cleanupExistingDocuments($order, $type);
+
+        $document = $this->documentGenerator->generate($order, $type, $baseUrl, $context);
+        $this->entityManager->persist($document);
+        $this->entityManager->flush();
+
+        return $document;
+    }
+
+    private function cleanupExistingDocuments(CustomerOrder $order, DocumentType $type): void
+    {
+        $documents = $this->documentRepository->findBy([
+            'order' => $order,
+            'type' => $type,
+        ]);
+
+        if ([] === $documents) {
+            return;
+        }
+
+        foreach ($documents as $document) {
+            $this->deleteDocumentFile($document);
+            $this->entityManager->remove($document);
+        }
+
+        $this->entityManager->flush();
+    }
+
+    private function deleteDocumentFile(OrderDocument $document): void
+    {
+        $path = $this->getDocumentAbsolutePath($document);
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
+    private function getDocumentAbsolutePath(OrderDocument $document): string
+    {
+        return $this->projectDir.'/public/'.ltrim($document->getPath(), '/');
+    }
+
+    private function resolveVendorShop(Request $request): Shop
+    {
+        $user = $this->resolveViewer($request);
+        $vendor = $user->getVendor();
+
+        if (!$vendor) {
+            throw $this->createAccessDeniedException('Vendeur requis.');
+        }
+
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
+        if (!$shop instanceof Shop) {
+            throw $this->createNotFoundException('Boutique introuvable.');
+        }
+
+        return $shop;
+    }
+
+    #[Route('/commandes/{id}/facture', name: 'app_vendor_orders_invoice', methods: ['GET'])]
+    public function invoice(Request $request, int $id): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $order = $this->orderRepository->find($id);
+        if (!$order instanceof CustomerOrder) {
+            throw $this->createNotFoundException('Commande introuvable.');
+        }
+
+        $this->denyAccessUnlessGranted(OrderVoter::MANAGE, $order);
+
+        $status = $order->getStatusEnum();
+        $isEligible = match ($status) {
+            OrderStatus::Paid, OrderStatus::Shipped => true,
+            default => false,
+        };
+
+        if (!$isEligible) {
+            $this->addFlash('error', 'Facture disponible uniquement après paiement.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
+        return $this->streamOrderDocument($order, DocumentType::INVOICE, 'facture', $request);
+    }
+
+    #[Route('/commandes/{id}/bon-de-livraison', name: 'app_vendor_orders_delivery', methods: ['GET'])]
+    public function deliveryNote(Request $request, int $id): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $order = $this->orderRepository->find($id);
+        if (!$order instanceof CustomerOrder) {
+            throw $this->createNotFoundException('Commande introuvable.');
+        }
+
+        $this->denyAccessUnlessGranted(OrderVoter::MANAGE, $order);
+
+        $status = $order->getStatusEnum();
+        $isEligible = match ($status) {
+            OrderStatus::Paid, OrderStatus::Shipped => true,
+            default => false,
+        };
+
+        if (!$isEligible) {
+            $this->addFlash('error', 'Bon de livraison disponible uniquement après paiement.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
+        $shop = $this->resolveVendorShop($request);
+        $vendorItems = $this->orderFulfillmentManager->getShopItems($shop, $order, true);
+
+        if ([] === $vendorItems) {
+            $this->addFlash('warning', 'Aucun article expédié pour ta boutique sur cette commande.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
+        return $this->streamOrderDocument(
+            $order,
+            DocumentType::DELIVERY,
+            'bon-de-livraison',
+            $request,
+            ['vendor_items' => $vendorItems]
+        );
     }
 
     #[Route('/statistiques', name: 'app_vendor_stats', methods: ['GET'])]
@@ -762,6 +947,13 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_orders');
         }
 
+        if ('ship' === $transition) {
+            $this->orderFulfillmentManager->markShopItemsAsShipped($shop, $order);
+            $this->addFlash('success', 'Les articles de ta boutique sont désormais marqués comme expédiés.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
         if ('pay' === $transition) {
             $order->setPaidAt($order->getPaidAt() ?? new \DateTimeImmutable());
         }
@@ -773,12 +965,53 @@ class VendorShopController extends AbstractController
 
         $successMessage = match ($transition) {
             'pay' => 'Commande marquée comme payée.',
-            'ship' => 'Commande marquée comme expédiée.',
             'cancel' => 'Commande annulée.',
+            default => 'Commande mise à jour.',
         };
 
         $this->entityManager->flush();
         $this->addFlash('success', $successMessage);
+
+        return $this->redirectToRoute('app_vendor_orders');
+    }
+
+    #[Route('/commandes/{order}/articles/{item}/annuler-expedition', name: 'app_vendor_order_item_cancel_delivery', methods: ['POST'])]
+    public function cancelOrderItemDelivery(CustomerOrder $order, CustomerOrderItem $item, Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->security->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $user = $this->resolveViewer($request);
+        $vendor = $user->getVendor();
+        if (!$vendor) {
+            throw $this->createAccessDeniedException('Crée d’abord ta boutique.');
+        }
+
+        $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
+        if (!$shop instanceof Shop) {
+            throw $this->createAccessDeniedException('Publie ta boutique pour gérer les commandes.');
+        }
+
+        $this->denyAccessUnlessGranted(OrderVoter::MANAGE, $order);
+
+        if ($item->getCustomerOrder()?->getId() !== $order->getId()) {
+            throw $this->createNotFoundException('Article introuvable pour cette commande.');
+        }
+
+        $shopItems = $this->orderFulfillmentManager->getShopItems($shop, $order);
+        if (!in_array($item, $shopItems, true)) {
+            throw $this->createAccessDeniedException('Cet article ne fait pas partie de ta boutique.');
+        }
+
+        if (!$this->isCsrfTokenValid('vendor_order_item_cancel_delivery_'.$item->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+
+            return $this->redirectToRoute('app_vendor_orders');
+        }
+
+        $this->orderFulfillmentManager->markItemAsPending($item);
+        $this->addFlash('success', 'L’expédition de cet article a été annulée.');
 
         return $this->redirectToRoute('app_vendor_orders');
     }
