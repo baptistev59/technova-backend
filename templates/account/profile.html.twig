@@ -152,6 +152,14 @@
                     </div>
                 {% endif %}
 
+                <div class="mt-10 rounded-3xl border border-slate-200 bg-slate-50/80 p-6 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">Changer mon mot de passe</h2>
+                        <p class="text-sm text-slate-600">Sécurise ton compte en mettant à jour ton mot de passe régulièrement.</p>
+                    </div>
+                    <a href="{{ path('app_change_password') }}" class="btn btn-outline">Changer</a>
+                </div>
+
                 <div class="mt-10 rounded-3xl border border-red-100 bg-red-50/80 p-6">
                     <h2 class="text-lg font-semibold text-red-900">Supprimer mon compte</h2>
                     <p class="text-sm text-red-800 mt-2">Cette action supprime définitivement ton compte.</p>

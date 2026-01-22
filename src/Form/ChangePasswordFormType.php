@@ -34,6 +34,9 @@ class ChangePasswordFormType extends AbstractType
             ],
             'second_options' => [
                 'label' => 'Confirmer le mot de passe',
+                'constraints' => [
+                    new NotBlank(['message' => 'Veuillez confirmer votre mot de passe.']),
+                ],
             ],
             'invalid_message' => 'Les mots de passe doivent être identiques.',
             'mapped' => false,

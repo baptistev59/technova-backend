@@ -6,17 +6,20 @@ namespace App\Controller\Web;
 
 use App\Entity\Address;
 use App\Entity\User;
+use App\Form\ChangePasswordFormType;
 use App\Form\ProfileType;
 use App\Repository\UserRepository;
 use App\Security\ViewerAccessChecker;
 use App\Service\UserAnonymizer;
 use App\Service\UserProfileService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class ProfileController extends AbstractController
@@ -27,6 +30,8 @@ class ProfileController extends AbstractController
         private readonly UserProfileService $profileService,
         private readonly ViewerAccessChecker $viewerAccessChecker,
         private readonly UserAnonymizer $userAnonymizer,
+        private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -90,6 +95,38 @@ class ProfileController extends AbstractController
         $this->addFlash('success', 'Ton compte a été supprimé et anonymisé.');
 
         return $this->redirectToRoute('homepage');
+    }
+
+    #[Route('/mon-compte/changer-mot-de-passe', name: 'app_change_password', methods: ['GET', 'POST'])]
+    public function changePassword(Request $request): Response
+    {
+        if ($response = $this->viewerAccessChecker->requireViewer($this->getUser(), $request->getSession())) {
+            return $response;
+        }
+
+        $user = $this->resolveViewer($request);
+        if (!$user instanceof User) {
+            $this->addFlash('info', 'Crée un compte ou connecte-toi pour accéder au profil.');
+
+            return $this->redirectToRoute('app_register');
+        }
+
+        $form = $this->createForm(ChangePasswordFormType::class);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $plainPassword = (string) $form->get('plainPassword')->getData();
+            $user->setPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+            $this->entityManager->flush();
+
+            $this->addFlash('success', 'Ton mot de passe a été modifié avec succès.');
+
+            return $this->redirectToRoute('app_profile');
+        }
+
+        return $this->render('account/change_password.html.twig', [
+            'changePasswordForm' => $form->createView(),
+        ]);
     }
 
     private function resolveViewer(Request $request): User
