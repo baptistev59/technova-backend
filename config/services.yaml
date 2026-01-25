@@ -70,6 +70,14 @@ services:
               limit: 5
               interval: '24 hours'
 
+    email_verification.rate_limiter:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - key: 'email_verification_%s'
+              policy: 'sliding_window'
+              limit: 3
+              interval: '1 hour'
+
     App\Controller\Api\PasswordResetController:
         arguments:
             $passwordResetLimiter: '@password_reset.rate_limiter'
@@ -78,3 +86,7 @@ services:
     App\Controller\Api\RegistrationController:
         arguments:
             $registrationLimiter: '@registration.rate_limiter'
+
+    App\Controller\Api\EmailVerificationController:
+        arguments:
+            $emailVerificationLimiter: '@email_verification.rate_limiter'

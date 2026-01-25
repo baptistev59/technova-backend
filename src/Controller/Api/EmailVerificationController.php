@@ -13,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/email')]
@@ -23,6 +24,7 @@ final class EmailVerificationController extends AbstractController
         private readonly UserRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly EmailVerificationService $emailVerificationService,
+        private readonly RateLimiterFactory $emailVerificationLimiter,
     ) {
     }
 
@@ -84,6 +86,15 @@ final class EmailVerificationController extends AbstractController
         $user = $this->getUser();
         if (!$user instanceof User) {
             return $this->json(['message' => 'Authentification requise.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Rate limiting: max 3 emails toutes les heures
+        $limiter = $this->emailVerificationLimiter->create($user->getId());
+        if (!$limiter->consume(1)->isAccepted()) {
+            return $this->json(
+                ['error' => 'Trop de tentatives. Veuillez réessayer dans 1 heure.'],
+                Response::HTTP_TOO_MANY_REQUESTS
+            );
         }
 
         if ($user->isEmailVerified()) {

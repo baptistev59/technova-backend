@@ -11,7 +11,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: BrandRepository::class)]
-#[ORM\Table(name: 'brand', uniqueConstraints: [new ORM\UniqueConstraint(name: 'UNIQ_BRAND_SLUG', columns: ['slug'])])]
+#[ORM\Table(name: 'brand')]
+#[ORM\UniqueConstraint(name: 'UNIQ_BRAND_SLUG', columns: ['slug'])]
 class Brand
 {
     /**
