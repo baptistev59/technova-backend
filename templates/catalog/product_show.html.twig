@@ -604,7 +604,9 @@
                         });
                         
                         if (response.ok) {
-                            const wishlists = await response.json();
+                            const data = await response.json();
+                            // L'API retourne { count, items }
+                            const wishlists = data.items || [];
                             const wishlist = wishlists.find(w => w.product && w.product.id === this.productId);
                             if (wishlist) {
                                 this.isInWishlist = true;
