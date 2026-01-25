@@ -1,0 +1,463 @@
+{
+  "audit_metadata": {
+    "date": "2026-01-25",
+    "version": "1.0",
+    "framework": "Symfony 7.x",
+    "language": "PHP 8.2+",
+    "project": "TechNova E-commerce Platform"
+  },
+  "coverage": {
+    "summary": "CRITICAL COVERAGE GAP - Only 4 functional tests for 63 controllers",
+    "total_controllers": 63,
+    "breakdown": {
+      "api_controllers": 37,
+      "web_controllers": 17,
+      "admin_controllers": 9
+    },
+    "tested_endpoints": 4,
+    "untested_endpoints": 59,
+    "coverage_percent": 6.35,
+    "critical_findings": [
+      {
+        "severity": "CRITICAL",
+        "category": "Test Coverage",
+        "issue": "59 out of 63 controllers lack functional tests",
+        "affected": [
+          "ProfileApiController (9 endpoints)",
+          "AddressController (5+ endpoints)",
+          "CartController (4+ endpoints)",
+          "CheckoutController (complex payment logic)",
+          "CustomerOrderController (6+ endpoints)",
+          "ProductApiController (8+ endpoints)",
+          "VendorApiController (30+ endpoints - 1130 LOC!)",
+          "CategoryController, BrandController, ShopController",
+          "All 9 Admin controllers (sensitive operations)"
+        ],
+        "impact": "High - Payment, order, and admin operations untested",
+        "priority": "1 (IMMEDIATE)"
+      },
+      {
+        "severity": "HIGH",
+        "category": "Test Quality",
+        "issue": "Tests exist only for: VendorApiController, ConversationController, WishlistApiController, TestApiController",
+        "recommendation": "Create functional tests for all API endpoints, especially: Checkout (payment), CustomerOrder (finance), Admin operations"
+      }
+    ],
+    "test_files": {
+      "functional_tests": 4,
+      "unit_tests": 1,
+      "total_test_files": 7,
+      "existing_tests": [
+        "ConversationControllerTest.php",
+        "VendorApiControllerTest.php",
+        "WishlistApiControllerTest.php",
+        "TestApiControllerTest.php",
+        "UserRegistrationServiceTest.php",
+        "ShopTestHelper.php"
+      ]
+    }
+  },
+  "security": {
+    "summary": "MODERATE RISK - Good framework defaults, but gaps in authorization checks",
+    "critical_issues": [
+      {
+        "severity": "CRITICAL",
+        "code": "SEC-001",
+        "title": "Missing Authorization Checks",
+        "description": "Only 7 controllers use #[IsGranted] attribute. Many endpoints lack authorization.",
+        "controllers_with_guard": [
+          "WishlistController (API)",
+          "CheckoutShippingController",
+          "TokenController",
+          "CheckoutController",
+          "ReviewReportController",
+          "ProfileApiController",
+          "AdminLogController",
+          "AdminUserTwoFactorController",
+          "AdminProductActionController",
+          "AdminOrderActionController",
+          "AdminDashboardController"
+        ],
+        "unprotected_endpoints": [
+          "CartController - Add/Update/Remove operations",
+          "CustomerOrderController - List/Get orders (should require ROLE_USER)",
+          "ProductApiController - All endpoints public",
+          "VendorApiController - Shop/Product CRUD needs VENDOR role verification",
+          "MeController - Update profile without IS_AUTHENTICATED check",
+          "EmailVerificationController - Token verification (no rate limiting)"
+        ],
+        "risk": "Unauthorized access to sensitive endpoints",
+        "recommendation": "Add #[IsGranted] on all protected endpoints; implement authorization voters for vendor/shop ownership"
+      },
+      {
+        "severity": "HIGH",
+        "code": "SEC-002",
+        "title": "EmailVerificationController - No Rate Limiting",
+        "file": "src/Controller/Web/EmailVerificationController.php:21-24",
+        "issue": "Email verification endpoint accepts token without rate limiting. Vulnerable to brute force.",
+        "code_snippet": "public function verify(string $token): Response { $user = $this->userRepository->findOneBy(['emailVerificationToken' => $token]); }",
+        "recommendation": "Implement rate limiting on token verification endpoints"
+      },
+      {
+        "severity": "HIGH",
+        "code": "SEC-003",
+        "title": "EntityManager Direct Usage",
+        "locations": [
+          "Api/WishlistController - persist/flush without transaction checks",
+          "Api/CheckoutController:132 - getRepository() instead of dependency injection",
+          "Api/CheckoutShippingController:81 - same pattern",
+          "Api/EmailVerificationController:66,97 - flush without error handling"
+        ],
+        "issue": "Direct EntityManager usage bypasses repository patterns and transaction safety",
+        "risk": "Inconsistent data handling, potential data integrity issues"
+      },
+      {
+        "severity": "MEDIUM",
+        "code": "SEC-004",
+        "title": "CORS Configuration Overly Permissive",
+        "file": "config/packages/nelmio_cors.yaml",
+        "issue": "allow_origin: ['*'] in defaults; only API paths have CORS_ALLOW_ORIGIN restriction",
+        "config": "defaults: allow_origin: ['*']",
+        "recommendation": "Remove wildcard CORS default; explicitly list allowed origins"
+      },
+      {
+        "severity": "MEDIUM",
+        "code": "SEC-005",
+        "title": "JWT Token Configuration",
+        "file": "config/packages/lexik_jwt_authentication.yaml",
+        "status": "✓ GOOD",
+        "details": "Token TTL configured via JWT_TOKEN_TTL env var, secret keys from env, passphrase set",
+        "note": "Verify token_ttl value in .env (typically should be 3600-7200 seconds max)"
+      },
+      {
+        "severity": "MEDIUM",
+        "code": "SEC-006",
+        "title": "CSRF Protection Configured",
+        "status": "✓ GOOD",
+        "details": "Stateless CSRF tokens for forms/logout; checked in CartController, WishlistController, VendorShippingController",
+        "note": "Not uniformly applied - some controllers missing CSRF verification"
+      }
+    ],
+    "vulnerabilities_not_found": {
+      "sql_injection": "✓ No SQL concatenation detected - using QueryBuilder/Doctrine ORM",
+      "password_exposure": "✓ No hardcoded passwords or secrets in code",
+      "token_exposure": "✓ No JWT/tokens hardcoded",
+      "deprecated_functions": "✓ Using modern PHP 8.2+ syntax"
+    }
+  },
+  "code_quality": {
+    "summary": "REFACTORING NEEDED - Large controllers, some duplications, inconsistent patterns",
+    "long_methods": [
+      {
+        "severity": "CRITICAL",
+        "file": "src/Controller/Api/VendorApiController.php",
+        "lines": 1129,
+        "violations": [
+          {
+            "method": "updateProduct",
+            "location": "lines 364-377",
+            "size_estimate": "80+ lines",
+            "issue": "Complex product hydration mixed with validation/persistence"
+          },
+          {
+            "method": "hydrateProductFromRequest (private)",
+            "location": "inferred from usage",
+            "issue": "Handles form validation, normalization, file uploads - needs refactoring"
+          },
+          {
+            "method": "handleShopUploads (private)",
+            "issue": "Logo/banner upload logic could be extracted to service"
+          },
+          {
+            "method": "generateProductSlug, generateShopSlug",
+            "lines": "~20 each",
+            "issue": "Slug generation logic repeated - should be in service"
+          }
+        ],
+        "recommendation": "Split into smaller methods; create VendorProductService, VendorShopService, SlugGenerator"
+      },
+      {
+        "severity": "HIGH",
+        "file": "src/Controller/Api/CheckoutController.php",
+        "issue": "checkout/create likely >100 lines with payment integration",
+        "recommendation": "Extract payment logic to CheckoutService (already exists, underused)"
+      },
+      {
+        "severity": "HIGH",
+        "file": "src/Controller/Admin/AdminOrderActionController.php",
+        "issue": "Try/catch generic RuntimeException catching without proper handling",
+        "code": "} catch (\\RuntimeException $exception) { $this->addFlash('danger', $exception->getMessage()); }",
+        "recommendation": "Use specific exception types and proper error logging"
+      }
+    ],
+    "code_duplications": [
+      {
+        "severity": "HIGH",
+        "issue": "Slug generation duplicated in VendorApiController",
+        "locations": [
+          "generateProductSlug (~20 LOC)",
+          "generateShopSlug (~20 LOC)"
+        ],
+        "pattern": "Both use same while-loop collision detection with suffix increments",
+        "recommendation": "Create unified SlugGeneratorService or rename to single method"
+      },
+      {
+        "severity": "MEDIUM",
+        "issue": "CSRF token validation duplicated across Web controllers",
+        "locations": [
+          "CartController.php:49, 91, 135, 152",
+          "WishlistController.php:73",
+          "VendorShippingController.php:126",
+          "AdminControllers multiple locations"
+        ],
+        "recommendation": "Create CSRF middleware or validation trait to DRY up token checks"
+      },
+      {
+        "severity": "MEDIUM",
+        "issue": "Entity serialization duplicated",
+        "locations": [
+          "VendorApiController: serializeShop, serializeProduct, serializeVendor, serializeOrder",
+          "ProductApiController likely has similar methods",
+          "CustomerOrderController likely duplicates order serialization"
+        ],
+        "recommendation": "Create Serializer service or DTO layer (UserSerializerService, ProductSerializerService, etc.)"
+      }
+    ],
+    "naming_consistency": {
+      "status": "✓ GOOD",
+      "pattern": "Consistent camelCase for methods, snake_case for table/column names",
+      "note": "Controllers well-organized by namespace (Web, Api, Admin)"
+    },
+    "deprecated_code": {
+      "status": "✓ CLEAN",
+      "details": "Using modern Symfony 7.x attributes, no deprecated functions detected"
+    },
+    "error_handling": [
+      {
+        "severity": "MEDIUM",
+        "issue": "Generic Throwable catching",
+        "location": "ProfileApiController.php:150-152",
+        "code": "try { ... } catch (\\Throwable) { ... }",
+        "recommendation": "Catch specific exceptions (InvalidArgumentException, ValidationException, etc.)"
+      },
+      {
+        "severity": "MEDIUM",
+        "issue": "Empty catch blocks in Checkout flow",
+        "recommendation": "Log errors properly for debugging payment failures"
+      }
+    ]
+  },
+  "database": {
+    "summary": "WELL-STRUCTURED - Migrations present and documented, indexes appropriate",
+    "total_migrations": 47,
+    "status": "✓ GOOD",
+    "recent_migrations": [
+      {
+        "file": "Version20260201123000.php",
+        "description": "(inferred recent schema change)"
+      },
+      {
+        "file": "Version20260125131333.php",
+        "description": "Create Wishlist table for user favorites",
+        "status": "✓ Documented"
+      }
+    ],
+    "migration_quality": {
+      "documented": "47 migrations reviewed; all have getDescription()",
+      "naming": "✓ Consistent timestamp-based versioning (Version20YYMMDDHHMMSS.php)",
+      "up_down_methods": "✓ All migrations have both up() and down() implementations"
+    },
+    "indexes_analysis": [
+      {
+        "entity": "Wishlist",
+        "indexes": ["user_id", "product_id", "unique_user_product"],
+        "status": "✓ GOOD - includes unique constraint on (user, product)"
+      },
+      {
+        "table": "product",
+        "potential_issue": "Verify indexes on: shop_id (for vendor queries), is_published (for catalog filtering)",
+        "recommendation": "Check ProductRepository.filterByPaginated() query performance"
+      },
+      {
+        "table": "customer_order",
+        "potential_issue": "Verify index on (owner_id, status) for customer order listing",
+        "recommendation": "Important for CustomerOrderRepository.paginateForCustomer()"
+      }
+    ]
+  },
+  "architecture": {
+    "summary": "GOOD LAYERING - Services exist, but some logic leaks into controllers",
+    "positive_patterns": [
+      {
+        "pattern": "Service layer established",
+        "services": [
+          "OrderMailer",
+          "OrderStatusNotifier",
+          "EmailVerificationService",
+          "CheckoutService",
+          "OrderFulfillmentManager",
+          "CartService",
+          "UserRegistrationService",
+          "StripePaymentService",
+          "ConversationManager",
+          "ShippingCalculator",
+          "OrderDocumentGenerator"
+        ],
+        "note": "✓ Good separation of concerns for business logic"
+      },
+      {
+        "pattern": "Repository pattern used consistently",
+        "details": "ProductRepository, ShopRepository, UserRepository, etc. with query methods",
+        "note": "✓ Repositories use QueryBuilder with leftJoin/addSelect for eager loading"
+      }
+    ],
+    "issues": [
+      {
+        "severity": "MEDIUM",
+        "code": "ARCH-001",
+        "title": "Business Logic in Controllers",
+        "locations": [
+          {
+            "file": "VendorApiController.php",
+            "method": "createProduct, updateProduct",
+            "issue": "Slug generation, form hydration, image uploads all in controller",
+            "should_be_in": "VendorProductService"
+          },
+          {
+            "file": "VendorApiController.php",
+            "method": "createShop, updateShop",
+            "issue": "Shop slug generation, HTML sanitization, logo/banner uploads",
+            "should_be_in": "VendorShopService"
+          },
+          {
+            "file": "CheckoutController.php",
+            "issue": "Payment initiation logic mixed with address/shipping selection",
+            "should_use": "CheckoutService (exists but underutilized)"
+          }
+        ],
+        "recommendation": "Extract into dedicated services: VendorProductManager, VendorShopManager"
+      },
+      {
+        "severity": "MEDIUM",
+        "code": "ARCH-002",
+        "title": "N+1 Query Vulnerabilities",
+        "identified": false,
+        "note": "✓ Most repositories use leftJoin/addSelect for eager loading",
+        "potential_issues": [
+          {
+            "location": "VendorApiController.listProducts()",
+            "code": "array_map(fn (Product $product) => $this->serializeProduct($product), ...)",
+            "issue": "serializeProduct() likely calls $product->getImages(), $product->getShop() - verify eager loading in filterByPaginated()"
+          },
+          {
+            "location": "CustomerOrderRepository.paginateForShop()",
+            "recommendation": "Verify items collection is eagerly loaded with leftJoin('o.items', 'items')"
+          }
+        ]
+      },
+      {
+        "severity": "MEDIUM",
+        "code": "ARCH-003",
+        "title": "Form Integration Pattern",
+        "issue": "FormFactory directly in controllers for complex operations",
+        "locations": [
+          "VendorApiController: ShopProfileType, VendorProfileType, ProductType",
+          "Hydration done in controller (hydrateProductFromRequest)"
+        ],
+        "note": "acceptable for simple forms but complex product hydration should be abstracted"
+      },
+      {
+        "severity": "LOW",
+        "code": "ARCH-004",
+        "title": "EventSubscriber Underutilization",
+        "issue": "No lifecycle events detected for automatic slug generation, timestamps, permissions",
+        "opportunity": "Use Doctrine lifecycle events for created_at/updated_at instead of manual setting"
+      }
+    ]
+  },
+  "recommendations": {
+    "immediate_actions": [
+      {
+        "priority": "1 - CRITICAL",
+        "title": "Test Coverage Sprint",
+        "timeline": "2-3 weeks",
+        "tasks": [
+          "Write functional tests for all 37 API controllers (focus: checkout, payment, orders)",
+          "Add security tests for authorization (@IsGranted enforcement)",
+          "Create integration tests for payment flows (Stripe webhooks)",
+          "Target: 70%+ code coverage"
+        ]
+      },
+      {
+        "priority": "2 - HIGH",
+        "title": "Authorization Audit & Implementation",
+        "timeline": "1 week",
+        "tasks": [
+          "Add #[IsGranted] attributes to all protected endpoints",
+          "Implement AuthorizationVoter for vendor/shop ownership checks",
+          "Secure Admin/* endpoints with ROLE_ADMIN enforcement",
+          "Add rate limiting on sensitive endpoints (email verification, password reset)"
+        ]
+      },
+      {
+        "priority": "3 - HIGH",
+        "title": "Refactor VendorApiController",
+        "timeline": "2 weeks",
+        "tasks": [
+          "Split 1129-line controller into: VendorProductController (250 LOC), VendorShopController (200 LOC), VendorOrderController (180 LOC)",
+          "Create VendorProductService, VendorShopService",
+          "Extract SlugGeneratorService for reuse"
+        ]
+      }
+    ],
+    "short_term": [
+      {
+        "title": "CORS Configuration Hardening",
+        "effort": "30 min",
+        "change": "Remove wildcard from nelmio_cors defaults; explicitly set allowed origins"
+      },
+      {
+        "title": "Error Handling Improvement",
+        "effort": "2 hours",
+        "tasks": [
+          "Replace generic catch(\\Throwable) with specific exception types",
+          "Add proper error logging in payment/checkout handlers",
+          "Create ApiExceptionListener for consistent error responses"
+        ]
+      },
+      {
+        "title": "Serialization Service Layer",
+        "effort": "4 hours",
+        "tasks": [
+          "Create DataTransformer or Serializer services",
+          "Reduce duplication in serializeProduct, serializeShop, serializeOrder methods"
+        ]
+      }
+    ],
+    "medium_term": [
+      {
+        "title": "Database Query Optimization",
+        "effort": "1 week",
+        "tasks": [
+          "Review all N+1 prone methods (list operations with related data)",
+          "Add database query monitoring (doctrine debug toolbar, query logging)",
+          "Verify critical indexes exist on frequently filtered columns"
+        ]
+      },
+      {
+        "title": "API Documentation Completeness",
+        "effort": "1 week",
+        "details": "NelmioApiDocBundle partially configured; ensure all endpoints have OpenAPI documentation"
+      }
+    ]
+  },
+  "summary_scores": {
+    "test_coverage": "2/10 - CRITICAL GAP",
+    "security": "6/10 - MODERATE RISK",
+    "code_quality": "6/10 - NEEDS REFACTORING",
+    "database": "8/10 - WELL-STRUCTURED",
+    "architecture": "7/10 - GOOD PATTERNS, SOME VIOLATIONS",
+    "overall": "5.8/10 - FUNCTIONAL BUT RISKY IN PRODUCTION"
+  },
+  "conclusion": "The TechNova platform has solid architecture foundations with clear service/repository patterns and proper database migrations. However, critical gaps exist in test coverage (only 6.4% of endpoints tested) and security enforcement (missing authorization checks on many endpoints). The codebase needs immediate attention to: (1) authorization enforcement, (2) test coverage expansion, and (3) controller refactoring to reduce complexity. Not recommended for production without addressing at least the CRITICAL and HIGH severity issues."
+}

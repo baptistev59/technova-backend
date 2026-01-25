@@ -74,6 +74,36 @@ final class WishlistApiControllerTest extends WebTestCase
         self::assertSame($context['product']->getId(), $payload['items'][0]['product']['id']);
     }
 
+    public function testCountReturnsNumberOfFavorites(): void
+    {
+        $context = $this->createWishlistContext();
+        $token = $this->jwtManager->create($context['user']);
+        $headers = $this->authHeaders($token);
+
+        $this->client->request('GET', '/api/wishlists/count', [], [], $headers);
+
+        self::assertResponseIsSuccessful();
+
+        $payload = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        self::assertArrayHasKey('count', $payload);
+        self::assertSame(1, $payload['count']);
+
+        // Ajouter un deuxième favori
+        $product2 = $this->createProduct();
+        $this->manager->flush();
+        
+        $wishlist2 = $this->createWishlist($context['user'], $product2);
+        $this->manager->flush();
+
+        $this->client->request('GET', '/api/wishlists/count', [], [], $headers);
+
+        self::assertResponseIsSuccessful();
+
+        $payload = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(2, $payload['count']);
+    }
+
     public function testAddFavoritesReturnsCreatedAndPreventsDuplicates(): void
     {
         $user = $this->createUser('wishlist-add@technova.test');

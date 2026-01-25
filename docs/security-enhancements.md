@@ -7,6 +7,7 @@
 **Objectif** : Prévenir les attaques par force brute et le spam d'emails
 
 **Configuration** :
+
 ```yaml
 # config/services.yaml
 password_reset.rate_limiter:
@@ -19,11 +20,13 @@ password_reset.rate_limiter:
 ```
 
 **Code** :
+
 - Ajouté dans `PasswordResetController::request()`
 - Max 3 requêtes par IP par 15 minutes
 - Réponse HTTP 429 si dépassement
 
 **Test** :
+
 ```bash
 POST /api/password-reset/request HTTP/1.1
 Content-Type: application/json
@@ -44,6 +47,7 @@ Content-Type: application/json
 **Objectif** : Prévenir la création massive de comptes bots
 
 **Configuration** :
+
 ```yaml
 # config/services.yaml
 registration.rate_limiter:
@@ -56,11 +60,13 @@ registration.rate_limiter:
 ```
 
 **Code** :
+
 - Ajouté dans `RegistrationController::register()`
 - Max 5 inscriptions par IP par jour
 - Réponse HTTP 429 si dépassement
 
 **Test** :
+
 ```bash
 POST /api/register HTTP/1.1
 Content-Type: application/json
@@ -86,16 +92,18 @@ Content-Type: application/json
 **Service créé** : `App\Service\RecaptchaValidator`
 
 **Fonctionnalités** :
+
 - Valide tokens reCAPTCHA v3 avec Google
 - Score > 0.5 = utilisateur humain probable
 - Intégré sur `password-reset/request` et `register`
 
 **Configuration requise** (.env) :
-```
-RECAPTCHA_SECRET_KEY=<votre_secret_key_google>
+
+``` RECAPTCHA_SECRET_KEY=<votre_secret_key_google>
 ```
 
 **Code** :
+
 ```php
 // Dans PasswordResetController et RegistrationController
 $recaptchaToken = $data['recaptchaToken'] ?? null;
@@ -109,6 +117,7 @@ if ($recaptchaToken && !$this->recaptchaValidator->isValid($recaptchaToken)) {
 ```
 
 **Test** :
+
 ```bash
 POST /api/password-reset/request HTTP/1.1
 
@@ -125,6 +134,7 @@ POST /api/password-reset/request HTTP/1.1
 ```
 
 **Frontend** (React/Vue) :
+
 ```javascript
 import { useGoogleReCaptcha } from '@react-google-recaptcha-v3';
 
@@ -164,6 +174,7 @@ export function PasswordResetForm() {
 **Entity créée** : `App\Entity\Wishlist`
 
 **Champs** :
+
 ```php
 - id: int (PK)
 - user: User (FK, cascade delete)
@@ -175,12 +186,14 @@ export function PasswordResetForm() {
 **3 Endpoints créés** :
 
 #### **a) GET `/api/wishlists` — Lister mes favoris**
+
 ```bash
 GET http://localhost:8000/api/wishlists
 Authorization: Bearer <jwt>
 ```
 
 **Réponse** :
+
 ```json
 {
   "count": 3,
@@ -201,6 +214,7 @@ Authorization: Bearer <jwt>
 ```
 
 #### **b) POST `/api/wishlists` — Ajouter aux favoris**
+
 ```bash
 POST http://localhost:8000/api/wishlists
 Authorization: Bearer <jwt>
@@ -210,6 +224,7 @@ Content-Type: application/json
 ```
 
 **Réponse** (201 Created) :
+
 ```json
 {
   "status": "added",
@@ -218,11 +233,13 @@ Content-Type: application/json
 ```
 
 **Réponse** (409 Conflict - déjà dans les favoris) :
+
 ```json
 { "error": "Produit déjà dans les favoris." }
 ```
 
 #### **c) DELETE `/api/wishlists/{id}` — Retirer des favoris**
+
 ```bash
 DELETE http://localhost:8000/api/wishlists/1
 Authorization: Bearer <jwt>
@@ -269,14 +286,15 @@ Authorization: Bearer <jwt>
 ## 📝 Notes
 
 **Environment Variables requis** :
-```
-# .env.local (optionnel pour dev)
+
+``` # .env.local (optionnel pour dev)
 RECAPTCHA_SECRET_KEY=<clé_google>
 ```
 
 **Rate Limiter stockage** : Redis recommandé en prod (par défaut: cache local)
 
 **Doctrine Migration** :
+
 ```bash
 php bin/console doctrine:migrations:migrate
 ```

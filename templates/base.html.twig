@@ -118,8 +118,28 @@
                         class="tn-favorites-counter"
                         href="{{ path('app_wishlist_list') }}"
                         aria-label="Voir mes favoris"
+                        x-data="{ count: 0 }"
+                        x-init="
+                            const fetchCount = async () => {
+                                try {
+                                    const response = await fetch('/api/wishlists/count', {
+                                        headers: {
+                                            'Authorization': 'Bearer ' + document.querySelector('meta[name=jwt-token]')?.content
+                                        }
+                                    });
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        count = data.count;
+                                    }
+                                } catch (error) {
+                                    console.error('Erreur lors de la récupération du compteur', error);
+                                }
+                            };
+                            fetchCount();
+                            window.addEventListener('wishlist-updated', fetchCount);
+                        "
                     >
-                        ❤️ {{ wishlist_count() }}
+                        ❤️ <span x-text="count"></span>
                     </a>
                     {% set first_initial = (viewer.firstname ?? 'T')|slice(0, 1) %}
                     {% set last_initial = (viewer.lastname ?? 'N')|slice(0, 1) %}

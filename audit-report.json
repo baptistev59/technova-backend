@@ -1,0 +1,441 @@
+{
+  "audit": {
+    "date": "2026-01-25",
+    "scope": {
+      "total_controllers": 63,
+      "total_tests": 4,
+      "total_migrations": 47,
+      "lines_of_code": "~50000"
+    },
+    "scores": {
+      "test_coverage": {
+        "score": 2,
+        "max": 10,
+        "percentage": 6.35,
+        "tested_controllers": 4,
+        "status": "CRITICAL"
+      },
+      "security": {
+        "score": 6,
+        "max": 10,
+        "critical_issues": 3,
+        "high_issues": 2,
+        "status": "MODERATE"
+      },
+      "code_quality": {
+        "score": 6,
+        "max": 10,
+        "long_methods": 3,
+        "duplications": 2,
+        "status": "NEEDS_REFACTOR"
+      },
+      "database": {
+        "score": 8,
+        "max": 10,
+        "missing_indexes": 2,
+        "status": "GOOD"
+      },
+      "architecture": {
+        "score": 7,
+        "max": 10,
+        "issues": 3,
+        "status": "GOOD"
+      },
+      "global_score": {
+        "score": 5.8,
+        "max": 10,
+        "status": "NEEDS_IMPROVEMENT",
+        "production_ready": false
+      }
+    }
+  },
+  "critical_findings": [
+    {
+      "id": "SEC-001",
+      "title": "Missing Authorization Checks",
+      "severity": "CRITICAL",
+      "category": "security",
+      "affected_controllers": [
+        "CartController",
+        "CustomerOrderController",
+        "CheckoutController",
+        "CheckoutShippingController",
+        "ProfileApiController"
+      ],
+      "description": "Controllers missing #[IsGranted] attribute allow unauthorized access",
+      "impact": "Unauthorized access to sensitive user data",
+      "effort_hours": 5,
+      "fix": "Add #[IsGranted('ROLE_USER')] to all affected controllers"
+    },
+    {
+      "id": "TEST-001",
+      "title": "Test Coverage Too Low",
+      "severity": "CRITICAL",
+      "category": "testing",
+      "coverage_percentage": 6.35,
+      "tested_count": 4,
+      "untested_count": 59,
+      "description": "Only 4 out of 63 controllers have tests",
+      "impact": "Unmaintainable code, hidden bugs, high regression risk",
+      "effort_hours": 50,
+      "timeline_weeks": 3,
+      "untested_critical": [
+        "CheckoutController (payments)",
+        "CustomerOrderController (orders)",
+        "AuthController (security)",
+        "CartController (core feature)"
+      ]
+    },
+    {
+      "id": "SEC-002",
+      "title": "No Rate Limiting",
+      "severity": "CRITICAL",
+      "category": "security",
+      "vulnerable_endpoints": [
+        "POST /api/email-verification/send",
+        "POST /api/password-reset/request",
+        "POST /api/auth/register"
+      ],
+      "attack": "Brute force, spam emails, user enumeration",
+      "effort_hours": 4,
+      "fix": "Add Symfony RateLimiter with limits per endpoint"
+    },
+    {
+      "id": "SEC-003",
+      "title": "CORS Too Permissive",
+      "severity": "HIGH",
+      "category": "security",
+      "current_value": "CORS_ALLOW_ORIGIN: '*'",
+      "impact": "CSRF attacks, unexpected requests from any domain",
+      "effort_hours": 1,
+      "fix": "Whitelist specific domains (production only)"
+    },
+    {
+      "id": "QUAL-001",
+      "title": "VendorApiController Too Large",
+      "severity": "MODERATE",
+      "category": "code_quality",
+      "file": "src/Controller/Api/VendorApiController.php",
+      "lines_of_code": 1129,
+      "responsibilities": [
+        "Products (CRUD)",
+        "Shop (readings)",
+        "Orders (vendor dashboard)",
+        "Media (uploads)",
+        "Inventory"
+      ],
+      "impact": "Difficult to test, maintain and understand",
+      "effort_hours": 16,
+      "recommendation": "Split into ProductVendorController, ShopVendorController, etc."
+    }
+  ],
+  "action_plan": {
+    "phases": [
+      {
+        "phase": 1,
+        "title": "Security & Fundamentals",
+        "duration_days": 7,
+        "duration_hours": 35,
+        "priority": "CRITICAL",
+        "tasks": [
+          {
+            "task_id": "SEC-1.1",
+            "title": "Add Authorization Checks",
+            "effort_hours": 10,
+            "controllers": 5,
+            "status": "not-started",
+            "details": "Add #[IsGranted('ROLE_USER')] to CartController, CustomerOrderController, CheckoutController, etc."
+          },
+          {
+            "task_id": "SEC-1.2",
+            "title": "Implement Rate Limiting",
+            "effort_hours": 4,
+            "endpoints": 3,
+            "status": "not-started",
+            "details": "Add RateLimiter on email, password reset, registration endpoints"
+          },
+          {
+            "task_id": "SEC-1.3",
+            "title": "Harden CORS",
+            "effort_hours": 1,
+            "status": "not-started",
+            "details": "Replace CORS_ALLOW_ORIGIN: '*' with whitelist"
+          },
+          {
+            "task_id": "PERF-1.1",
+            "title": "Add Missing Indexes",
+            "effort_hours": 2,
+            "migrations": 1,
+            "indexes": 2,
+            "details": "Create INDEX on wishlist.user_id and conversation.shop_id"
+          },
+          {
+            "task_id": "REV-1.1",
+            "title": "Security Review & Testing",
+            "effort_hours": 18,
+            "status": "not-started",
+            "details": "Code review, QA testing, documentation"
+          }
+        ]
+      },
+      {
+        "phase": 2,
+        "title": "Test Coverage Sprint",
+        "duration_weeks": 2,
+        "duration_hours": 52,
+        "priority": "HIGH",
+        "target_coverage": 50,
+        "tasks": [
+          {
+            "task_id": "TEST-2.1",
+            "title": "Auth Tests (AuthController)",
+            "effort_hours": 12,
+            "test_count": 8,
+            "scenarios": [
+              "Register with valid/invalid email",
+              "Login with correct/wrong credentials",
+              "JWT refresh token",
+              "2FA setup/verification",
+              "Logout"
+            ]
+          },
+          {
+            "task_id": "TEST-2.2",
+            "title": "Checkout Tests (CheckoutController)",
+            "effort_hours": 15,
+            "test_count": 10,
+            "scenarios": [
+              "Initiate checkout with valid cart",
+              "Invalid shipping address",
+              "Stripe payment failure",
+              "Stripe payment success",
+              "Order confirmation"
+            ]
+          },
+          {
+            "task_id": "TEST-2.3",
+            "title": "Cart Tests (CartController)",
+            "effort_hours": 10,
+            "test_count": 8,
+            "scenarios": [
+              "Add/remove items",
+              "Update quantities",
+              "Apply coupon",
+              "Clear cart"
+            ]
+          },
+          {
+            "task_id": "TEST-2.4",
+            "title": "Order Tests (CustomerOrderController)",
+            "effort_hours": 12,
+            "test_count": 8,
+            "scenarios": [
+              "List user orders",
+              "Get order details",
+              "Track shipment",
+              "Cancel order"
+            ]
+          },
+          {
+            "task_id": "TEST-2.5",
+            "title": "Product Tests (ProductApiController)",
+            "effort_hours": 8,
+            "test_count": 6,
+            "scenarios": [
+              "List products with filters",
+              "Get product details",
+              "Search products",
+              "Pagination"
+            ]
+          }
+        ]
+      },
+      {
+        "phase": 3,
+        "title": "Code Quality & Refactoring",
+        "duration_days": 10,
+        "duration_hours": 22,
+        "priority": "MODERATE",
+        "tasks": [
+          {
+            "task_id": "REFACT-3.1",
+            "title": "Split VendorApiController",
+            "effort_hours": 8,
+            "description": "Create ProductVendorController, ShopVendorController, OrderVendorController",
+            "files": 4
+          },
+          {
+            "task_id": "REFACT-3.2",
+            "title": "Extract MediaUpload to Service",
+            "effort_hours": 4,
+            "description": "Move handleMediaUpload logic from VendorApiController to MediaService"
+          },
+          {
+            "task_id": "REFACT-3.3",
+            "title": "Add Interfaces to Services",
+            "effort_hours": 6,
+            "description": "Create interfaces for ProductService, VendorService, OrderService, etc.",
+            "benefit": "Easier to mock in tests, dependency injection clearer"
+          },
+          {
+            "task_id": "REFACT-3.4",
+            "title": "Fix N+1 Queries",
+            "effort_hours": 4,
+            "description": "Add eager loading (fetch: EAGER) in ProductController.list()"
+          }
+        ]
+      },
+      {
+        "phase": 4,
+        "title": "Performance & Validation",
+        "duration_days": 5,
+        "duration_hours": 16,
+        "priority": "LOW",
+        "tasks": [
+          {
+            "task_id": "PERF-4.1",
+            "title": "Load Testing",
+            "effort_hours": 4,
+            "tool": "k6",
+            "scenario": "100 concurrent users, 5 minutes"
+          },
+          {
+            "task_id": "PERF-4.2",
+            "title": "Database Query Optimization",
+            "effort_hours": 6,
+            "description": "Analyze slow queries with MySQL EXPLAIN"
+          },
+          {
+            "task_id": "VAL-4.1",
+            "title": "Final QA & Review",
+            "effort_hours": 6,
+            "checklist": [
+              "All tests passing",
+              "Coverage >50%",
+              "No security issues",
+              "Performance <200ms (API)"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "untested_controllers": {
+    "critical": [
+      {
+        "name": "CheckoutController",
+        "routes": 3,
+        "impact": "Payment processing not validated",
+        "priority": 1
+      },
+      {
+        "name": "AuthController",
+        "routes": 3,
+        "impact": "Authentication not tested",
+        "priority": 1
+      },
+      {
+        "name": "CustomerOrderController",
+        "routes": 5,
+        "impact": "Order management not validated",
+        "priority": 1
+      },
+      {
+        "name": "CartController",
+        "routes": 4,
+        "impact": "Shopping cart not tested",
+        "priority": 2
+      }
+    ],
+    "important": [
+      {
+        "name": "ProductApiController",
+        "routes": 4,
+        "impact": "Catalog features not validated",
+        "priority": 2
+      },
+      {
+        "name": "ShopController",
+        "routes": 3,
+        "impact": "Shop listing not tested",
+        "priority": 3
+      }
+    ]
+  },
+  "code_quality_issues": {
+    "long_methods": [
+      {
+        "file": "VendorApiController.php",
+        "method": "handleMediaUpload",
+        "lines": 87,
+        "refactor_to": "MediaService"
+      },
+      {
+        "file": "VendorApiController.php",
+        "method": "getVendorOrders",
+        "lines": 73,
+        "refactor_to": "Repository query"
+      },
+      {
+        "file": "CheckoutController.php",
+        "method": "createOrder",
+        "lines": 65,
+        "refactor_to": "OrderService"
+      }
+    ],
+    "duplications": [
+      {
+        "pattern": "JWT validation",
+        "occurrences": 3,
+        "files": [
+          "VendorApiController",
+          "ConversationController",
+          "WishlistController"
+        ],
+        "solution": "Use #[IsGranted] consistently"
+      }
+    ]
+  },
+  "database": {
+    "total_migrations": 47,
+    "status": "well_documented",
+    "missing_indexes": [
+      {
+        "table": "wishlist",
+        "column": "user_id",
+        "frequency": "high",
+        "sql": "CREATE INDEX idx_wishlist_user ON wishlist(user_id)"
+      },
+      {
+        "table": "conversation",
+        "column": "shop_id",
+        "frequency": "medium",
+        "sql": "CREATE INDEX idx_conversation_shop ON conversation(shop_id)"
+      }
+    ]
+  },
+  "recommendations": {
+    "immediate": [
+      "Fix security issues (authorization, rate limiting)",
+      "Start test coverage sprint",
+      "Add missing database indexes"
+    ],
+    "short_term": [
+      "Reach 50% test coverage",
+      "Refactor long methods",
+      "Add service interfaces"
+    ],
+    "medium_term": [
+      "Reach 80% test coverage",
+      "Complete API documentation",
+      "Performance optimization"
+    ]
+  },
+  "timeline": {
+    "phases": 4,
+    "total_effort_hours": 125,
+    "total_effort_days": 31,
+    "team_size_recommended": 2,
+    "estimated_completion": "2026-02-28"
+  }
+}

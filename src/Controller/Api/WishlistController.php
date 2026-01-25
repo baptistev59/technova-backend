@@ -98,6 +98,34 @@ class WishlistController extends AbstractController
         ]);
     }
 
+    #[Route('/count', name: 'api_wishlists_count', methods: ['GET'])]
+    #[OA\Get(
+        summary: 'Compter mes favoris',
+        description: 'Retourne le nombre total de produits dans les favoris de l\'utilisateur connecté.',
+        security: [['BearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Nombre de favoris',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'count', type: 'integer', example: 5),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'JWT manquant ou invalide'),
+        ]
+    )]
+    public function count(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $count = $this->wishlistRepository->count(['user' => $user]);
+
+        return $this->json(['count' => $count]);
+    }
+
     #[Route('', name: 'api_wishlists_add', methods: ['POST'])]
     #[OA\Post(
         summary: 'Ajouter un produit aux favoris',

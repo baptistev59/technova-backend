@@ -7,10 +7,12 @@
 3 endpoints REST JSON pour gérer les favoris :
 
 **a) GET `/api/wishlists`** — Lister mes favoris
+
 ```bash
 curl -H "Authorization: Bearer JWT" http://localhost:8000/api/wishlists
-```
-Réponse :
+
+``` Réponse :
+
 ```json
 {
   "count": 2,
@@ -25,21 +27,26 @@ Réponse :
 ```
 
 **b) POST `/api/wishlists`** — Ajouter aux favoris
+
 ```bash
 curl -X POST -H "Authorization: Bearer JWT" \
   -H "Content-Type: application/json" \
   -d '{"productId": 42}' \
   http://localhost:8000/api/wishlists
 ```
+
 Réponse (201 Created) :
+
 ```json
 { "status": "added", "wishlistId": 1 }
 ```
 
 **c) DELETE `/api/wishlists/{id}`** — Retirer des favoris
+
 ```bash
 curl -X DELETE -H "Authorization: Bearer JWT" http://localhost:8000/api/wishlists/1
 ```
+
 Réponse (204 No Content)
 
 ---
@@ -47,6 +54,7 @@ Réponse (204 No Content)
 ### 2️⃣ **Frontend Twig Pages** ✅
 
 #### **Page `/mon-compte/favoris`**
+
 - **Contrôleur** : `App\Controller\Web\WishlistController`
 - **Template** : `templates/account/favorites.html.twig`
 - **Fonctionnalités** :
@@ -58,11 +66,13 @@ Réponse (204 No Content)
   - ✅ Empty state avec CTA vers catalogue
 
 #### **Menu utilisateur (Header)**
+
 - ✅ Ajout lien "❤️ Mes favoris" dans `base.html.twig`
 - Visible uniquement si connecté
 - Placé avant "Mes commandes"
 
 #### **Fiche produit** (À implémenter)
+
 - Button "❤️ Ajouter aux favoris" (icône remplie/vide selon état)
 - Appel AJAX optionnel pour feedback instant
 
@@ -82,6 +92,7 @@ Intégrées dans `routes.yaml` via `#[Route]` PHP attributes.
 ### 4️⃣ **Base de données** ✅
 
 **Table `wishlist`**
+
 ```sql
 CREATE TABLE wishlist (
   id SERIAL PRIMARY KEY,
@@ -93,6 +104,7 @@ CREATE TABLE wishlist (
 ```
 
 **Migrations** :
+
 - `Version20260125131333.php` — Création table wishlist
 
 ---
@@ -109,6 +121,7 @@ CREATE TABLE wishlist (
 ## 🎯 Plan suivant (optionnel)
 
 ### Phase 2 — UX Améliorations
+
 - [ ] Bouton "Ajouter aux favoris" sur `/produit/{slug}` avec toggle AJAX
 - [ ] Compteur de favoris dans le header (ex. "❤️ 3")
 - [ ] Toast notification "Ajouté aux favoris" après POST
@@ -116,6 +129,7 @@ CREATE TABLE wishlist (
 - [ ] Endpoint optionnel `GET /api/wishlists/check/{productId}` (vérifier si en favori)
 
 ### Phase 3 — Fonctionnalités avancées
+
 - [ ] Partage de favoris (lien public/privé)
 - [ ] Notification si un favori est en promo
 - [ ] Export favoris (PDF/CSV)
@@ -143,6 +157,7 @@ CREATE TABLE wishlist (
 ## 🧪 Tests rapides
 
 **1. Vérifier les routes chargées** :
+
 ```bash
 php bin/console debug:router | grep -i wishlist
 # Résultat attendu :
@@ -154,6 +169,7 @@ php bin/console debug:router | grep -i wishlist
 ```
 
 **2. Test API favoris (Postman/Curl)** :
+
 ```bash
 # Login d'abord
 JWT=$(curl -X POST http://localhost:8000/api/login \
@@ -177,6 +193,7 @@ curl -X DELETE http://localhost:8000/api/wishlists/1 \
 ```
 
 **3. Test page Twig** :
+
 ```bash
 # Accédez à http://localhost:8000/mon-compte/favoris
 # (connecté comme lena.client@technova.test / Client#01)

@@ -10,7 +10,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ProductReviewRepository::class)]
-#[ORM\Table(uniqueConstraints: [new ORM\UniqueConstraint(name: 'uniq_review_author_product', columns: ['author_id', 'product_id'])])]
+#[ORM\Table(name: 'product_review')]
+#[ORM\UniqueConstraint(name: 'uniq_review_author_product', columns: ['author_id', 'product_id'])]
 #[ORM\HasLifecycleCallbacks]
 class ProductReview
 {

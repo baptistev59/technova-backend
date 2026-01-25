@@ -637,6 +637,7 @@
                                 this.isInWishlist = false;
                                 this.wishlistId = null;
                                 this.showNotification('Produit retiré des favoris');
+                                this.refreshWishlistCounter();
                             } else {
                                 this.showNotification('Erreur lors de la suppression', true);
                             }
@@ -654,8 +655,9 @@
                             if (response.ok || response.status === 201) {
                                 const data = await response.json();
                                 this.isInWishlist = true;
-                                this.wishlistId = data.id;
+                                this.wishlistId = data.wishlistId;
                                 this.showNotification('Produit ajouté aux favoris');
+                                this.refreshWishlistCounter();
                             } else if (response.status === 409) {
                                 // Déjà dans les favoris
                                 await this.checkWishlistStatus();
@@ -675,6 +677,13 @@
                 getJwtToken() {
                     const meta = document.querySelector('meta[name="jwt-token"]');
                     return meta ? meta.getAttribute('content') : '';
+                },
+                
+                refreshWishlistCounter() {
+                    // Émettre un événement personnalisé pour rafraîchir le compteur
+                    window.dispatchEvent(new CustomEvent('wishlist-updated', {
+                        detail: { timestamp: Date.now() }
+                    }));
                 },
                 
                 showNotification(message, isError = false) {
