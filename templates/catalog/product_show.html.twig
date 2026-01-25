@@ -154,7 +154,20 @@
     </div>
     <div class="tn-product-info" x-data>
         <p class="tn-product-info__category">{{ product.category.name }}</p>
-        <h1>{{ product.name }}</h1>
+        <div class="flex items-center justify-between">
+            <h1>{{ product.name }}</h1>
+            {% if viewer %}
+                <button type="button"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+                        :class="isInWishlist ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                        @click="toggleWishlist"
+                        :disabled="isLoading"
+                        x-data="wishlistToggle({{ product.id }})">
+                    <span x-text="isInWishlist ? '❤️' : '🤍'" class="text-xl"></span>
+                    <span x-text="isInWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'"></span>
+                </button>
+            {% endif %}
+        </div>
         <div id="main-price-block">
             {% if bundleComponentsActive %}
                 {% set packRangeLabel = bundlePriceRange and bundlePriceRange.label ? bundlePriceRange.label : product.price|number_format(2, ',', ' ') ~ ' €' %}
@@ -562,4 +575,113 @@
 
 {% block javascripts %}
     {{ parent() }}
+    <script>
+        function wishlistToggle(productId) {
+            return {
+                productId,
+                isInWishlist: false,
+                isLoading: false,
+                
+                async init() {
+                    await this.checkWishlistStatus();
+                },
+                
+                async checkWishlistStatus() {
+                    try {
+                        const response = await fetch('/api/wishlists', {
+                            headers: {
+                                'Authorization': 'Bearer ' + this.getJwtToken(),
+                                'Accept': 'application/json'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const wishlists = await response.json();
+                            this.isInWishlist = wishlists.some(w => w.product && w.product.id === this.productId);
+                        }
+                    } catch (error) {
+                        console.error('Erreur lors de la récupération des favoris:', error);
+                    }
+                },
+                
+                async toggleWishlist() {
+                    if (this.isLoading) return;
+                    
+                    this.isLoading = true;
+                    try {
+                        if (this.isInWishlist) {
+                            // Trouver l'ID du favoris et le supprimer
+                            const response = await fetch('/api/wishlists', {
+                                headers: {
+                                    'Authorization': 'Bearer ' + this.getJwtToken(),
+                                    'Accept': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const wishlists = await response.json();
+                                const wishlist = wishlists.find(w => w.product && w.product.id === this.productId);
+                                
+                                if (wishlist) {
+                                    await fetch(`/api/wishlists/${wishlist.id}`, {
+                                        method: 'DELETE',
+                                        headers: {
+                                            'Authorization': 'Bearer ' + this.getJwtToken(),
+                                            'Content-Type': 'application/json'
+                                        }
+                                    });
+                                    
+                                    this.isInWishlist = false;
+                                    this.showNotification('Produit retiré des favoris');
+                                }
+                            }
+                        } else {
+                            // Ajouter aux favoris
+                            const response = await fetch('/api/wishlists', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': 'Bearer ' + this.getJwtToken(),
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ productId: this.productId })
+                            });
+                            
+                            if (response.ok || response.status === 201) {
+                                this.isInWishlist = true;
+                                this.showNotification('Produit ajouté aux favoris');
+                            } else if (response.status === 409) {
+                                this.isInWishlist = true;
+                                this.showNotification('Produit déjà dans les favoris');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Erreur lors de la modification des favoris:', error);
+                        this.showNotification('Erreur lors de la modification des favoris', true);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                
+                getJwtToken() {
+                    const meta = document.querySelector('meta[name="jwt-token"]');
+                    return meta ? meta.getAttribute('content') : '';
+                },
+                
+                showNotification(message, isError = false) {
+                    // Créer une notification toast simple
+                    const toast = document.createElement('div');
+                    toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white z-50 transition-opacity ${
+                        isError ? 'bg-red-500' : 'bg-green-500'
+                    }`;
+                    toast.textContent = message;
+                    document.body.appendChild(toast);
+                    
+                    setTimeout(() => {
+                        toast.style.opacity = '0';
+                        setTimeout(() => toast.remove(), 300);
+                    }, 2000);
+                }
+            };
+        }
+    </script>
 {% endblock %}
