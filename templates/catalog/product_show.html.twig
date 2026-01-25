@@ -162,7 +162,8 @@
                         :class="isInWishlist ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
                         @click="toggleWishlist"
                         :disabled="isLoading"
-                        x-data="wishlistToggle({{ product.id }})">
+                        x-data="wishlistManager({{ product.id }})"
+                        x-init="init()">
                     <span x-text="isInWishlist ? '❤️' : '🤍'" class="text-xl"></span>
                     <span x-text="isInWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'"></span>
                 </button>
@@ -576,9 +577,10 @@
 {% block javascripts %}
     {{ parent() }}
     <script>
-        function wishlistToggle(productId) {
+        function wishlistManager(productId) {
             return {
                 productId,
+                wishlistId: null,
                 isInWishlist: false,
                 isLoading: false,
                 
@@ -588,16 +590,26 @@
                 
                 async checkWishlistStatus() {
                     try {
+                        const jwtToken = this.getJwtToken();
+                        if (!jwtToken) {
+                            console.warn('Pas de JWT token trouvé');
+                            return;
+                        }
+                        
                         const response = await fetch('/api/wishlists', {
                             headers: {
-                                'Authorization': 'Bearer ' + this.getJwtToken(),
+                                'Authorization': 'Bearer ' + jwtToken,
                                 'Accept': 'application/json'
                             }
                         });
                         
                         if (response.ok) {
                             const wishlists = await response.json();
-                            this.isInWishlist = wishlists.some(w => w.product && w.product.id === this.productId);
+                            const wishlist = wishlists.find(w => w.product && w.product.id === this.productId);
+                            if (wishlist) {
+                                this.isInWishlist = true;
+                                this.wishlistId = wishlist.id;
+                            }
                         }
                     } catch (error) {
                         console.error('Erreur lors de la récupération des favoris:', error);
@@ -609,31 +621,22 @@
                     
                     this.isLoading = true;
                     try {
-                        if (this.isInWishlist) {
-                            // Trouver l'ID du favoris et le supprimer
-                            const response = await fetch('/api/wishlists', {
+                        if (this.isInWishlist && this.wishlistId) {
+                            // Supprimer des favoris
+                            const response = await fetch(`/api/wishlists/${this.wishlistId}`, {
+                                method: 'DELETE',
                                 headers: {
                                     'Authorization': 'Bearer ' + this.getJwtToken(),
-                                    'Accept': 'application/json'
+                                    'Content-Type': 'application/json'
                                 }
                             });
                             
-                            if (response.ok) {
-                                const wishlists = await response.json();
-                                const wishlist = wishlists.find(w => w.product && w.product.id === this.productId);
-                                
-                                if (wishlist) {
-                                    await fetch(`/api/wishlists/${wishlist.id}`, {
-                                        method: 'DELETE',
-                                        headers: {
-                                            'Authorization': 'Bearer ' + this.getJwtToken(),
-                                            'Content-Type': 'application/json'
-                                        }
-                                    });
-                                    
-                                    this.isInWishlist = false;
-                                    this.showNotification('Produit retiré des favoris');
-                                }
+                            if (response.ok || response.status === 204) {
+                                this.isInWishlist = false;
+                                this.wishlistId = null;
+                                this.showNotification('Produit retiré des favoris');
+                            } else {
+                                this.showNotification('Erreur lors de la suppression', true);
                             }
                         } else {
                             // Ajouter aux favoris
@@ -647,11 +650,16 @@
                             });
                             
                             if (response.ok || response.status === 201) {
+                                const data = await response.json();
                                 this.isInWishlist = true;
+                                this.wishlistId = data.id;
                                 this.showNotification('Produit ajouté aux favoris');
                             } else if (response.status === 409) {
-                                this.isInWishlist = true;
+                                // Déjà dans les favoris
+                                await this.checkWishlistStatus();
                                 this.showNotification('Produit déjà dans les favoris');
+                            } else {
+                                this.showNotification('Erreur lors de l\'ajout', true);
                             }
                         }
                     } catch (error) {
@@ -668,18 +676,17 @@
                 },
                 
                 showNotification(message, isError = false) {
-                    // Créer une notification toast simple
                     const toast = document.createElement('div');
-                    toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white z-50 transition-opacity ${
+                    toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white z-50 transition-all duration-300 shadow-lg ${
                         isError ? 'bg-red-500' : 'bg-green-500'
                     }`;
                     toast.textContent = message;
                     document.body.appendChild(toast);
                     
                     setTimeout(() => {
-                        toast.style.opacity = '0';
+                        toast.classList.add('opacity-0', 'translate-y-2');
                         setTimeout(() => toast.remove(), 300);
-                    }, 2000);
+                    }, 2500);
                 }
             };
         }
