@@ -94,12 +94,18 @@
 
                             <!-- Price -->
                             <div class="mb-4 flex items-baseline gap-2">
-                                {% if product.minPrice != product.maxPrice %}
-                                    <span class="text-sm text-slate-500">À partir de</span>
+                                {% if product.promoPrice %}
+                                    <span class="line-through text-sm text-slate-400">
+                                        {{ product.price|number_format(2, ',', ' ') }} €
+                                    </span>
+                                    <span class="text-lg font-bold text-red-600">
+                                        {{ product.promoPrice|number_format(2, ',', ' ') }} €
+                                    </span>
+                                {% else %}
+                                    <span class="text-lg font-bold text-slate-800">
+                                        {{ product.price|number_format(2, ',', ' ') }} €
+                                    </span>
                                 {% endif %}
-                                <span class="text-lg font-bold text-slate-800">
-                                    {{ product.minPrice|number_format(2, ',', ' ') }} €
-                                </span>
                             </div>
 
                             <!-- Actions -->
