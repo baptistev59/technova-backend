@@ -46,7 +46,7 @@ class Vendor
     private ?string $email = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Assert\Url(message: 'Le site web doit être une URL valide.')]
+    #[Assert\Url(message: 'Le site web doit être une URL valide.', requireTld: true)]
     private ?string $website = null;
 
     #[ORM\Column(options: ['default' => false])]

@@ -7,6 +7,7 @@ namespace App\Tests\Unit;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\UserRegistrationService;
+use App\Service\EmailVerificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -25,12 +26,25 @@ class UserRegistrationServiceTest extends TestCase
         $passwordHasher = $this->createMock(UserPasswordHasherInterface::class);
         $jwtManager = $this->createMock(JWTTokenManagerInterface::class);
 
+        $emailVerification = $this->createMock(EmailVerificationService::class);
+
         $service = new UserRegistrationService(
             $entityManager,
             $userRepository,
             $passwordHasher,
-            $jwtManager
+            $jwtManager,
+            $emailVerification
         );
+        $emailVerification
+            ->expects(self::once())
+            ->method('prepareVerification')
+            ->with(self::isInstanceOf(User::class))
+            ->willReturn('verification-token');
+
+        $emailVerification
+            ->expects(self::once())
+            ->method('sendVerification')
+            ->with(self::isInstanceOf(User::class), 'verification-token');
 
         $requestData = [
             'email' => ' John.Doe@example.com ',
@@ -87,7 +101,8 @@ class UserRegistrationServiceTest extends TestCase
             $this->createMock(EntityManagerInterface::class),
             $this->createMock(UserRepository::class),
             $this->createMock(UserPasswordHasherInterface::class),
-            $this->createMock(JWTTokenManagerInterface::class)
+            $this->createMock(JWTTokenManagerInterface::class),
+            $this->createMock(EmailVerificationService::class)
         );
 
         $result = $service->register([

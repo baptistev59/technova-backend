@@ -55,6 +55,23 @@
         .tn-search-suggestions.hidden {
             display: none;
         }
+        .tn-favorites-counter {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 999px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0f172a;
+            border: 1px solid transparent;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            text-decoration: none;
+        }
+        .tn-favorites-counter:hover {
+            border-color: rgba(15, 23, 42, 0.1);
+            background-color: #f1f5f9;
+        }
     </style>
     <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
     <meta name="technova-jwt" content="{{ app.session.get('jwt_token') ?? '' }}">
@@ -97,6 +114,13 @@
                 </div>
                 <div class="tn-auth">
                 {% if viewer %}
+                    <a
+                        class="tn-favorites-counter"
+                        href="{{ path('app_wishlist_list') }}"
+                        aria-label="Voir mes favoris"
+                    >
+                        ❤️ {{ wishlist_count() }}
+                    </a>
                     {% set first_initial = (viewer.firstname ?? 'T')|slice(0, 1) %}
                     {% set last_initial = (viewer.lastname ?? 'N')|slice(0, 1) %}
                     {% set initials = (first_initial ~ last_initial)|upper %}

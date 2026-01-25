@@ -13,13 +13,17 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CustomerOrderRepository::class)]
-#[ORM\Table(name: 'customer_order', indexes: [
-    new ORM\Index(name: 'idx_customer_order_status_created_at', columns: ['status', 'created_at']),
-])]
+#[ORM\Table(name: 'customer_order')]
+#[ORM\Index(name: 'idx_customer_order_status_created_at', columns: ['status', 'created_at'])]
 #[ORM\HasLifecycleCallbacks]
 class CustomerOrder
 {
     use Timestampable;
+
+    public const STATUS_PENDING = OrderStatus::Pending->value;
+    public const STATUS_PAID = OrderStatus::Paid->value;
+    public const STATUS_SHIPPED = OrderStatus::Shipped->value;
+    public const STATUS_CANCELLED = OrderStatus::Cancelled->value;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

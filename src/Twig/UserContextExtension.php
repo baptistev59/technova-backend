@@ -6,6 +6,7 @@ namespace App\Twig;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Repository\WishlistRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Twig\Extension\AbstractExtension;
@@ -22,6 +23,7 @@ class UserContextExtension extends AbstractExtension
         private readonly Security $security,
         private readonly RequestStack $requestStack,
         private readonly UserRepository $userRepository,
+        private readonly WishlistRepository $wishlistRepository,
     ) {
     }
 
@@ -34,6 +36,7 @@ class UserContextExtension extends AbstractExtension
     {
         return [
             new TwigFunction('viewer_user', [$this, 'resolveViewer']),
+            new TwigFunction('wishlist_count', [$this, 'resolveWishlistCount']),
         ];
     }
 
@@ -59,5 +62,18 @@ class UserContextExtension extends AbstractExtension
         }
 
         return null;
+    }
+
+    /**
+     * Retourne le nombre de favoris pour l'utilisateur courant.
+     */
+    public function resolveWishlistCount(): int
+    {
+        $viewer = $this->resolveViewer();
+        if (!$viewer instanceof User) {
+            return 0;
+        }
+
+        return $this->wishlistRepository->count(['user' => $viewer]);
     }
 }

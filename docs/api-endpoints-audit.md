@@ -63,6 +63,11 @@
 - ✅ `GET /api/docs.json` → JSON Schema
 - ✅ `GET /api/docs.yaml` → YAML Schema
 
+#### Wishlists
+- ✅ `GET /api/wishlists` → `WishlistController::list()`
+- ✅ `POST /api/wishlists` → `WishlistController::add()`
+- ✅ `DELETE /api/wishlists/{id}` → `WishlistController::delete()`
+
 ### 📋 API VENDEUR (Sprint 4A)
 
 Présents (voir `docs/vendor-api-endpoints.md`):
@@ -90,11 +95,6 @@ Présents (voir `docs/vendor-api-endpoints.md`):
 - ⏳ Rate limiting sur `/api/register` (protection contre abus)
 - ⏳ Rate limiting sur `/api/email/verify/resend` (éviter spam)
 
-#### Wishlists (mention dans README)
-- ❌ `GET /api/wishlists` – NON IMPLÉMENTÉ
-- ❌ `POST /api/wishlists` – NON IMPLÉMENTÉ
-- ❌ `DELETE /api/wishlists/{id}` – NON IMPLÉMENTÉ
-
 #### Conversions & Métriques
 - ⏳ Endpoints pour statistiques vendeur (en attente Sprint 4B)
 - ⏳ Endpoints pour analytics client (en attente)
@@ -113,28 +113,22 @@ Présents (voir `docs/vendor-api-endpoints.md`):
 | Checkout | 2 | 2 | 0 |
 | Documentation | 3 | 3 | 0 |
 | **API Vendeur** | **16** | **16** | **0** |
-| Wishlists | 3 | 0 | 3 |
-| **TOTAL** | **60** | **57** | **3** |
+| Wishlists | 3 | 3 | 0 |
+| **TOTAL** | **60** | **60** | **0** |
 
 ## Taux de couverture
 - **Endpoints core (hors wishlists)** : 100% ✅
-- **Endpoints inclus README** : 95% (wishlists à ajouter si requis)
+- **Endpoints inclus README** : 100% ✅
 - **Production-ready** : Oui ✅
 - **Swagger documentation** : Oui ✅
 
 ## Prochaines étapes
 
-1. **Wishlists** (si requis par product manager)
-   - `POST /api/wishlists` – Ajouter à favori
-   - `GET /api/wishlists` – Lister favori
-   - `DELETE /api/wishlists/{id}` – Retirer de favori
-
-2. **Rate limiting** (sécurité)
-   - Password reset
-   - Registration
-   - Email verification resend
-
-3. **Analytics & Metrics** (Sprint 4B)
-   - Endpoint stats vendeur
-   - Conversion tracking
-   - Popular products
+1. **Rate limiting** (sécurité)
+    - Password reset
+    - Registration
+    - Email verification resend
+2. **Analytics & Metrics** (Sprint 4B)
+    - Endpoint stats vendeur
+    - Conversion tracking
+    - Popular products

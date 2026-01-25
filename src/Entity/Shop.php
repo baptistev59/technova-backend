@@ -175,7 +175,17 @@ class Shop
 
     public function setOwner(?Vendor $owner): self
     {
+        // Retirer de l'ancien propriétaire
+        if ($this->owner && $this->owner !== $owner) {
+            $this->owner->removeShop($this);
+        }
+        
         $this->owner = $owner;
+        
+        // Ajouter au nouveau propriétaire
+        if ($owner && !$owner->getShops()->contains($this)) {
+            $owner->addShop($this);
+        }
 
         return $this;
     }

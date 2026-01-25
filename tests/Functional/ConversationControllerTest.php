@@ -37,6 +37,22 @@ final class ConversationControllerTest extends WebTestCase
         $this->passwordHasher = $container->get(UserPasswordHasherInterface::class);
     }
 
+    protected function tearDown(): void
+    {
+        if ($this->em->isOpen()) {
+            // Nettoyer la base de données
+            $connection = $this->em->getConnection();
+            try {
+                $connection->executeStatement('TRUNCATE TABLE wishlist, customer_order_item, customer_order, message, conversation, order_document, product_image, product_variant, product_attribute_value, product_attribute, product, media, shop, vendor, "user" RESTART IDENTITY CASCADE');
+            } catch (\Throwable $e) {
+                // Ignorer les erreurs de truncate
+            }
+            $this->em->close();
+        }
+
+        parent::tearDown();
+    }
+
     /* ============================================================
      * TESTS
      * ============================================================

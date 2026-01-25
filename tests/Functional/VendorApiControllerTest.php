@@ -40,11 +40,8 @@ final class VendorApiControllerTest extends WebTestCase
         $this->manager = $container->get(EntityManagerInterface::class);
         $this->jwtManager = $container->get(JWTTokenManagerInterface::class);
         $this->passwordHasher = $container->get(UserPasswordHasherInterface::class);
-        try {
-            $this->manager->beginTransaction();
-        } catch (ConnectionException $exception) {
-            static::markTestSkipped('Base de données indisponible (configurez DATABASE_URL pour les tests). '.$exception->getMessage());
-        }
+        
+        // Ne pas utiliser de transaction - laisser les données en base pour JWT
     }
 
     protected function tearDown(): void
@@ -58,9 +55,13 @@ final class VendorApiControllerTest extends WebTestCase
         }
 
         if ($this->manager->isOpen()) {
+            // Nettoyer la base de données sans rollback
             $connection = $this->manager->getConnection();
-            if ($connection->isTransactionActive()) {
-                $this->manager->rollback();
+            try {
+                // Truncate les tables de test
+                $connection->executeStatement('TRUNCATE TABLE wishlist, customer_order_item, customer_order, message, conversation, order_document, product_image, product_variant, product_attribute_value, product_attribute, product, media, shop, vendor, "user" RESTART IDENTITY CASCADE');
+            } catch (\Throwable $e) {
+                // Ignorer les erreurs de truncate
             }
             $this->manager->close();
         }
@@ -293,13 +294,6 @@ final class VendorApiControllerTest extends WebTestCase
             ->setOwner($user);
         $this->manager->persist($vendor);
 
-        $shop = (new Shop())
-            ->setName('Functional Shop')
-            ->setSlug('functional-shop-'.uniqid())
-            ->setContactEmail('shop@functional.test')
-            ->setOwner($vendor);
-        $this->manager->persist($shop);
-
         $category = (new Category())
             ->setName('Functional Category')
             ->setSlug('functional-category-'.uniqid())
@@ -307,8 +301,8 @@ final class VendorApiControllerTest extends WebTestCase
             ->setIconPath('/images/categories/default.svg');
         $this->manager->persist($category);
 
-        $manager = static::getContainer()->get(EntityManagerInterface::class);
-        $shop = $this->createShopForVendor($manager, $vendor);
+        // Utiliser $this->manager au lieu d'une nouvelle instance
+        $shop = $this->createShopForVendor($this->manager, $vendor);
 
         $product = (new Product())
             ->setName('Functional Product '.uniqid())
@@ -318,8 +312,8 @@ final class VendorApiControllerTest extends WebTestCase
             ->setStock(10)
             ->setCategory($category)
             ->setShop($shop);
-        $manager->persist($product);
-        $manager->flush();
+        $this->manager->persist($product);
+        $this->manager->flush();
 
         $reference = sprintf(
             'ORD-%s-%s',

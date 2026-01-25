@@ -57,7 +57,10 @@ final class VendorProfileType extends AbstractType
             ->add('website', TextType::class, [
                 'required' => false,
                 'constraints' => [
-                    new Url(message: 'Le site web doit être une URL valide.'),
+                    new Url(
+                        message: 'Le site web doit être une URL valide.',
+                        requireTld: true
+                    ),
                 ],
             ]);
     }

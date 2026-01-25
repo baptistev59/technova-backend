@@ -25,7 +25,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     required: ['name', 'price', 'isPublished']
 )]
-#[ORM\Table(name: 'product', uniqueConstraints: [new ORM\UniqueConstraint(name: 'UNIQ_PRODUCT_SLUG', columns: ['slug'])])]
+#[ORM\Table(name: 'product')]
+#[ORM\UniqueConstraint(name: 'UNIQ_PRODUCT_SLUG', columns: ['slug'])]
 #[ORM\HasLifecycleCallbacks]
 class Product
 {
