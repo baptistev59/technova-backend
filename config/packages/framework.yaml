@@ -4,6 +4,23 @@ framework:
 
     # Note that the session will be started ONLY if you read or write from it.
     session: true
+
+    # Rate Limiting
+    rate_limiter:
+        password_reset:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '15 minutes'
+        
+        registration:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '24 hours'
+        
+        email_verification:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'
     html_sanitizer:
         sanitizers:
             rich_text:

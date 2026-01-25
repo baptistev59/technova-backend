@@ -35,7 +35,7 @@ services:
 
     App\Service\RecaptchaValidator:
         arguments:
-            $recaptchaSecret: '%recaptcha.secret%'
+            $recaptchaSecret: '%env(RECAPTCHA_SECRET)%'
 
     App\Security\TwoFactor\ExpiringEmailCodeGenerator:
         arguments:
@@ -53,40 +53,16 @@ services:
     scheb_two_factor.trusted_device_condition:
         alias: App\Security\TwoFactor\RoleBasedTrustedDeviceCondition
 
-    # Rate Limiters
-    password_reset.rate_limiter:
-        class: Symfony\Component\RateLimiter\RateLimiterFactory
-        arguments:
-            - key: 'password_reset_%s'
-              policy: 'sliding_window'
-              limit: 3
-              interval: '15 minutes'
-
-    registration.rate_limiter:
-        class: Symfony\Component\RateLimiter\RateLimiterFactory
-        arguments:
-            - key: 'registration_%s'
-              policy: 'sliding_window'
-              limit: 5
-              interval: '24 hours'
-
-    email_verification.rate_limiter:
-        class: Symfony\Component\RateLimiter\RateLimiterFactory
-        arguments:
-            - key: 'email_verification_%s'
-              policy: 'sliding_window'
-              limit: 3
-              interval: '1 hour'
 
     App\Controller\Api\PasswordResetController:
         arguments:
-            $passwordResetLimiter: '@password_reset.rate_limiter'
+            $passwordResetLimiter: '@limiter.password_reset'
             $mailerFrom: '%env(MAILER_FROM)%'
 
     App\Controller\Api\RegistrationController:
         arguments:
-            $registrationLimiter: '@registration.rate_limiter'
+            $registrationLimiter: '@limiter.registration'
 
     App\Controller\Api\EmailVerificationController:
         arguments:
-            $emailVerificationLimiter: '@email_verification.rate_limiter'
+            $emailVerificationLimiter: '@limiter.email_verification'
