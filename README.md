@@ -46,12 +46,19 @@ Audit des endpoints API
 Un audit pédagogique complet des endpoints (attendu vs exposé) est disponible ici :
 `docs/api-audit.md`
 
+Audit complet avec status de chaque endpoint :
+`docs/api-endpoints-audit.md`
+
 Confirmation email
 ------------------
 
 Guide d’usage (token, expiration, relance) :
 `docs/email-verification.md`
+Réinitialisation de mot de passe
+---------------------------------
 
+Guide complet (flux, configuration SMTP, tests, troubleshooting) :
+`docs/password-reset.md`
 ### Webpack Encore vs Asset Mapper (justification)
 
 Ce projet n’utilise pas Webpack Encore : il s’appuie sur **Asset Mapper + importmap + Tailwind CLI**.  
@@ -118,8 +125,9 @@ Endpoints disponibles
 | POST    | `/api/logout`                   | Déconnexion stateless (côté client).                             | JWT |
 | POST    | `/api/register`                 | Inscription client + JWT de bienvenue.                           | Publique |
 | POST    | `/api/token/refresh`            | Régénère un JWT à partir du token courant.                       | JWT |
-| GET     | `/api/me`                       | Infos du user connecté (id/email).                               | JWT |
-| GET     | `/api/email/verify/{token}`     | Confirme l’email (token).                                        | Publique |
+| GET     | `/api/me`                       | Infos du user connecté (id/email).                               | JWT || POST    | `/api/password-reset/request`   | Demande de réinitialisation par email (token valable 5 min).     | Publique |
+| GET     | `/api/password-reset/check/{token}`| Valide un token sans effectuer la réinitialisation.           | Publique |
+| POST    | `/api/password-reset/reset`     | Réinitialise le mot de passe avec token + nouveau mot de passe.  | Publique || GET     | `/api/email/verify/{token}`     | Confirme l’email (token).                                        | Publique |
 | POST    | `/api/email/verify/resend`      | Renvoie un lien de confirmation.                                 | JWT |
 | GET     | `/api/categories`               | Liste des catégories.                                            | Publique |
 | GET     | `/api/brands`                   | Liste des marques.                                               | Publique |
@@ -190,7 +198,16 @@ Espace compte (Twig + API)
 - `/inscription` : formulaire Tailwind qui appelle directement `POST /api/register`.  
   Après validation l’utilisateur est automatiquement connecté (ID + JWT stockés en session) puis redirigé vers `/mon-compte/profil`.
 - `/connexion` : formulaire Symfony (`LoginType`) branché sur `App\Security\LoginFormAuthenticator` (firewall `main`). L’utilisateur est authentifié via `Security`, la session Symfony est ouverte (remember-me disponible) et un JWT Lexik est toujours regénéré pour alimenter les pages Twig (`viewer_user()` s’appuie désormais sur `Security` quand c’est possible).  
-- `/connexion/mot-de-passe-oublie` : demande de réinitialisation par email (lien valable 5 minutes).  
+- **Réinitialisation de mot de passe** (voir [`docs/password-reset.md`](docs/password-reset.md)) :
+  - **Routes Twig** (pages HTML) :
+    - `/connexion/mot-de-passe-oublie` (GET/POST) : demande de réinitialisation par email (lien valable 5 minutes).
+    - `/connexion/mot-de-passe-oublie/check-email` (GET) : page de confirmation après la demande.
+    - `/connexion/mot-de-passe-oublie/reset/{token}` (GET/POST) : formulaire de réinitialisation avec validation du token.
+  - **Endpoints API JSON** (pour SPA/mobile) :
+    - `POST /api/password-reset/request` : demande de réinitialisation (JSON `{ email }`).
+    - `GET /api/password-reset/check/{token}` : valide un token (optionnel).
+    - `POST /api/password-reset/reset` : réinitialise le password (JSON `{ token, password }`).
+- `/mon-compte/changer-mot-de-passe` (GET/POST) : formulaire pour les utilisateurs connectés qui souhaitent changer leur mot de passe.  
 - `/mon-compte/profil` : page composée de deux formulaires (`ProfileType`, `AddressType`) pour compléter les informations personnelles, préférences marketing et adresse principale.  
 - `/mon-compte/2fa` : activation TOTP et QR code pour les vendeurs/admin.  
 - `/api/profile` (GET/POST/DELETE) : endpoints jumeaux utilisés par le front Twig, protégés par le firewall JWT (`DELETE` anonymise le compte).
@@ -329,9 +346,25 @@ stripe listen --forward-to http://127.0.0.1:8000/stripe/webhook
 Documentation API (Swagger)
 ---------------------------
 
-- UI locale : <http://localhost:8000/api/docs>  
-- JSON : <http://localhost:8000/api/docs.json>  
-Swagger est public par défaut (firewall `docs`). Pensez à restreindre son accès en prod (auth HTTP ou IP allowlist) si les endpoints sont sensibles.
+**NelmioApiDocBundle** expose la documentation interactive via Swagger UI :
+
+- **UI locale** : <http://localhost:8000/api/docs>  
+- **JSON Schema** : <http://localhost:8000/api/docs.json>  
+- **YAML Schema** : <http://localhost:8000/api/docs.yaml>  
+
+**Configuration** :
+- Bundle : `NelmioApiDocBundle` configuré dans `config/packages/nelmio_api_doc.yaml`
+- Attributs PHP : Les endpoints sont documentés via `#[OA\...]` (OpenAPI) sur les contrôleurs (`src/Controller/Api/`).
+- **Firewall** : Swagger est public par défaut (firewall `docs`). En production, **protégez cet accès** :
+  - HTTP Basic Auth sur Alwaysdata
+  - IP allowlist (recommandé)
+  - Ou IP whitelisting Nginx (`docker/nginx.conf`)
+
+**Endpoints clés** :
+- POST `/api/login` : Authentification JWT (voir "Authentification JWT" ci-dessus)
+- GET `/api/products` : Catalogue produits avec filtres
+- POST|PUT `/api/vendor/shop`, `/api/vendor/profile` : Gestion boutique vendeur (voir `docs/vendor-api-endpoints.md`)
+- CRUD `/api/orders`, `/api/wishlists`, `/api/addresses`, `/api/reviews` : Ressources utilisateur
 
 Déploiement Alwaysdata (prod)
 -----------------------------

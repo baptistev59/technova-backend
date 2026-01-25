@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Form\ChangePasswordFormType;
 use App\Form\RequestPasswordResetFormType;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -31,6 +32,7 @@ class ResetPasswordController extends AbstractController
         private readonly ResetPasswordHelperInterface $resetPasswordHelper,
         private readonly EntityManagerInterface $entityManager,
         private readonly MailerInterface $mailer,
+        #[Autowire(service: 'monolog.logger.email')] private readonly LoggerInterface $emailLogger,
         #[Autowire('%env(MAILER_FROM)%')] private readonly ?string $mailerFrom = null,
     ) {
     }
@@ -117,7 +119,11 @@ class ResetPasswordController extends AbstractController
 
         try {
             $resetToken = $this->resetPasswordHelper->generateResetToken($user);
-        } catch (ResetPasswordExceptionInterface) {
+        } catch (\Exception $e) {
+            $this->emailLogger->error('Failed to generate reset token', [
+                'user_id' => $user->getId(),
+                'error' => $e->getMessage(),
+            ]);
             return $this->redirectToRoute('app_check_email');
         }
 
@@ -125,17 +131,30 @@ class ResetPasswordController extends AbstractController
             ? Address::create($this->mailerFrom)
             : new Address('no-reply@technova.local', 'TechNova');
 
-        $email = (new TemplatedEmail())
-            ->from($fromAddress)
-            ->to((string) $user->getEmail())
-            ->subject('TechNova — Réinitialiser votre mot de passe')
-            ->htmlTemplate('emails/reset_password.html.twig')
-            ->context([
-                'resetToken' => $resetToken,
-                'user' => $user,
-            ]);
+        try {
+            $email = (new TemplatedEmail())
+                ->from($fromAddress)
+                ->to((string) $user->getEmail())
+                ->subject('TechNova — Réinitialiser votre mot de passe')
+                ->htmlTemplate('emails/reset_password.html.twig')
+                ->textTemplate('emails/reset_password.text.twig')
+                ->context([
+                    'resetToken' => $resetToken,
+                    'user' => $user,
+                ]);
 
-        $this->mailer->send($email);
+            $this->mailer->send($email);
+            $this->emailLogger->info('Reset password email sent', [
+                'user_id' => $user->getId(),
+                'email' => $user->getEmail(),
+            ]);
+        } catch (\Exception $e) {
+            $this->emailLogger->error('Failed to send reset password email', [
+                'user_id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'error' => $e->getMessage(),
+            ]);
+        }
         $this->setTokenObjectInSession($resetToken);
 
         return $this->redirectToRoute('app_check_email');

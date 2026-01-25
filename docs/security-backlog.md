@@ -2,9 +2,10 @@
 
 Ces sujets ont été identifiés mais seront traités dans un sprint ultérieur.
 
-1. **Rate limiting sur `/api/login` et `/api/register`**  
+1. **Rate limiting sur `/api/login`, `/api/register` et `/connexion/mot-de-passe-oublie`**  
    - Configurer `symfony/rate-limiter` pour limiter les tentatives (IP ou email).
-   - Retourner un message explicite lorsqu’un seuil est atteint.
+   - Retourner un message explicite lorsqu'un seuil est atteint.
+   - Protéger notamment l'endpoint de demande de réinitialisation pour éviter l'abus d'envoi d'emails.
 
 2. **reCAPTCHA / challenge anti-bot**  
    - Intégrer reCAPTCHA v3 ou un équivalent léger côté formulaires publics (Twig + API).
