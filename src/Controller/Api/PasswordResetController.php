@@ -6,6 +6,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Service\RecaptchaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,6 +19,7 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use SymfonyCasts\Bundle\ResetPassword\Controller\ResetPasswordControllerTrait;
 use SymfonyCasts\Bundle\ResetPassword\Exception\ResetPasswordExceptionInterface;
 use SymfonyCasts\Bundle\ResetPassword\ResetPasswordHelperInterface;
@@ -37,6 +39,8 @@ class PasswordResetController extends AbstractController
         private readonly MailerInterface $mailer,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly EntityManagerInterface $entityManager,
+        private readonly RateLimiterFactory $passwordResetLimiter,
+        private readonly RecaptchaValidator $recaptchaValidator,
         private readonly ?string $mailerFrom = null,
     ) {
     }
@@ -70,8 +74,26 @@ class PasswordResetController extends AbstractController
     )]
     public function request(Request $request): JsonResponse
     {
+        // Rate limiting: max 3 requêtes par IP toutes les 15 minutes
+        $limiter = $this->passwordResetLimiter->create($request->getClientIp());
+        if (!$limiter->consume(1)->isAccepted()) {
+            return $this->json(
+                ['error' => 'Trop de tentatives. Veuillez réessayer dans 15 minutes.'],
+                Response::HTTP_TOO_MANY_REQUESTS
+            );
+        }
+
         $data = json_decode($request->getContent(), true, flags: JSON_THROW_ON_ERROR);
         $email = $data['email'] ?? null;
+        $recaptchaToken = $data['recaptchaToken'] ?? null;
+
+        // reCAPTCHA v3 optionnel (mais recommandé en prod)
+        if ($recaptchaToken && !$this->recaptchaValidator->isValid($recaptchaToken)) {
+            return $this->json(
+                ['error' => 'Validation reCAPTCHA échouée. Vous êtes peut-être un bot.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->json(

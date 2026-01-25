@@ -119,6 +119,7 @@
                             {% if viewer_is_admin %}
                                 <a class="tn-user-menu__item" href="{{ path('admin_dashboard') }}">Backoffice admin</a>
                             {% endif %}
+                            <a class="tn-user-menu__item" href="{{ path('app_wishlist_list') }}">❤️ Mes favoris</a>
                             <a class="tn-user-menu__item" href="{{ path('app_account_orders') }}">Mes commandes</a>
                             <a class="tn-user-menu__item" href="{{ path('app_cart_show') }}">Mon panier</a>
                             <form method="post" action="{{ path('app_logout') }}">

@@ -141,6 +141,9 @@ Endpoints disponibles
 | POST    | `/api/cart`                     | Ajoute un produit (JSON `{ productId, quantity }`).              | JWT |
 | PUT     | `/api/cart/{id}`                | Met à jour la quantité (`quantity`, `variantId`).                | JWT |
 | DELETE  | `/api/cart/{id}`                | Supprime un produit du panier.                                   | JWT |
+| GET     | `/api/wishlists`                | Liste les favoris de l'utilisateur.                              | JWT |
+| POST    | `/api/wishlists`                | Ajoute un produit aux favoris (JSON `{ productId }`).            | JWT |
+| DELETE  | `/api/wishlists/{id}`           | Retire un produit des favoris.                                   | JWT |
 | GET     | `/api/addresses`                | Liste des adresses client.                                       | JWT |
 | POST    | `/api/addresses`                | Crée une adresse.                                                | JWT |
 | PUT     | `/api/addresses/{id}`           | Met à jour une adresse.                                          | JWT |
@@ -186,6 +189,7 @@ Pages Twig (catalogue)
 - `/panier` + `/commande` : panier interactif puis checkout récapitulatif avant création de la commande + page de succès.
 - `/mon-compte/commandes` : historique de commandes + détail par référence.
 - `/mon-compte/profil` : mise à jour des informations + suppression/anonymisation RGPD du compte.
+- `/mon-compte/favoris` : liste des produits en favoris avec option CRUD (supprimer / ajouter au panier).
 - `/mon-compte/2fa` : configuration TOTP (vendeurs/admin).
 - Confirmation d’une commande déclenche un e-mail (HTML + texte) envoyé via le SMTP configuré (`MAILER_DSN`).
 - `/produit/{slug}` : fiche produit (images, caractéristiques, options, variantes).
