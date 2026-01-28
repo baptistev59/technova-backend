@@ -33,6 +33,25 @@ class CustomerOrderItem
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $lineTotal = '0.00';
 
+    // VAT snapshot fields (applied at order time)
+    #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2)]
+    private string $appliedVatPercent = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $appliedVatAmount = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $appliedNetAmount = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $appliedGrossAmount = '0.00';
+
+    #[ORM\Column(length: 2, nullable: true)]
+    private ?string $vatCountryCode = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $appliedVatId = null;
+
     #[ORM\Column]
     private int $quantity = 1;
 
@@ -112,6 +131,78 @@ class CustomerOrderItem
     public function setLineTotal(string $lineTotal): self
     {
         $this->lineTotal = $lineTotal;
+
+        return $this;
+    }
+
+    public function getAppliedVatPercent(): string
+    {
+        return $this->appliedVatPercent;
+    }
+
+    public function setAppliedVatPercent(string $appliedVatPercent): self
+    {
+        $this->appliedVatPercent = $appliedVatPercent;
+
+        return $this;
+    }
+
+    public function getAppliedVatAmount(): string
+    {
+        return $this->appliedVatAmount;
+    }
+
+    public function setAppliedVatAmount(string $appliedVatAmount): self
+    {
+        $this->appliedVatAmount = $appliedVatAmount;
+
+        return $this;
+    }
+
+    public function getAppliedNetAmount(): string
+    {
+        return $this->appliedNetAmount;
+    }
+
+    public function setAppliedNetAmount(string $appliedNetAmount): self
+    {
+        $this->appliedNetAmount = $appliedNetAmount;
+
+        return $this;
+    }
+
+    public function getAppliedGrossAmount(): string
+    {
+        return $this->appliedGrossAmount;
+    }
+
+    public function setAppliedGrossAmount(string $appliedGrossAmount): self
+    {
+        $this->appliedGrossAmount = $appliedGrossAmount;
+
+        return $this;
+    }
+
+    public function getVatCountryCode(): ?string
+    {
+        return $this->vatCountryCode;
+    }
+
+    public function setVatCountryCode(?string $vatCountryCode): self
+    {
+        $this->vatCountryCode = null !== $vatCountryCode ? strtoupper($vatCountryCode) : null;
+
+        return $this;
+    }
+
+    public function getAppliedVatId(): ?int
+    {
+        return $this->appliedVatId;
+    }
+
+    public function setAppliedVatId(?int $appliedVatId): self
+    {
+        $this->appliedVatId = $appliedVatId;
 
         return $this;
     }

@@ -160,4 +160,21 @@ class ProductImage
 
         return $this;
     }
+
+    public function __toString(): string
+    {
+        if (null !== $this->title && '' !== $this->title) {
+            return $this->title;
+        }
+
+        if (null !== $this->alt && '' !== $this->alt) {
+            return $this->alt;
+        }
+
+        if (null !== $this->url && '' !== $this->url) {
+            return $this->url;
+        }
+
+        return (string) ($this->id ?? '');
+    }
 }

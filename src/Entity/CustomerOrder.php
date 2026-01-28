@@ -45,6 +45,16 @@ class CustomerOrder
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $itemsTotal = '0.00';
 
+    // Aggregated snapshot totals (derived from items snapshots)
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $itemsNetTotal = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $itemsVatTotal = '0.00';
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    private string $itemsGrossTotal = '0.00';
+
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $shippingTotal = '0.00';
 
@@ -190,6 +200,42 @@ class CustomerOrder
     public function setItemsTotal(string $itemsTotal): self
     {
         $this->itemsTotal = $itemsTotal;
+
+        return $this;
+    }
+
+    public function getItemsNetTotal(): string
+    {
+        return $this->itemsNetTotal;
+    }
+
+    public function setItemsNetTotal(string $itemsNetTotal): self
+    {
+        $this->itemsNetTotal = $itemsNetTotal;
+
+        return $this;
+    }
+
+    public function getItemsVatTotal(): string
+    {
+        return $this->itemsVatTotal;
+    }
+
+    public function setItemsVatTotal(string $itemsVatTotal): self
+    {
+        $this->itemsVatTotal = $itemsVatTotal;
+
+        return $this;
+    }
+
+    public function getItemsGrossTotal(): string
+    {
+        return $this->itemsGrossTotal;
+    }
+
+    public function setItemsGrossTotal(string $itemsGrossTotal): self
+    {
+        $this->itemsGrossTotal = $itemsGrossTotal;
 
         return $this;
     }

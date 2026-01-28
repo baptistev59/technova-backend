@@ -17,6 +17,7 @@ use App\Entity\ReturnRequest;
 use App\Entity\Shop;
 use App\Entity\User;
 use App\Entity\Vendor;
+use App\Entity\VatRate;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -67,6 +68,7 @@ class DashboardController extends AbstractDashboardController
             MenuItem::linkToCrud('Marques', 'fas fa-tag', Brand::class),
             MenuItem::linkToCrud('Attributs', 'fas fa-bars', AttributeDefinition::class),
             MenuItem::linkToCrud('Avis clients', 'fas fa-star', ProductReview::class),
+            MenuItem::linkToCrud('Taux TVA', 'fas fa-percentage', VatRate::class),
         ]);
 
         yield MenuItem::section('Commandes');

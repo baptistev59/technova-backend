@@ -93,6 +93,10 @@ class Product
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $type = null;
 
+    #[ORM\Column(length: 32, options: ['default' => 'STANDARD'])]
+    #[Assert\Choice(choices: ['STANDARD', 'REDUCED', 'ZERO'])]
+    private string $taxClass = 'STANDARD';
+
     #[ORM\Column(length: 255, nullable: true)]
     #[Assert\Length(max: 255)]
     private ?string $keywords = null;
@@ -318,6 +322,18 @@ class Product
     public function setType(?string $type): self
     {
         $this->type = $type;
+
+        return $this;
+    }
+
+    public function getTaxClass(): string
+    {
+        return $this->taxClass;
+    }
+
+    public function setTaxClass(string $taxClass): self
+    {
+        $this->taxClass = strtoupper($taxClass);
 
         return $this;
     }

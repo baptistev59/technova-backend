@@ -1,0 +1,6 @@
+# Configuration services spécifique aux tests
+services:
+    App\Service\StripePaymentService:
+        class: App\Tests\Double\FakeStripePaymentService
+        public: true
+        arguments: []

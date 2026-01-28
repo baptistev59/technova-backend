@@ -14,6 +14,14 @@ services:
     App\:
         resource: '../src/'
 
+    App\Repository\VatRateRepositoryInterface:
+        alias: 'App\Repository\VatRateRepository'
+
+    App\Controller\ImageProxyController:
+        arguments:
+            $cacheDir: '%kernel.cache_dir%'
+    App\Service\MissingImageLogger: ~
+
     App\Service\OrderMailer:
         arguments:
             $mailerFrom: '%env(MAILER_FROM)%'

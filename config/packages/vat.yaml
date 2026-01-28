@@ -1,0 +1,11 @@
+parameters:
+    vat.default_rate: 20.0
+    vat.rounding_mode: 'per_line' # per_line | per_total (used by higher-level orchestration)
+    vat.scale: 2
+
+services:
+    App\Service\VatCalculator:
+        arguments:
+            $defaultRate: '%vat.default_rate%'
+            $roundingMode: '%vat.rounding_mode%'
+            $scale: '%vat.scale%'

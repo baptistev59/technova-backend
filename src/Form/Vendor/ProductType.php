@@ -225,6 +225,16 @@ class ProductType extends AbstractType
                 'label' => 'Publier immédiatement',
                 'required' => false,
             ])
+            ->add('taxClass', ChoiceType::class, [
+                'label' => 'Classe TVA',
+                'placeholder' => 'Sélectionner une classe',
+                'choices' => [
+                    'Standard (20%)' => 'STANDARD',
+                    'Réduit' => 'REDUCED',
+                    'Taux zéro' => 'ZERO',
+                ],
+                'help' => 'Choisis la classe fiscale applicable à ce produit.',
+            ])
             ->add('mainImageFile', FileType::class, [
                 'label' => 'Photo principale',
                 'mapped' => false,
