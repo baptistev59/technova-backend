@@ -34,13 +34,7 @@ final class ImageProxyController extends AbstractController
             return new Response('Invalid url', Response::HTTP_BAD_REQUEST);
         }
 
-        $allowedHosts = [
-            'images.unsplash.com',
-        ];
-
-        if (!in_array($parsed['host'], $allowedHosts, true)) {
-            return new Response('Host not allowed', Response::HTTP_FORBIDDEN);
-        }
+        // allow proxying any host (no Unsplash-specific behavior)
 
         // optional transform params
         $w = $request->query->getInt('w') ?: null;

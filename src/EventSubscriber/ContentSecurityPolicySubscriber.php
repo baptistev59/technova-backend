@@ -52,7 +52,6 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             'data:',
             'blob:',
             'https://ga.jspm.io',
-            'https://images.unsplash.com',
         ],
         'connect-src' => [
             "'self'",
@@ -163,7 +162,7 @@ final class ContentSecurityPolicySubscriber implements EventSubscriberInterface
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com https://ga.jspm.io",
             "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net http://unpkg.com https://ga.jspm.io",
             "font-src 'self' https://fonts.gstatic.com data: https://ga.jspm.io",
-            "img-src 'self' data: blob: https://ga.jspm.io https://images.unsplash.com",
+            "img-src 'self' data: blob: https://ga.jspm.io",
             "connect-src 'self' https://checkout.stripe.com https://api.stripe.com",
             "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
         ];

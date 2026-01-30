@@ -31,8 +31,8 @@ class ImageProxyControllerTest extends TestCase
         }
         $controller = new ImageProxyController($http, $cacheDir);
 
-        // build request for resize to 10x10
-        $req = new Request(['u' => 'https://images.unsplash.com/photo-1', 'w' => '10', 'h' => '10', 'fit' => 'contain']);
+        // build request for resize to 10x10 (use example.com instead of Unsplash)
+        $req = new Request(['u' => 'https://example.com/photo-1', 'w' => '10', 'h' => '10', 'fit' => 'contain']);
 
         $response = $controller->proxy($req);
 
