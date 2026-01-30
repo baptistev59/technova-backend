@@ -4,36 +4,33 @@ declare(strict_types=1);
 
 namespace App\Controller\Web;
 
-use App\Entity\AttributeDefinition;
 use App\Entity\Shop;
+use App\Entity\TaxZone;
 use App\Entity\User;
-use App\Form\Vendor\AttributeDefinitionType;
-use App\Repository\AttributeDefinitionRepository;
+use App\Form\Vendor\TaxZoneType;
 use App\Repository\ShopRepository;
+use App\Repository\TaxZoneRepository;
 use App\Security\ViewerAccessChecker;
-use App\Security\Voter\AttributeDefinitionVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\String\Slugger\SluggerInterface;
 
-#[Route('/mon-espace-vendeur/attributs')]
-class VendorAttributeController extends AbstractController
+#[Route('/mon-espace-vendeur/zones-tva')]
+class VendorTaxZoneController extends AbstractController
 {
     public function __construct(
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
-        private readonly AttributeDefinitionRepository $attributeRepository,
+        private readonly TaxZoneRepository $taxZoneRepository,
         private readonly ShopRepository $shopRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly SluggerInterface $slugger,
     ) {
     }
 
-    #[Route('', name: 'app_vendor_attributes', methods: ['GET'])]
+    #[Route('', name: 'app_vendor_taxzones', methods: ['GET'])]
     public function index(Request $request): Response
     {
         if ($response = $this->guardViewer($request)) {
@@ -41,15 +38,17 @@ class VendorAttributeController extends AbstractController
         }
 
         $shop = $this->resolveShop($request);
-        $attributes = $this->attributeRepository->findByShopWithValues($shop);
+        $presets = $this->taxZoneRepository->findPresets();
+        $custom = $this->taxZoneRepository->findCustomByShop($shop);
 
-        return $this->render('vendor/attribute/index.html.twig', [
-            'attributes' => $attributes,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+        return $this->render('vendor/taxzone/index.html.twig', [
+            'presets' => $presets,
+            'custom' => $custom,
+            'vendor_nav' => $this->navigation('app_vendor_taxzones'),
         ]);
     }
 
-    #[Route('/nouveau', name: 'app_vendor_attributes_new', methods: ['GET', 'POST'])]
+    #[Route('/nouveau', name: 'app_vendor_taxzones_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
         if ($response = $this->guardViewer($request)) {
@@ -57,85 +56,107 @@ class VendorAttributeController extends AbstractController
         }
 
         $shop = $this->resolveShop($request);
-        $attribute = new AttributeDefinition();
-        $attribute->setShop($shop);
-        $form = $this->createForm(AttributeDefinitionType::class, $attribute);
+        $zone = new TaxZone();
+        $zone->setShop($shop);
+        $zone->setActive(true);
+
+        $form = $this->createForm(TaxZoneType::class, $zone);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->handleSlug($attribute, $shop);
-            $this->entityManager->persist($attribute);
+            // Générer un code unique pour la zone personnalisée
+            $baseCode = strtoupper(preg_replace('/[^a-z0-9]/i', '_', $zone->getName()));
+            $code = $baseCode ?: 'CUSTOM';
+            $suffix = 1;
+            while ($this->taxZoneRepository->findOneBy(['code' => $code, 'shop' => $shop])) {
+                $code = sprintf('%s_%d', $baseCode ?: 'CUSTOM', $suffix);
+                ++$suffix;
+            }
+            $zone->setCode($code);
+
+            $this->entityManager->persist($zone);
             $this->entityManager->flush();
 
-            $this->addFlash('success', sprintf('L’attribut "%s" a été créé.', $attribute->getName()));
+            $this->addFlash('success', sprintf('La zone « %s » a été créée.', $zone->getName()));
 
-            return $this->redirectToRoute('app_vendor_attributes');
+            return $this->redirectToRoute('app_vendor_taxzones');
         }
 
-        return $this->render('vendor/attribute/form.html.twig', [
+        return $this->render('vendor/taxzone/form.html.twig', [
             'form' => $form,
-            'attribute' => $attribute,
+            'zone' => $zone,
             'is_edit' => false,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->navigation('app_vendor_taxzones'),
         ]);
     }
 
-    #[Route('/{id}/modifier', name: 'app_vendor_attributes_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, AttributeDefinition $attribute): Response
+    #[Route('/{id}/modifier', name: 'app_vendor_taxzones_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, TaxZone $zone): Response
     {
         if ($response = $this->guardViewer($request)) {
             return $response;
         }
 
         $shop = $this->resolveShop($request);
-        if ($attribute->getShop() && $attribute->getShop() !== $shop) {
+
+        // Vérifier que la zone appartient à la boutique et qu'elle n'est pas prédéfinie
+        if ($zone->getShop() !== $shop) {
             throw $this->createNotFoundException();
         }
-        $this->denyAccessUnlessGranted(AttributeDefinitionVoter::MANAGE, $attribute);
-        $attribute->setShop($shop);
 
-        $form = $this->createForm(AttributeDefinitionType::class, $attribute);
+        if ($zone->isPreset()) {
+            $this->addFlash('error', 'Les zones prédéfinies ne peuvent pas être modifiées. Crée une copie personnalisée.');
+
+            return $this->redirectToRoute('app_vendor_taxzones');
+        }
+
+        $form = $this->createForm(TaxZoneType::class, $zone);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->handleSlug($attribute, $shop);
             $this->entityManager->flush();
 
-            $this->addFlash('success', sprintf('L’attribut "%s" a été mis à jour.', $attribute->getName()));
+            $this->addFlash('success', sprintf('La zone « %s » a été mise à jour.', $zone->getName()));
 
-            return $this->redirectToRoute('app_vendor_attributes');
+            return $this->redirectToRoute('app_vendor_taxzones');
         }
 
-        return $this->render('vendor/attribute/form.html.twig', [
+        return $this->render('vendor/taxzone/form.html.twig', [
             'form' => $form,
-            'attribute' => $attribute,
+            'zone' => $zone,
             'is_edit' => true,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->navigation('app_vendor_taxzones'),
         ]);
     }
 
-    #[Route('/{id}/supprimer', name: 'app_vendor_attributes_delete', methods: ['POST'])]
-    public function delete(Request $request, AttributeDefinition $attribute): Response
+    #[Route('/{id}/supprimer', name: 'app_vendor_taxzones_delete', methods: ['POST'])]
+    public function delete(Request $request, TaxZone $zone): Response
     {
         if ($response = $this->guardViewer($request)) {
             return $response;
         }
 
         $shop = $this->resolveShop($request);
-        if ($attribute->getShop() !== $shop) {
+
+        if ($zone->getShop() !== $shop) {
             throw $this->createNotFoundException();
         }
-        $this->denyAccessUnlessGranted(AttributeDefinitionVoter::MANAGE, $attribute);
 
-        if ($this->isCsrfTokenValid('attribute_delete_'.$attribute->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($attribute);
+        if ($zone->isPreset()) {
+            $this->addFlash('error', 'Les zones prédéfinies ne peuvent pas être supprimées.');
+
+            return $this->redirectToRoute('app_vendor_taxzones');
+        }
+
+        if ($this->isCsrfTokenValid('taxzone_delete_'.$zone->getId(), $request->request->get('_token'))) {
+            $this->entityManager->remove($zone);
             $this->entityManager->flush();
-            $this->addFlash('success', 'L’attribut a bien été supprimé.');
+            $this->addFlash('success', 'La zone a bien été supprimée.');
         } else {
             $this->addFlash('error', 'Le jeton CSRF est invalide.');
         }
 
-        return $this->redirectToRoute('app_vendor_attributes');
+        return $this->redirectToRoute('app_vendor_taxzones');
     }
 
     private function guardViewer(Request $request): ?Response
@@ -165,32 +186,6 @@ class VendorAttributeController extends AbstractController
         ];
     }
 
-    private function handleSlug(AttributeDefinition $attribute, Shop $shop): void
-    {
-        $name = (string) $attribute->getName();
-        $shopSegment = $shop->getSlug() ?: (string) $shop->getId();
-        $baseSlug = (string) $this->slugger->slug(trim('' !== $name ? $name : uniqid('attribute_', true)))->lower();
-        if ($shopSegment) {
-            $baseSlug = trim($baseSlug.'-'.$shopSegment, '-');
-        }
-        if ('' === $baseSlug) {
-            $baseSlug = uniqid('attribute_', true);
-        }
-
-        $slug = $baseSlug;
-        $suffix = 1;
-
-        while ($existing = $this->attributeRepository->findOneBy(['slug' => $slug, 'shop' => $shop])) {
-            if ($existing->getId() === $attribute->getId()) {
-                break;
-            }
-            $slug = sprintf('%s-%d', $baseSlug, $suffix);
-            ++$suffix;
-        }
-
-        $attribute->setSlug($slug);
-    }
-
     private function resolveShop(Request $request): Shop
     {
         $user = $this->security->getUser();
@@ -200,7 +195,7 @@ class VendorAttributeController extends AbstractController
 
         $vendor = $user->getVendor();
         if (!$vendor) {
-            throw $this->createAccessDeniedException('Crée ta boutique avant de gérer tes attributs.');
+            throw $this->createAccessDeniedException('Crée ta boutique avant de gérer tes zones de TVA.');
         }
 
         $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);

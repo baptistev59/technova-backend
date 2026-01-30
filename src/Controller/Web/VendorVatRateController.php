@@ -4,36 +4,32 @@ declare(strict_types=1);
 
 namespace App\Controller\Web;
 
-use App\Entity\AttributeDefinition;
 use App\Entity\Shop;
-use App\Entity\User;
-use App\Form\Vendor\AttributeDefinitionType;
-use App\Repository\AttributeDefinitionRepository;
+use App\Entity\VatRate;
+use App\Form\Vendor\VatRateType;
+use App\Repository\VatRateRepository;
 use App\Repository\ShopRepository;
 use App\Security\ViewerAccessChecker;
-use App\Security\Voter\AttributeDefinitionVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\String\Slugger\SluggerInterface;
 
-#[Route('/mon-espace-vendeur/attributs')]
-class VendorAttributeController extends AbstractController
+#[Route('/mon-espace-vendeur/taux-tva')]
+class VendorVatRateController extends AbstractController
 {
     public function __construct(
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
-        private readonly AttributeDefinitionRepository $attributeRepository,
+        private readonly VatRateRepository $vatRateRepository,
         private readonly ShopRepository $shopRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly SluggerInterface $slugger,
     ) {
     }
 
-    #[Route('', name: 'app_vendor_attributes', methods: ['GET'])]
+    #[Route('', name: 'app_vendor_vatrates', methods: ['GET'])]
     public function index(Request $request): Response
     {
         if ($response = $this->guardViewer($request)) {
@@ -41,15 +37,15 @@ class VendorAttributeController extends AbstractController
         }
 
         $shop = $this->resolveShop($request);
-        $attributes = $this->attributeRepository->findByShopWithValues($shop);
+        $rates = $this->vatRateRepository->findBy(['shop' => $shop]);
 
-        return $this->render('vendor/attribute/index.html.twig', [
-            'attributes' => $attributes,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+        return $this->render('vendor/vatrate/index.html.twig', [
+            'rates' => $rates,
+            'vendor_nav' => $this->navigation('app_vendor_vatrates'),
         ]);
     }
 
-    #[Route('/nouveau', name: 'app_vendor_attributes_new', methods: ['GET', 'POST'])]
+    #[Route('/nouveau', name: 'app_vendor_vatrates_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
         if ($response = $this->guardViewer($request)) {
@@ -57,85 +53,81 @@ class VendorAttributeController extends AbstractController
         }
 
         $shop = $this->resolveShop($request);
-        $attribute = new AttributeDefinition();
-        $attribute->setShop($shop);
-        $form = $this->createForm(AttributeDefinitionType::class, $attribute);
+        $rate = new VatRate();
+        $rate->setShop($shop);
+
+        $form = $this->createForm(VatRateType::class, $rate);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->handleSlug($attribute, $shop);
-            $this->entityManager->persist($attribute);
+            $this->entityManager->persist($rate);
             $this->entityManager->flush();
 
-            $this->addFlash('success', sprintf('L’attribut "%s" a été créé.', $attribute->getName()));
+            $this->addFlash('success', sprintf('Le taux "%s" a été créé.', $rate->getLabel() ?? $rate->getCode()));
 
-            return $this->redirectToRoute('app_vendor_attributes');
+            return $this->redirectToRoute('app_vendor_vatrates');
         }
 
-        return $this->render('vendor/attribute/form.html.twig', [
+        return $this->render('vendor/vatrate/form.html.twig', [
             'form' => $form,
-            'attribute' => $attribute,
+            'rate' => $rate,
             'is_edit' => false,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->navigation('app_vendor_vatrates'),
         ]);
     }
 
-    #[Route('/{id}/modifier', name: 'app_vendor_attributes_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, AttributeDefinition $attribute): Response
+    #[Route('/{id}/modifier', name: 'app_vendor_vatrates_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, VatRate $rate): Response
     {
         if ($response = $this->guardViewer($request)) {
             return $response;
         }
 
         $shop = $this->resolveShop($request);
-        if ($attribute->getShop() && $attribute->getShop() !== $shop) {
+        if ($rate->getShop() && $rate->getShop() !== $shop) {
             throw $this->createNotFoundException();
         }
-        $this->denyAccessUnlessGranted(AttributeDefinitionVoter::MANAGE, $attribute);
-        $attribute->setShop($shop);
 
-        $form = $this->createForm(AttributeDefinitionType::class, $attribute);
+        $form = $this->createForm(VatRateType::class, $rate);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->handleSlug($attribute, $shop);
             $this->entityManager->flush();
 
-            $this->addFlash('success', sprintf('L’attribut "%s" a été mis à jour.', $attribute->getName()));
+            $this->addFlash('success', sprintf('Le taux "%s" a été mis à jour.', $rate->getLabel() ?? $rate->getCode()));
 
-            return $this->redirectToRoute('app_vendor_attributes');
+            return $this->redirectToRoute('app_vendor_vatrates');
         }
 
-        return $this->render('vendor/attribute/form.html.twig', [
+        return $this->render('vendor/vatrate/form.html.twig', [
             'form' => $form,
-            'attribute' => $attribute,
+            'rate' => $rate,
             'is_edit' => true,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->navigation('app_vendor_vatrates'),
         ]);
     }
 
-    #[Route('/{id}/supprimer', name: 'app_vendor_attributes_delete', methods: ['POST'])]
-    public function delete(Request $request, AttributeDefinition $attribute): Response
+    #[Route('/{id}/supprimer', name: 'app_vendor_vatrates_delete', methods: ['POST'])]
+    public function delete(Request $request, VatRate $rate): Response
     {
         if ($response = $this->guardViewer($request)) {
             return $response;
         }
 
         $shop = $this->resolveShop($request);
-        if ($attribute->getShop() !== $shop) {
+        if ($rate->getShop() !== $shop) {
             throw $this->createNotFoundException();
         }
-        $this->denyAccessUnlessGranted(AttributeDefinitionVoter::MANAGE, $attribute);
 
-        if ($this->isCsrfTokenValid('attribute_delete_'.$attribute->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($attribute);
+        if ($this->isCsrfTokenValid('vatrate_delete_'.$rate->getId(), $request->request->get('_token'))) {
+            $this->entityManager->remove($rate);
             $this->entityManager->flush();
-            $this->addFlash('success', 'L’attribut a bien été supprimé.');
+            $this->addFlash('success', 'Le taux a bien été supprimé.');
         } else {
             $this->addFlash('error', 'Le jeton CSRF est invalide.');
         }
 
-        return $this->redirectToRoute('app_vendor_attributes');
+        return $this->redirectToRoute('app_vendor_vatrates');
     }
 
     private function guardViewer(Request $request): ?Response
@@ -165,42 +157,16 @@ class VendorAttributeController extends AbstractController
         ];
     }
 
-    private function handleSlug(AttributeDefinition $attribute, Shop $shop): void
-    {
-        $name = (string) $attribute->getName();
-        $shopSegment = $shop->getSlug() ?: (string) $shop->getId();
-        $baseSlug = (string) $this->slugger->slug(trim('' !== $name ? $name : uniqid('attribute_', true)))->lower();
-        if ($shopSegment) {
-            $baseSlug = trim($baseSlug.'-'.$shopSegment, '-');
-        }
-        if ('' === $baseSlug) {
-            $baseSlug = uniqid('attribute_', true);
-        }
-
-        $slug = $baseSlug;
-        $suffix = 1;
-
-        while ($existing = $this->attributeRepository->findOneBy(['slug' => $slug, 'shop' => $shop])) {
-            if ($existing->getId() === $attribute->getId()) {
-                break;
-            }
-            $slug = sprintf('%s-%d', $baseSlug, $suffix);
-            ++$suffix;
-        }
-
-        $attribute->setSlug($slug);
-    }
-
     private function resolveShop(Request $request): Shop
     {
         $user = $this->security->getUser();
-        if (!$user instanceof User) {
+        if (!$user instanceof \App\Entity\User) {
             throw $this->createAccessDeniedException('Connexion requise.');
         }
 
         $vendor = $user->getVendor();
         if (!$vendor) {
-            throw $this->createAccessDeniedException('Crée ta boutique avant de gérer tes attributs.');
+            throw $this->createAccessDeniedException('Crée ta boutique avant de gérer tes taux de TVA.');
         }
 
         $shop = $this->shopRepository->findOneBy(['owner' => $vendor]);
