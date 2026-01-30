@@ -20,20 +20,25 @@ class TaxZoneType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        // Liste complète de pays (codes ISO2)
+        // Liste étendue des pays commerciaux importants (codes ISO2)
+        // Inclut les pays fréquemment utilisés pour le commerce international
         $countries = [
-            'AF' => 'Afghanistan', 'AL' => 'Albanie', 'DZ' => 'Algérie', 'AD' => 'Andorre',
-            'AT' => 'Autriche', 'AU' => 'Australie', 'BE' => 'Belgique', 'BG' => 'Bulgarie',
-            'BR' => 'Brésil', 'BY' => 'Biélorussie', 'CA' => 'Canada', 'CH' => 'Suisse',
-            'CN' => 'Chine', 'CY' => 'Chypre', 'CZ' => 'République Tchèque', 'DE' => 'Allemagne',
-            'DK' => 'Danemark', 'EE' => 'Estonie', 'ES' => 'Espagne', 'FI' => 'Finlande',
-            'FR' => 'France', 'GB' => 'Royaume-Uni', 'GR' => 'Grèce', 'HR' => 'Croatie',
-            'HU' => 'Hongrie', 'IE' => 'Irlande', 'IN' => 'Inde', 'IT' => 'Italie',
-            'JP' => 'Japon', 'LI' => 'Liechtenstein', 'LT' => 'Lituanie', 'LU' => 'Luxembourg',
-            'LV' => 'Lettonie', 'MT' => 'Malte', 'MX' => 'Mexique', 'NL' => 'Pays-Bas',
+            'AT' => 'Autriche', 'AU' => 'Australie', 'BE' => 'Belgique', 'BR' => 'Brésil',
+            'CA' => 'Canada', 'CH' => 'Suisse', 'CN' => 'Chine', 'CL' => 'Chili',
+            'CY' => 'Chypre', 'CZ' => 'République Tchèque', 'DE' => 'Allemagne', 'DK' => 'Danemark',
+            'EG' => 'Égypte', 'ES' => 'Espagne', 'FI' => 'Finlande', 'FR' => 'France',
+            'GB' => 'Royaume-Uni', 'GR' => 'Grèce', 'HK' => 'Hong Kong', 'HR' => 'Croatie',
+            'HU' => 'Hongrie', 'IE' => 'Irlande', 'IL' => 'Israël', 'IN' => 'Inde',
+            'IT' => 'Italie', 'JP' => 'Japon', 'KR' => 'Corée du Sud', 'LI' => 'Liechtenstein',
+            'LT' => 'Lituanie', 'LU' => 'Luxembourg', 'LV' => 'Lettonie', 'MA' => 'Maroc',
+            'MT' => 'Malte', 'MX' => 'Mexique', 'MY' => 'Malaisie', 'NL' => 'Pays-Bas',
             'NO' => 'Norvège', 'NZ' => 'Nouvelle-Zélande', 'PL' => 'Pologne', 'PT' => 'Portugal',
-            'RO' => 'Roumanie', 'RU' => 'Russie', 'SE' => 'Suède', 'SG' => 'Singapour',
-            'SI' => 'Slovénie', 'SK' => 'Slovaquie', 'US' => 'États-Unis', 'ZA' => 'Afrique du Sud',
+            'RO' => 'Roumanie', 'RU' => 'Russie', 'SA' => 'Arabie Saoudite', 'SE' => 'Suède',
+            'SG' => 'Singapour', 'SI' => 'Slovénie', 'SK' => 'Slovaquie', 'TH' => 'Thaïlande',
+            'TN' => 'Tunisie', 'TR' => 'Turquie', 'US' => 'États-Unis', 'UA' => 'Ukraine',
+            'AE' => 'Émirats Arabes Unis', 'ID' => 'Indonésie', 'PH' => 'Philippines',
+            'VN' => 'Vietnam', 'ZA' => 'Afrique du Sud', 'AR' => 'Argentine', 'CO' => 'Colombie',
+            'CL' => 'Chili'
         ];
         asort($countries);
 
