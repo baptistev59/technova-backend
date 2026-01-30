@@ -7,6 +7,7 @@ namespace App\Form\Vendor;
 use App\Entity\Brand;
 use App\Entity\Category;
 use App\Entity\Product;
+use App\Entity\TaxZone;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -234,6 +235,13 @@ class ProductType extends AbstractType
                     'Taux zéro' => 'ZERO',
                 ],
                 'help' => 'Choisis la classe fiscale applicable à ce produit.',
+            ])
+            ->add('taxZone', EntityType::class, [
+                'class' => TaxZone::class,
+                'choice_label' => 'name',
+                'placeholder' => 'Choisir une zone TVA (optionnel)',
+                'required' => false,
+                'label' => 'Zone TVA',
             ])
             ->add('mainImageFile', FileType::class, [
                 'label' => 'Photo principale',
