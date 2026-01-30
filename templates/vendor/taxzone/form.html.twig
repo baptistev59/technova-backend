@@ -5,6 +5,26 @@
 {% endblock %}
 
 {% block body %}
+    <style>
+        select.country-select {
+            padding: 10px 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            background-color: #ffffff;
+            border: 1px solid #e0e7ff;
+            border-radius: 8px;
+        }
+        select.country-select option {
+            padding: 8px;
+            line-height: 1.6;
+        }
+        select.country-select option:checked {
+            background: linear-gradient(#3b82f6, #3b82f6);
+            background-color: #3b82f6 !important;
+            color: white;
+        }
+    </style>
+    
     {% set is_edit = zone and zone.id %}
 
     <section class="bg-slate-50 py-10">
@@ -57,10 +77,15 @@
                 <div class="rounded-[28px] border border-slate-100 bg-slate-50/70 p-6">
                     <div class="mb-4">
                         <h2 class="text-xl font-semibold text-slate-900">Pays applicables</h2>
-                        <p class="text-sm text-slate-500">Sélectionne au moins un pays.</p>
+                        <p class="text-sm text-slate-500">Sélectionne au moins un pays. Tu peux chercher par code ou par nom.</p>
                     </div>
-                    {{ form_label(form.countryCodes, null, {label_attr: {class: 'tn-label'}}) }}
-                    {{ form_widget(form.countryCodes, {attr: {class: 'tn-input-select searchable', 'size': '10'}}) }}
+                    <div class="relative">
+                        {{ form_label(form.countryCodes, null, {label_attr: {class: 'tn-label'}, skip_label: true}) }}
+                        <div class="border border-slate-200 rounded-lg bg-white overflow-hidden">
+                            {{ form_widget(form.countryCodes, {attr: {class: 'w-full p-3 border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none', 'size': '12'}}) }}
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">💡 Maintiens Ctrl (ou Cmd sur Mac) et clique pour sélectionner plusieurs pays.</p>
+                    </div>
                     {{ form_errors(form.countryCodes) }}
                 </div>
 

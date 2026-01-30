@@ -52,10 +52,13 @@ class TaxZoneType extends AbstractType
             ])
             ->add('countryCodes', ChoiceType::class, [
                 'label' => 'Pays applicables',
-                'choices' => $countries,
+                'choices' => array_combine(
+                    array_map(fn($code, $name) => "$code — $name", array_keys($countries), $countries),
+                    array_keys($countries)
+                ),
                 'multiple' => true,
                 'expanded' => false,
-                'attr' => ['class' => 'tn-input-select searchable'],
+                'attr' => ['class' => 'tn-input-select searchable country-select', 'size' => '15'],
                 'constraints' => [
                     new NotBlank(message: 'Sélectionne au moins un pays.'),
                     new Count(min: 1, minMessage: 'Au moins un pays est requis.'),
