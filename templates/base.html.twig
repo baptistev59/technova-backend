@@ -15,7 +15,9 @@
         {{ encore_entry_link_tags('app')|raw }}
     {% endif %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
-    {{ importmap('app') }}
+    {% if app.environment == 'dev' or app.environment == 'test' %}
+        {{ importmap('app') }}
+    {% endif %}
     <style>
         /* Suggestions de recherche */
         .tn-search__form {
