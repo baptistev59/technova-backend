@@ -151,11 +151,13 @@
                             {{ form_widget(form.promoPercent, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4', 'x-model': 'percent', '@input': 'updateFrom(\"percent\", $event.target.value)'}}) }}
                             {{ form_errors(form.promoPercent) }}
                         </div>
+                                           
+                    </div>
+                    <div >
+                    <p class="text-xs text-slate-500">Saisis soit le prix promo, soit le pourcentage : l’autre sera recalculé lors de l’enregistrement.</p>
                     </div>
                     <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                        Saisis soit le prix promo, soit le pourcentage : l’autre sera recalculé lors de l’enregistrement. TVA multi-pays et règles fiscales arrivent bientôt.
-                    </div>
-                    <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+                         <div class="grid gap-4 md:grid-cols-4 xl:grid-cols-4">
                         <div class="md:col-span-1">
                             <label class="block text-sm font-medium text-slate-600 mb-2">Catégorie</label>
                             {{ form_widget(form.category, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
@@ -165,7 +167,23 @@
                             <label class="block text-sm font-medium text-slate-600 mb-2">Marque</label>
                             {{ form_widget(form.brand, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
                         </div>
-                        <div class="md:col-span-3 xl:col-span-2">
+                        <div class="md:col-span-2">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-2">Classe TVA
+                                        <span id="taxClassBadge_{{ form.taxClass.vars.id }}" class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hidden">rempli depuis la zone TVA</span>
+                                    </label>
+                                    {{ form_widget(form.taxClass, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                                    {{ form_errors(form.taxClass) }}
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-2">Zone TVA</label>
+                                    {{ form_widget(form.taxZone, {attr: {class: 'tn-select w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
+                                    {{ form_errors(form.taxZone) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-4 xl:col-span-2">
                             <label class="block text-sm font-medium text-slate-600 mb-2">Mots clés</label>
                             {{ form_widget(form.keywords, {attr: {class: 'tn-input w-full rounded-2xl border border-slate-200 bg-slate-50 p-4'}}) }}
                             <p class="text-xs text-slate-500 mt-1">Sépare les mots clés par une virgule pour booster la recherche interne.</p>
@@ -767,9 +785,49 @@
                             this.percent = computedPercent >= 0 ? computedPercent.toFixed(2) : '';
                         }
                     }
-                }
+                },
             };
         }
+
+        // Auto-sync taxClass from selected taxZone and disable manual edits when a zone is chosen
+        document.addEventListener('DOMContentLoaded', function () {
+            var taxZoneEl = document.getElementById('{{ form.taxZone.vars.id }}');
+            var taxClassEl = document.getElementById('{{ form.taxClass.vars.id }}');
+
+            if (!taxZoneEl || !taxClassEl) {
+                return;
+            }
+
+            var badge = document.getElementById('taxClassBadge_{{ form.taxClass.vars.id }}');
+
+            function syncTaxClass() {
+                var opt = taxZoneEl.selectedOptions && taxZoneEl.selectedOptions[0];
+                var taxClass = opt && opt.dataset ? opt.dataset.taxclass || '' : '';
+                if (taxClass) {
+                    // set value, keep control enabled so it's submitted, but prevent user interaction
+                    taxClassEl.value = taxClass;
+                    taxClassEl.classList.add('pointer-events-none', 'opacity-60');
+                    taxClassEl.setAttribute('aria-readonly', 'true');
+                    taxClassEl.tabIndex = -1;
+                    if (badge) {
+                        badge.classList.remove('hidden');
+                    }
+                } else {
+                    taxClassEl.classList.remove('pointer-events-none', 'opacity-60');
+                    taxClassEl.removeAttribute('aria-readonly');
+                    taxClassEl.tabIndex = 0;
+                    if (badge) {
+                        badge.classList.add('hidden');
+                    }
+                }
+                // trigger change for any listeners
+                taxClassEl.dispatchEvent(new Event('change', {bubbles: true}));
+            }
+
+            taxZoneEl.addEventListener('change', syncTaxClass);
+            // initial sync
+            syncTaxClass();
+        });
 
         function productAttributesConfigurator(config) {
             return {
@@ -1052,5 +1110,11 @@
                 }
             };
         }
+        // Expose factories on window so Alpine can access them after Turbo body replacements
+        window.slugEditor = slugEditor;
+        window.promoPricing = promoPricing;
+        window.productAttributesConfigurator = productAttributesConfigurator;
+        window.productBundleConfigurator = productBundleConfigurator;
+        window.variantAccordion = variantAccordion;
     </script>
 {% endblock %}

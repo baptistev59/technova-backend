@@ -2,14 +2,30 @@
   "name": "technova-backend",
   "private": true,
   "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "@symfony/webpack-encore": "^5.3.1",
     "autoprefixer": "^10.4.22",
+    "babel-loader": "^9.1.3",
+    "core-js": "^3.32.1",
+    "css-loader": "^6.8.1",
     "postcss": "^8.5.6",
+    "postcss-loader": "^8.2.0",
+    "regenerator-runtime": "^0.13.11",
+    "sass": "^1.72.0",
+    "sass-loader": "^16.0.6",
     "sharp": "^0.33.4",
-    "tailwindcss": "^3.4.18"
+    "style-loader": "^3.3.3",
+    "tailwindcss": "^3.4.18",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4"
   },
   "scripts": {
-    "dev": "tailwindcss -i ./assets/styles/app.tailwind.css -o ./assets/styles/app.css --watch",
-    "build": "tailwindcss -i ./assets/styles/app.tailwind.css -o ./assets/styles/app.css --minify",
+    "tailwind:dev": "tailwindcss -i ./assets/styles/app.tailwind.css -o ./assets/styles/app.css --watch",
+    "tailwind:build": "tailwindcss -i ./assets/styles/app.tailwind.css -o ./assets/styles/app.css --minify",
+    "dev": "encore dev --watch",
+    "dev-server": "encore dev --watch --hot",
+    "build": "encore production",
     "optimize-images": "node scripts/optimize-images.js"
   }
 }

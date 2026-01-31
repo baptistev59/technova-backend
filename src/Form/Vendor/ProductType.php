@@ -242,6 +242,13 @@ class ProductType extends AbstractType
                 'placeholder' => 'Choisir une zone TVA (optionnel)',
                 'required' => false,
                 'label' => 'Zone TVA',
+                'choice_attr' => function (?TaxZone $zone) {
+                    if (null === $zone) {
+                        return [];
+                    }
+
+                    return ['data-taxclass' => $zone->getTaxClass() ?? ''];
+                },
             ])
             ->add('mainImageFile', FileType::class, [
                 'label' => 'Photo principale',

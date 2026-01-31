@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    {{ encore_entry_link_tags('app')|raw }}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
     {{ importmap('app') }}
     <style>
@@ -236,6 +237,8 @@
     </footer>
 
     {% block javascripts %}
+            {{ encore_entry_script_tags('app') }}
+        {{ encore_entry_script_tags('app')|raw }}
         <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
         <script>
             (() => {

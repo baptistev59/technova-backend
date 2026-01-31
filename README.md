@@ -77,6 +77,35 @@ Pour l’activité demandée, l’équivalence fonctionnelle est la suivante :
   - Encore : `{{ encore_entry_script_tags(...) }}`.
   - Asset Mapper : `importmap()`/`asset()` + modules ES (voir `importmap.php`).
 
+### Migration vers Webpack Encore (notes rapides)
+
+- J'ai préparé une configuration minimale pour Webpack Encore dans le dépôt (`webpack.config.js`, `assets/js/app.js`, `.babelrc`).
+- Pour activer Encore en local :
+
+```bash
+# installer dépendances Node
+npm install
+
+# installer le bundle Symfony pour Twig helpers
+composer require symfony/webpack-encore-bundle --dev
+
+# builder (dev)
+npm run dev
+
+# ou builder pour prod
+npm run build
+```
+
+- Après build, remplace les inclusions JS/CSS manuelles par :
+
+```twig
+{{ encore_entry_link_tags('app') }}
+{{ encore_entry_script_tags('app') }}
+```
+
+- Rappel : `public/build/` doit être généré par Encore et ne doit pas être modifié manuellement.
+
+
 Ce choix est aligné avec Symfony 7 (Asset Mapper recommandé) et reste acceptable pour la consigne,
 tant que la minification CSS est assurée et que la politique de cache des assets est documentée.
 

@@ -1099,6 +1099,10 @@ class VendorShopController extends AbstractController
                 $this->clearProductBundleItems($product);
             }
 
+            if (null !== $product->getTaxZone()) {
+                $product->setTaxClass($product->getTaxZone()->getTaxClass());
+            }
+
             $this->entityManager->persist($product);
             $this->entityManager->flush();
 
@@ -1192,6 +1196,10 @@ class VendorShopController extends AbstractController
                 $product->setLowStockThreshold(null);
             } else {
                 $this->clearProductBundleItems($product);
+            }
+
+            if (null !== $product->getTaxZone()) {
+                $product->setTaxClass($product->getTaxZone()->getTaxClass());
             }
 
             $this->entityManager->flush();

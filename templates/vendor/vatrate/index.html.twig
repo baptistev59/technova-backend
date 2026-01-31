@@ -1,0 +1,45 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% block vendor_content %}
+    <div class="space-y-6">
+        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Catalogue — Taux TVA</p>
+                <h1 class="text-3xl font-semibold text-slate-900">Taux de TVA de ma boutique</h1>
+                <p class="text-slate-500 mt-2">Gère les taux applicables pour chaque pays et classe fiscale.</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ path('app_vendor_vatrates_new') }}" class="btn btn-primary whitespace-nowrap">Créer un taux</a>
+            </div>
+        </div>
+
+        {% if rates is empty %}
+            <div class="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center space-y-3">
+                <p class="text-lg font-semibold text-slate-900">Aucun taux enregistré</p>
+                <p class="text-slate-500">Ajoute un taux pour appliquer la TVA correctement selon le pays.</p>
+                <a href="{{ path('app_vendor_vatrates_new') }}" class="btn btn-outline">Créer mon premier taux</a>
+            </div>
+        {% else %}
+            <div class="space-y-4">
+                {% for rate in rates %}
+                    <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.3em] text-slate-400">{{ rate.countryCode }}</p>
+                                <h2 class="text-2xl font-semibold text-slate-900">{{ rate.label ?: rate.code }}</h2>
+                                <p class="text-sm text-slate-500">Classe : {{ rate.code }} • Taux : {{ rate.rate }}%</p>
+                            </div>
+                            <div class="flex gap-3">
+                                <a href="{{ path('app_vendor_vatrates_edit', {id: rate.id}) }}" class="btn btn-outline">Modifier</a>
+                                <form method="post" action="{{ path('app_vendor_vatrates_delete', {id: rate.id}) }}" onsubmit="return confirm('Supprimer ce taux ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('vatrate_delete_' ~ rate.id) }}">
+                                    <button type="submit" class="btn btn-outline text-red-600 border-red-200 hover:bg-red-50">Supprimer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
