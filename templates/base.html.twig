@@ -11,7 +11,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
-    {{ encore_entry_link_tags('app')|raw }}
+    {% if app.environment == 'dev' or app.environment == 'test' %}
+        {{ encore_entry_link_tags('app')|raw }}
+    {% endif %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
     {{ importmap('app') }}
     <style>
@@ -640,5 +642,12 @@
             });
         </script>
     {% endblock %}
+    {% if app.environment == 'dev' or app.environment == 'test' %}
+        {{ encore_entry_script_tags('app')|raw }}
+        {{ encore_entry_script_tags('product-form')|raw }}
+    {% else %}
+        {# In prod, factories are exposed via importmap asset #}
+        <script type="module" src="{{ asset('assets/js/product-form.js') }}"></script>
+    {% endif %}
 </body>
 </html>
