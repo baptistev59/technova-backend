@@ -1,0 +1,14 @@
+webpack_encore:
+    # The path where Encore is building the assets - i.e. Encore.setOutputPath()
+    output_path: '%kernel.project_dir%/public/build'
+
+    # Set attributes that will be rendered on all script and link tags
+    script_attributes:
+        defer: true
+        # Uncomment (also under link_attributes) if using Turbo Drive
+        # https://turbo.hotwired.dev/handbook/drive#reloading-when-assets-change
+        # 'data-turbo-track': reload
+
+framework:
+    assets:
+        json_manifest_path: '%kernel.project_dir%/public/build/manifest.json'
