@@ -645,9 +645,6 @@
     {% if app.environment == 'dev' or app.environment == 'test' %}
         {{ encore_entry_script_tags('app')|raw }}
         {{ encore_entry_script_tags('product-form')|raw }}
-    {% else %}
-        {# In prod, factories are exposed via importmap asset #}
-        <script type="module" src="{{ asset('assets/js/product-form.js') }}"></script>
     {% endif %}
 </body>
 </html>
