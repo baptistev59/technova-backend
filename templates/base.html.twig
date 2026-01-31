@@ -241,8 +241,9 @@
     </footer>
 
     {% block javascripts %}
-            {{ encore_entry_script_tags('app') }}
-        {{ encore_entry_script_tags('app')|raw }}
+        {# Webpack Encore only in dev/test - see lines 648-649 for conditional loading #}
+        {# {{ encore_entry_script_tags('app') }} #}
+        {# {{ encore_entry_script_tags('app')|raw }} #}
         <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
         <script>
             (() => {

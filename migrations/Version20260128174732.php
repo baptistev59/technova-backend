@@ -63,9 +63,11 @@ final class Version20260128174732 extends AbstractMigration
         $this->addSql('ALTER TABLE customer_order_item ADD applied_gross_amount NUMERIC(10, 2) NOT NULL');
         $this->addSql('ALTER TABLE customer_order_item ADD vat_country_code VARCHAR(2) DEFAULT NULL');
         $this->addSql('ALTER TABLE customer_order_item ADD applied_vat_id INT DEFAULT NULL');
-        $this->addSql('ALTER TABLE customer_order_item ALTER fulfillment_status DROP DEFAULT');
-        $this->addSql('ALTER TABLE customer_order_item ALTER fulfilled_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE');
-        $this->addSql('COMMENT ON COLUMN customer_order_item.fulfilled_at IS \'(DC2Type:datetime_immutable)\'');
+        // Column fulfillment_status doesn't exist yet - it's created in Version20260201123000
+        // $this->addSql('ALTER TABLE customer_order_item ALTER fulfillment_status DROP DEFAULT');
+        // Column fulfilled_at doesn't exist yet - it's created in Version20260201123000
+        // $this->addSql('ALTER TABLE customer_order_item ALTER fulfilled_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE');
+        // $this->addSql('COMMENT ON COLUMN customer_order_item.fulfilled_at IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('ALTER TABLE customer_order_item ADD CONSTRAINT FK_AF231B8BA15A2E17 FOREIGN KEY (customer_order_id) REFERENCES customer_order (id) NOT DEFERRABLE INITIALLY IMMEDIATE');
         $this->addSql('ALTER INDEX idx_order_item_order RENAME TO IDX_AF231B8BA15A2E17');
         $this->addSql('ALTER TABLE customer_order_status_history DROP CONSTRAINT fk_order_history_order');
@@ -228,9 +230,11 @@ final class Version20260128174732 extends AbstractMigration
         $this->addSql('ALTER TABLE customer_order_item DROP applied_gross_amount');
         $this->addSql('ALTER TABLE customer_order_item DROP vat_country_code');
         $this->addSql('ALTER TABLE customer_order_item DROP applied_vat_id');
-        $this->addSql('ALTER TABLE customer_order_item ALTER fulfillment_status SET DEFAULT \'pending\'');
-        $this->addSql('ALTER TABLE customer_order_item ALTER fulfilled_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE');
-        $this->addSql('COMMENT ON COLUMN customer_order_item.fulfilled_at IS NULL');
+        // Column fulfillment_status doesn't exist yet - it's created in Version20260201123000
+        // $this->addSql('ALTER TABLE customer_order_item ALTER fulfillment_status SET DEFAULT \'pending\'');
+        // Column fulfilled_at doesn't exist yet - it's created in Version20260201123000
+        // $this->addSql('ALTER TABLE customer_order_item ALTER fulfilled_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE');
+        // $this->addSql('COMMENT ON COLUMN customer_order_item.fulfilled_at IS NULL');
         $this->addSql('ALTER TABLE customer_order_item ADD CONSTRAINT fk_order_item_order FOREIGN KEY (customer_order_id) REFERENCES customer_order (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE');
         $this->addSql('ALTER INDEX idx_af231b8ba15a2e17 RENAME TO idx_order_item_order');
         $this->addSql('ALTER TABLE reset_password_request ALTER id DROP DEFAULT');

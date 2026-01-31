@@ -6,6 +6,10 @@ when@dev:
         # Set attributes that will be rendered on all script and link tags
         script_attributes:
             defer: true
+    
+    framework:
+        assets:
+            json_manifest_path: '%kernel.project_dir%/public/build/manifest.json'
 
 when@test:
     webpack_encore:
@@ -13,6 +17,8 @@ when@test:
         script_attributes:
             defer: true
 
-framework:
-    assets:
-        json_manifest_path: '%kernel.project_dir%/public/build/manifest.json'
+    framework:
+        assets:
+            json_manifest_path: '%kernel.project_dir%/public/build/manifest.json'
+
+# Removed global framework.assets configuration - only needed in dev/test environments
