@@ -16,7 +16,7 @@ jobs:
       - name: Sync sources to Alwaysdata (rsync)
         uses: burnett01/rsync-deployments@7.1.0
         with:
-          switches: -az --delete --exclude=".git" --exclude=".github" --exclude="var/" --exclude="vendor/" --exclude=".env.local" --exclude=".env.local.php" --exclude="public/assets"
+          switches: -az --delete --exclude=".git" --exclude=".github" --exclude="/var/" --exclude="/vendor/" --exclude=".env.local" --exclude=".env.local.php" --exclude="public/assets"
           path: ./
           remote_path: ${{ secrets.DEPLOY_PATH }}
           remote_host: ${{ secrets.SSH_REMOTE_HOST }}
