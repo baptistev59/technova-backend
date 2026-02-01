@@ -1,0 +1,5 @@
+# En production, on utilise AssetMapper et non Webpack Encore
+# On neutralise donc le json_manifest_path pour éviter l'erreur de fichier manquant
+framework:
+    assets:
+        json_manifest_path: null
