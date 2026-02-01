@@ -63,6 +63,8 @@ use Psr\Log\LoggerInterface;
 #[Route('/mon-espace-vendeur')]
 class VendorShopController extends AbstractController
 {
+    use VendorNavigationTrait;
+
     public function __construct(
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
@@ -223,7 +225,7 @@ class VendorShopController extends AbstractController
             $latestProducts = $this->productRepository->findLatestPublishedForShop(shop: $existingShop, limit: 10);
 
             return $this->render('vendor/shop/existing.html.twig', [
-                'vendor_nav' => $this->buildVendorNav('app_vendor_shop_new'),
+                'vendor_nav' => $this->vendorNavigation('app_vendor_shop_new'),
                 'shop' => $existingShop,
                 'attributeStats' => $this->buildAttributeStats($existingShop),
                 'stats' => $statCards,
@@ -410,7 +412,7 @@ class VendorShopController extends AbstractController
             'name_desc' => 'Nom (Z-A)',
         ];
 
-        $vendorNav = $this->buildVendorNav('app_vendor_products');
+        $vendorNav = $this->vendorNavigation('app_vendor_products');
 
         $productIds = array_map(static fn (Product $product) => $product->getId(), $products);
 
@@ -567,7 +569,7 @@ class VendorShopController extends AbstractController
             'status_filter' => $statusFilter,
             'per_page' => $perPage,
             'per_page_options' => $perPageOptions,
-            'vendor_nav' => $this->buildVendorNav('app_vendor_orders'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_orders'),
         ]);
     }
 
@@ -896,7 +898,7 @@ class VendorShopController extends AbstractController
 
         return $this->render('vendor/stats/index.html.twig', [
             'shop' => $shop,
-            'vendor_nav' => $this->buildVendorNav('app_vendor_stats'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_stats'),
             'daily_status_chart' => $dailyStatusChart,
             'monthly_sales_chart' => $monthlySalesChart,
             'daily_revenue_chart' => $dailyRevenueChart,
@@ -1117,7 +1119,7 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_products');
         }
 
-        $vendorNav = $this->buildVendorNav('app_vendor_products');
+        $vendorNav = $this->vendorNavigation('app_vendor_products');
 
         return $this->render('vendor/product/form.html.twig', [
             'form' => $form->createView(),
@@ -1215,7 +1217,7 @@ class VendorShopController extends AbstractController
             return $this->redirectToRoute('app_vendor_products');
         }
 
-        $vendorNav = $this->buildVendorNav('app_vendor_products');
+        $vendorNav = $this->vendorNavigation('app_vendor_products');
 
         return $this->render('vendor/product/form.html.twig', [
             'form' => $form->createView(),
@@ -2182,25 +2184,6 @@ class VendorShopController extends AbstractController
         }
 
         return (int) $value;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildVendorNav(string $activeRoute): array
-    {
-        return [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => 'app_vendor_shop_new' === $activeRoute, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Taux TVA', 'icon' => '💱', 'active' => 'app_vendor_vatrates' === $activeRoute, 'path' => 'app_vendor_vatrates'],
-            ['label' => 'Zones TVA', 'icon' => '🌍', 'active' => 'app_vendor_taxzones' === $activeRoute, 'path' => 'app_vendor_taxzones'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
-            ['label' => 'Retours', 'icon' => '↩️', 'active' => 'app_vendor_returns' === $activeRoute, 'path' => 'app_vendor_returns'],
-            ['label' => 'Livraison', 'icon' => '🚚', 'active' => 'app_vendor_shipping_index' === $activeRoute, 'path' => 'app_vendor_shipping_index'],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => 'app_vendor_stats' === $activeRoute, 'path' => 'app_vendor_stats'],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
     }
 
     /**

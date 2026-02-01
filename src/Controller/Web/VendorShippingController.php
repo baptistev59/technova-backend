@@ -28,6 +28,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/mon-espace-vendeur/livraison')]
 final class VendorShippingController extends AbstractController
 {
+    use VendorNavigationTrait;
+
     public function __construct(
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
@@ -57,7 +59,7 @@ final class VendorShippingController extends AbstractController
             ->getResult();
 
         return $this->render('vendor/shipping/index.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'shop' => $shop,
             'zones' => $zones,
             'methods' => $methods,
@@ -84,7 +86,7 @@ final class VendorShippingController extends AbstractController
         }
 
         return $this->render('vendor/shipping/zone_form.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'form' => $form->createView(),
             'shop' => $shop,
             'is_edit' => false,
@@ -112,7 +114,7 @@ final class VendorShippingController extends AbstractController
         }
 
         return $this->render('vendor/shipping/zone_form.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'form' => $form->createView(),
             'shop' => $shop,
             'is_edit' => true,
@@ -156,7 +158,7 @@ final class VendorShippingController extends AbstractController
         }
 
         return $this->render('vendor/shipping/method_form.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'form' => $form->createView(),
             'shop' => $shop,
             'is_edit' => false,
@@ -183,7 +185,7 @@ final class VendorShippingController extends AbstractController
         }
 
         return $this->render('vendor/shipping/method_form.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'form' => $form->createView(),
             'shop' => $shop,
             'is_edit' => true,
@@ -226,7 +228,7 @@ final class VendorShippingController extends AbstractController
         }
 
         return $this->render('vendor/shipping/rate_form.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'form' => $form->createView(),
             'shop' => $shop,
             'is_edit' => false,
@@ -253,7 +255,7 @@ final class VendorShippingController extends AbstractController
         }
 
         return $this->render('vendor/shipping/rate_form.html.twig', [
-            'vendor_nav' => $this->buildVendorNav('app_vendor_shipping_index'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_shipping_index'),
             'form' => $form->createView(),
             'shop' => $shop,
             'is_edit' => true,
@@ -315,24 +317,5 @@ final class VendorShippingController extends AbstractController
         }
 
         throw $this->createAccessDeniedException('Utilisateur requis.');
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildVendorNav(string $activeRoute): array
-    {
-        return [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => 'app_vendor_shop_new' === $activeRoute, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Taux TVA', 'icon' => '💱', 'active' => 'app_vendor_vatrates' === $activeRoute, 'path' => 'app_vendor_vatrates'],
-            ['label' => 'Zones TVA', 'icon' => '🌍', 'active' => 'app_vendor_taxzones' === $activeRoute, 'path' => 'app_vendor_taxzones'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
-            ['label' => 'Retours', 'icon' => '↩️', 'active' => 'app_vendor_returns' === $activeRoute, 'path' => 'app_vendor_returns'],
-            ['label' => 'Livraison', 'icon' => '🚚', 'active' => 'app_vendor_shipping_index' === $activeRoute, 'path' => 'app_vendor_shipping_index'],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => 'app_vendor_stats' === $activeRoute, 'path' => 'app_vendor_stats'],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
     }
 }
