@@ -38,24 +38,28 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             
-            # Compiler les variables d'environnement depuis AlwaysData
-            composer dump-env prod
+            # Sur AlwaysData : les variables sont accessibles en runtime PHP-FPM
+            # On ne compile PAS avec composer dump-env (pas accessible en CLI SSH)
+            # Symfony lira directement $_SERVER/$_ENV depuis l'interface AlwaysData
             
-            # Installer les dépendances
+            # 1. Installer les dépendances
             composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
             
-            # Générer les clés JWT si nécessaire
+            # 2. Générer les clés JWT si nécessaire
             if [ ! -f config/jwt/private.pem ] || [ ! -f config/jwt/public.pem ]; then
+              echo "Génération des clés JWT..."
               php bin/console lexik:jwt:generate-keypair --no-interaction
             fi
             
-            # Exécuter les migrations
+            # 3. Exécuter les migrations
             php bin/console doctrine:migrations:migrate --no-interaction --env=prod
             
-            # Vider et régénérer le cache
+            # 4. Vider et régénérer le cache (essentiellement pour prod)
             rm -rf var/cache/prod
             php bin/console cache:clear --env=prod --no-warmup
             php bin/console cache:warmup --env=prod --no-debug
             
-            # Compiler les assets avec AssetMapper
+            # 5. Compiler les assets avec AssetMapper
             php bin/console asset-map:compile --env=prod
+            
+            echo "✅ Déploiement complété avec succès"
