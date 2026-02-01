@@ -35,18 +35,6 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
 
-            # Charger les variables d’environnement côté serveur (CLI)
-            # Ce fichier est privé et n’est pas versionné.
-            ENV_FILE="$HOME/.env.deploy"
-            if [ ! -f "$ENV_FILE" ]; then
-              echo "❌ Fichier d'environnement introuvable: $ENV_FILE"
-              echo "Créez-le sur le serveur avec APP_ENV, APP_DEBUG, DATABASE_URL, JWT_*, etc."
-              exit 1
-            fi
-            set -a
-            . "$ENV_FILE"
-            set +a
-
             # Forcer l'environnement prod pour la CLI
             export APP_ENV=prod
             export APP_DEBUG=0
