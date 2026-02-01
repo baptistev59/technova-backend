@@ -8,6 +8,7 @@ use App\Entity\TaxZone;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\CountryType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -20,28 +21,6 @@ class TaxZoneType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        // Liste étendue des pays commerciaux importants (codes ISO2)
-        // Inclut les pays fréquemment utilisés pour le commerce international
-        $countries = [
-            'AT' => 'Autriche', 'AU' => 'Australie', 'BE' => 'Belgique', 'BR' => 'Brésil',
-            'CA' => 'Canada', 'CH' => 'Suisse', 'CN' => 'Chine', 'CL' => 'Chili',
-            'CY' => 'Chypre', 'CZ' => 'République Tchèque', 'DE' => 'Allemagne', 'DK' => 'Danemark',
-            'EG' => 'Égypte', 'ES' => 'Espagne', 'FI' => 'Finlande', 'FR' => 'France',
-            'GB' => 'Royaume-Uni', 'GR' => 'Grèce', 'HK' => 'Hong Kong', 'HR' => 'Croatie',
-            'HU' => 'Hongrie', 'IE' => 'Irlande', 'IL' => 'Israël', 'IN' => 'Inde',
-            'IT' => 'Italie', 'JP' => 'Japon', 'KR' => 'Corée du Sud', 'LI' => 'Liechtenstein',
-            'LT' => 'Lituanie', 'LU' => 'Luxembourg', 'LV' => 'Lettonie', 'MA' => 'Maroc',
-            'MT' => 'Malte', 'MX' => 'Mexique', 'MY' => 'Malaisie', 'NL' => 'Pays-Bas',
-            'NO' => 'Norvège', 'NZ' => 'Nouvelle-Zélande', 'PL' => 'Pologne', 'PT' => 'Portugal',
-            'RO' => 'Roumanie', 'RU' => 'Russie', 'SA' => 'Arabie Saoudite', 'SE' => 'Suède',
-            'SG' => 'Singapour', 'SI' => 'Slovénie', 'SK' => 'Slovaquie', 'TH' => 'Thaïlande',
-            'TN' => 'Tunisie', 'TR' => 'Turquie', 'US' => 'États-Unis', 'UA' => 'Ukraine',
-            'AE' => 'Émirats Arabes Unis', 'ID' => 'Indonésie', 'PH' => 'Philippines',
-            'VN' => 'Vietnam', 'ZA' => 'Afrique du Sud', 'AR' => 'Argentine', 'CO' => 'Colombie',
-            'CL' => 'Chili'
-        ];
-        asort($countries);
-
         $builder
             ->add('name', TextType::class, [
                 'label' => 'Nom de la zone',
@@ -55,14 +34,11 @@ class TaxZoneType extends AbstractType
                 'required' => false,
                 'attr' => ['placeholder' => 'Description optionnelle pour tes notes personnelles', 'rows' => 3],
             ])
-            ->add('countryCodes', ChoiceType::class, [
+            ->add('countryCodes', CountryType::class, [
                 'label' => 'Pays applicables',
-                'choices' => array_combine(
-                    array_map(fn($code, $name) => "$code — $name", array_keys($countries), $countries),
-                    array_keys($countries)
-                ),
                 'multiple' => true,
-                'expanded' => false,
+                'preferred_choices' => ['FR', 'DE', 'IT', 'ES', 'BE', 'NL', 'AT', 'LU'],
+                'choice_translation_locale' => 'fr',
                 'attr' => ['class' => 'tn-input-select searchable country-select', 'size' => '15'],
                 'constraints' => [
                     new NotBlank(message: 'Sélectionne au moins un pays.'),
@@ -102,3 +78,4 @@ class TaxZoneType extends AbstractType
         ]);
     }
 }
+

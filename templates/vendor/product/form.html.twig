@@ -2,27 +2,27 @@
 
 {% block title %}{{ is_edit ? 'Modifier un produit — ' ~ shop.name : 'Ajouter un produit — ' ~ shop.name }}{% endblock %}
 
-{% set bundleCandidates = bundle_candidates ?? [] %}
-{% set bundleSelectionState = bundle_selection_state ?? [] %}
-{% set initialProductType = product.type ?? form.type.vars.value ?? 'simple' %}
-{% set priceValue = (form.price.vars.data ?? 0) + 0 %}
-{% set promoValue = form.promoPrice.vars.data is not null ? (form.promoPrice.vars.data + 0) : null %}
-{% set percentValue = form.promoPercent.vars.data is not null ? (form.promoPercent.vars.data + 0) : null %}
-{% set promoConfig = {
-    price: priceValue,
-    promo: promoValue,
-    percent: percentValue
-} %}
-
-{# Expose Alpine factories for Turbo compatibility #}
-<script>
-    if (typeof window !== 'undefined' && !window.slugEditor) {
-        // Factories will be defined inline here for prod compatibility
-        // They're also available via Encore in dev/test
-    }
-</script>
-
 {% block vendor_content %}
+    {# Setup and Expose Alpine factories for Turbo compatibility #}
+    <script>
+        if (typeof window !== 'undefined' && !window.slugEditor) {
+            // Factories will be defined inline here for prod compatibility
+            // They're also available via Encore in dev/test
+        }
+    </script>
+
+    {% set bundleCandidates = bundle_candidates ?? [] %}
+    {% set bundleSelectionState = bundle_selection_state ?? [] %}
+    {% set initialProductType = product.type ?? form.type.vars.value ?? 'simple' %}
+    {% set priceValue = (form.price.vars.data ?? 0) + 0 %}
+    {% set promoValue = form.promoPrice.vars.data is not null ? (form.promoPrice.vars.data + 0) : null %}
+    {% set percentValue = form.promoPercent.vars.data is not null ? (form.promoPercent.vars.data + 0) : null %}
+    {% set promoConfig = {
+        price: priceValue,
+        promo: promoValue,
+        percent: percentValue
+    } %}
+    
     {% set existingMainImage = null %}
     {% set existingGalleryImages = [] %}
     {% set attributeOptions = attribute_options ?? [] %}
