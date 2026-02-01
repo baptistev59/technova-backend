@@ -26,11 +26,14 @@ jobs:
 
       - name: Install & migrate on Alwaysdata
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DATABASE_URL: ${{ secrets.ALWAYSDATA_DATABASE_URL }}
         with:
           host: ${{ secrets.SSH_REMOTE_HOST }}
           username: ${{ secrets.SSH_REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_REMOTE_PORT }}
+          envs: DATABASE_URL
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
@@ -38,6 +41,11 @@ jobs:
             # Forcer l'environnement prod pour la CLI
             export APP_ENV=prod
             export APP_DEBUG=0
+            if [ -z "${DATABASE_URL:-}" ]; then
+              echo "❌ DATABASE_URL manquant (ALWAYSDATA_DATABASE_URL) : migrations impossibles"
+              exit 1
+            fi
+            export DATABASE_URL
             
             # Sur AlwaysData : APP_ENV doit être prod pour que composer install
             # évite DebugBundle (inexistant en --no-dev).
