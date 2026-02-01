@@ -23,6 +23,8 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 #[Route('/mon-espace-vendeur/attributs')]
 class VendorAttributeController extends AbstractController
 {
+    use VendorNavigationTrait;
+
     public function __construct(
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
@@ -45,7 +47,7 @@ class VendorAttributeController extends AbstractController
 
         return $this->render('vendor/attribute/index.html.twig', [
             'attributes' => $attributes,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_attributes'),
         ]);
     }
 
@@ -76,7 +78,7 @@ class VendorAttributeController extends AbstractController
             'form' => $form,
             'attribute' => $attribute,
             'is_edit' => false,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_attributes'),
         ]);
     }
 
@@ -110,7 +112,7 @@ class VendorAttributeController extends AbstractController
             'form' => $form,
             'attribute' => $attribute,
             'is_edit' => true,
-            'vendor_nav' => $this->navigation('app_vendor_attributes'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_attributes'),
         ]);
     }
 
@@ -146,23 +148,6 @@ class VendorAttributeController extends AbstractController
         }
 
         return null;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function navigation(string $activeRoute): array
-    {
-        return [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => 'app_vendor_shop_new' === $activeRoute, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Taux TVA', 'icon' => '💱', 'active' => 'app_vendor_vatrates' === $activeRoute, 'path' => 'app_vendor_vatrates'],
-            ['label' => 'Zones TVA', 'icon' => '🌍', 'active' => 'app_vendor_taxzones' === $activeRoute, 'path' => 'app_vendor_taxzones'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
     }
 
     private function handleSlug(AttributeDefinition $attribute, Shop $shop): void

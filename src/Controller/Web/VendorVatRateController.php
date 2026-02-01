@@ -20,6 +20,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/mon-espace-vendeur/taux-tva')]
 class VendorVatRateController extends AbstractController
 {
+    use VendorNavigationTrait;
+
     public function __construct(
         private readonly Security $security,
         private readonly ViewerAccessChecker $viewerAccessChecker,
@@ -41,7 +43,7 @@ class VendorVatRateController extends AbstractController
 
         return $this->render('vendor/vatrate/index.html.twig', [
             'rates' => $rates,
-            'vendor_nav' => $this->navigation('app_vendor_vatrates'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_vatrates'),
         ]);
     }
 
@@ -72,7 +74,7 @@ class VendorVatRateController extends AbstractController
             'form' => $form,
             'rate' => $rate,
             'is_edit' => false,
-            'vendor_nav' => $this->navigation('app_vendor_vatrates'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_vatrates'),
         ]);
     }
 
@@ -103,7 +105,7 @@ class VendorVatRateController extends AbstractController
             'form' => $form,
             'rate' => $rate,
             'is_edit' => true,
-            'vendor_nav' => $this->navigation('app_vendor_vatrates'),
+            'vendor_nav' => $this->vendorNavigation('app_vendor_vatrates'),
         ]);
     }
 
@@ -138,23 +140,6 @@ class VendorVatRateController extends AbstractController
         }
 
         return null;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function navigation(string $activeRoute): array
-    {
-        return [
-            ['label' => 'Accueil', 'icon' => '🏠', 'active' => 'app_vendor_shop_new' === $activeRoute, 'path' => 'app_vendor_shop_new'],
-            ['label' => 'Mes produits', 'icon' => '🗂️', 'active' => 'app_vendor_products' === $activeRoute, 'path' => 'app_vendor_products'],
-            ['label' => 'Attributs', 'icon' => '🎛️', 'active' => 'app_vendor_attributes' === $activeRoute, 'path' => 'app_vendor_attributes'],
-            ['label' => 'Taux TVA', 'icon' => '💱', 'active' => 'app_vendor_vatrates' === $activeRoute, 'path' => 'app_vendor_vatrates'],
-            ['label' => 'Zones TVA', 'icon' => '🌍', 'active' => 'app_vendor_taxzones' === $activeRoute, 'path' => 'app_vendor_taxzones'],
-            ['label' => 'Commandes', 'icon' => '📦', 'active' => 'app_vendor_orders' === $activeRoute, 'path' => 'app_vendor_orders'],
-            ['label' => 'Statistiques', 'icon' => '📊', 'active' => false],
-            ['label' => 'Paramètres', 'icon' => '⚙️', 'active' => false],
-        ];
     }
 
     private function resolveShop(Request $request): Shop
