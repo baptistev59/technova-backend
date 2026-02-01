@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout du code du dépôt
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Synchronisation des fichiers vers Alwaysdata (sans dossiers locaux inutiles)
       - name: Sync sources to Alwaysdata (rsync)
         uses: burnett01/rsync-deployments@7.1.0
         with:
@@ -26,7 +24,6 @@ jobs:
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
           remote_port: ${{ secrets.SSH_REMOTE_PORT }}
 
-      # 3️⃣ Exécution des commandes Symfony directement sur Alwaysdata
       - name: Install & migrate on Alwaysdata
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -38,28 +35,28 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             
-            # Sur AlwaysData : les variables sont accessibles en runtime PHP-FPM
-            # On ne compile PAS avec composer dump-env (pas accessible en CLI SSH)
-            # Symfony lira directement $_SERVER/$_ENV depuis l'interface AlwaysData
+            # Sur AlwaysData : APP_ENV doit être prod pour que composer install
+            # évite DebugBundle (inexistant en --no-dev).
+            # Les variables seront lues depuis l'interface AlwaysData en PHP-FPM runtime.
             
-            # 1. Installer les dépendances
-            composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+            # Installer les dépendances
+            APP_ENV=prod composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
             
-            # 2. Générer les clés JWT si nécessaire
+            # Générer les clés JWT si nécessaire
             if [ ! -f config/jwt/private.pem ] || [ ! -f config/jwt/public.pem ]; then
               echo "Génération des clés JWT..."
-              php bin/console lexik:jwt:generate-keypair --no-interaction
+              APP_ENV=prod php bin/console lexik:jwt:generate-keypair --no-interaction
             fi
             
-            # 3. Exécuter les migrations
-            php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+            # Exécuter les migrations
+            APP_ENV=prod php bin/console doctrine:migrations:migrate --no-interaction --env=prod
             
-            # 4. Vider et régénérer le cache (essentiellement pour prod)
+            # Vider et régénérer le cache
             rm -rf var/cache/prod
-            php bin/console cache:clear --env=prod --no-warmup
-            php bin/console cache:warmup --env=prod --no-debug
+            APP_ENV=prod php bin/console cache:clear --env=prod --no-warmup
+            APP_ENV=prod php bin/console cache:warmup --env=prod --no-debug
             
-            # 5. Compiler les assets avec AssetMapper
-            php bin/console asset-map:compile --env=prod
+            # Compiler les assets
+            APP_ENV=prod php bin/console asset-map:compile --env=prod
             
-            echo "✅ Déploiement complété avec succès"
+            echo "✅ Déploiement réussi"
