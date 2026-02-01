@@ -34,6 +34,22 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
+
+            # Charger les variables d’environnement côté serveur (CLI)
+            # Ce fichier est privé et n’est pas versionné.
+            ENV_FILE="$HOME/.env.deploy"
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "❌ Fichier d'environnement introuvable: $ENV_FILE"
+              echo "Créez-le sur le serveur avec APP_ENV, APP_DEBUG, DATABASE_URL, JWT_*, etc."
+              exit 1
+            fi
+            set -a
+            . "$ENV_FILE"
+            set +a
+
+            # Forcer l'environnement prod pour la CLI
+            export APP_ENV=prod
+            export APP_DEBUG=0
             
             # Sur AlwaysData : APP_ENV doit être prod pour que composer install
             # évite DebugBundle (inexistant en --no-dev).
@@ -41,12 +57,6 @@ jobs:
             
             # Installer les dépendances
             APP_ENV=prod composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
-            
-            # Générer les clés JWT si nécessaire
-            if [ ! -f config/jwt/private.pem ] || [ ! -f config/jwt/public.pem ]; then
-              echo "Génération des clés JWT..."
-              APP_ENV=prod php bin/console lexik:jwt:generate-keypair --no-interaction
-            fi
             
             # Exécuter les migrations
             APP_ENV=prod php bin/console doctrine:migrations:migrate --no-interaction --env=prod
