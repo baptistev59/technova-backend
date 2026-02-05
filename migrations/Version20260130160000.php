@@ -16,11 +16,23 @@ final class Version20260130160000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE product ADD CONSTRAINT FK_PRODUCT_TAX_ZONE FOREIGN KEY (tax_zone_id) REFERENCES tax_zone (id) ON DELETE SET NULL');
+        // Check if constraint already exists
+        $this->addSql("
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints 
+                    WHERE constraint_name = 'fk_product_tax_zone' 
+                    AND table_name = 'product'
+                ) THEN
+                    ALTER TABLE product ADD CONSTRAINT fk_product_tax_zone FOREIGN KEY (tax_zone_id) REFERENCES tax_zone (id) ON DELETE SET NULL;
+                END IF;
+            END $$
+        ");
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE product DROP CONSTRAINT IF EXISTS FK_PRODUCT_TAX_ZONE');
+        $this->addSql('ALTER TABLE product DROP CONSTRAINT IF EXISTS fk_product_tax_zone');
     }
 }

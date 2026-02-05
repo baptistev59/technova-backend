@@ -7,11 +7,12 @@ namespace App\Form\Vendor;
 use App\Entity\Brand;
 use App\Entity\Category;
 use App\Entity\Product;
-use App\Entity\TaxZone;
+use App\Form\ProductTaxZoneType;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
@@ -226,29 +227,21 @@ class ProductType extends AbstractType
                 'label' => 'Publier immédiatement',
                 'required' => false,
             ])
-            ->add('taxClass', ChoiceType::class, [
-                'label' => 'Classe TVA',
-                'placeholder' => 'Sélectionner une classe',
-                'choices' => [
-                    'Standard (20%)' => 'STANDARD',
-                    'Réduit' => 'REDUCED',
-                    'Taux zéro' => 'ZERO',
+            ->add('productTaxZones', CollectionType::class, [
+                'label' => 'Zones TVA du produit',
+                'entry_type' => ProductTaxZoneType::class,
+                'entry_options' => [
+                    'label' => false,
                 ],
-                'help' => 'Choisis la classe fiscale applicable à ce produit.',
-            ])
-            ->add('taxZone', EntityType::class, [
-                'class' => TaxZone::class,
-                'choice_label' => 'name',
-                'placeholder' => 'Choisir une zone TVA (optionnel)',
+                'allow_add' => true,
+                'allow_delete' => true,
+                'by_reference' => false,
                 'required' => false,
-                'label' => 'Zone TVA',
-                'choice_attr' => function (?TaxZone $zone) {
-                    if (null === $zone) {
-                        return [];
-                    }
-
-                    return ['data-taxclass' => $zone->getTaxClass() ?? ''];
-                },
+                'help' => 'Associe le produit à une ou plusieurs zones TVA, avec une classe fiscale par zone.',
+                'attr' => [
+                    'class' => 'product-tax-zones-collection',
+                    'data-prototype-helper' => true,
+                ],
             ])
             ->add('mainImageFile', FileType::class, [
                 'label' => 'Photo principale',

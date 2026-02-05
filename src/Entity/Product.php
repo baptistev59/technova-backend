@@ -159,6 +159,12 @@ class Product
     #[ORM\OneToMany(mappedBy: 'bundle', targetEntity: ProductBundleItem::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $bundleItems;
 
+    /**
+     * @var Collection<int, ProductTaxZone>
+     */
+    #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductTaxZone::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $productTaxZones;
+
     public function __construct()
     {
         $this->images = new ArrayCollection();
@@ -167,6 +173,7 @@ class Product
         $this->variants = new ArrayCollection();
         $this->attributeSelections = new ArrayCollection();
         $this->bundleItems = new ArrayCollection();
+        $this->productTaxZones = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -624,6 +631,33 @@ class Product
     {
         if ($this->bundleItems->removeElement($item) && $item->getBundle() === $this) {
             $item->setBundle(null);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProductTaxZone>
+     */
+    public function getProductTaxZones(): Collection
+    {
+        return $this->productTaxZones;
+    }
+
+    public function addProductTaxZone(ProductTaxZone $productTaxZone): self
+    {
+        if (!$this->productTaxZones->contains($productTaxZone)) {
+            $this->productTaxZones->add($productTaxZone);
+            $productTaxZone->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProductTaxZone(ProductTaxZone $productTaxZone): self
+    {
+        if ($this->productTaxZones->removeElement($productTaxZone) && $productTaxZone->getProduct() === $this) {
+            $productTaxZone->setProduct(null);
         }
 
         return $this;
