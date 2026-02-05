@@ -10,7 +10,7 @@ Le système affiche automatiquement le pays détecté via l'IP de l'utilisateur 
 
 **Fichier**: `src/Twig/GeoIpExtension.php`
 
-La nouvelle extension Twig fournit deux fonctions :
+La nouvelle extension Twig fournit ces fonctions (alimentées par la table `country`) :
 
 ```twig
 {# Détecte le pays de l'utilisateur #}
@@ -18,6 +18,12 @@ La nouvelle extension Twig fournit deux fonctions :
 
 {# Traduit le code pays en nom français #}
 {% set country_name = get_country_name('FR') %} {# → "France" #}
+
+{# Retourne le drapeau emoji #}
+{% set country_flag = get_country_flag('FR') %} {# → "🇫🇷" #}
+
+{# Retourne libellé complet "🇫🇷 France" #}
+{% set country_label = get_country_label('FR') %}
 ```
 
 **Logique de détection** (dans GeoIpService) :
@@ -33,9 +39,8 @@ La nouvelle extension Twig fournit deux fonctions :
 ```twig
 <div class="tn-user-menu__panel">
     {% set detected_country_code = get_country_from_ip() %}
-    {% set country_name = get_country_name(detected_country_code) %}
     <div class="tn-user-menu__country" title="Pays détecté automatiquement">
-        🇫🇷 France
+        {{ get_country_label(detected_country_code) }}
     </div>
     <hr class="tn-user-menu__divider">
     {# Menu items ... #}
@@ -84,18 +89,10 @@ La nouvelle extension Twig fournit deux fonctions :
 
 ## Traduction des Codes Pays
 
-La méthode `getCountryName()` traduit les codes ISO 3166-1 alpha-2 en noms français :
+Les noms et drapeaux sont désormais stockés dans la table `country`.
 
-| Code | Français | Code | Français |
-|------|----------|------|----------|
-| FR | France | DE | Allemagne |
-| GB | Royaume-Uni | IT | Italie |
-| ES | Espagne | NL | Pays-Bas |
-| BE | Belgique | AT | Autriche |
-| CH | Suisse | SE | Suède |
-| ... | ... | ... | ... |
-
-Extension facile pour ajouter plus de pays.
+- Source: `country` (code, name, flag)
+- Seeding: `app:countries:seed --locale=fr`
 
 ## Flux de Détection
 
@@ -116,7 +113,7 @@ GeoIpService::getCountryFromIp()
 │   └─ Success → Cache + Return country
 └─ Return country code (e.g., 'DE', 'IT')
     ↓
-GeoIpExtension::getCountryName()
+GeoIpExtension::getCountryLabel()
     ↓
 Translate to French name
     ↓

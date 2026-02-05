@@ -1,0 +1,117 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% block vendor_content %}
+    <div class="space-y-6">
+        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Catalogue — Zones TVA</p>
+                <h1 class="text-3xl font-semibold text-slate-900">Zones de TVA</h1>
+                <p class="text-slate-500 mt-2">Regroupe plusieurs pays pour appliquer la même classe et taux de TVA.</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ path('app_vendor_taxzones_new') }}" class="btn btn-primary whitespace-nowrap">Créer une zone</a>
+            </div>
+        </div>
+
+        <!-- Onglets -->
+        <div x-data="{ tab: 'presets' }" class="space-y-4">
+            <div class="flex gap-2 border-b border-slate-200">
+                <button
+                    @click="tab = 'presets'"
+                    :class="{ 'border-b-2 border-blue-500 text-blue-700 font-semibold': tab === 'presets', 'text-slate-600 hover:text-slate-900': tab !== 'presets' }"
+                    class="px-4 py-3 text-sm transition">
+                    Zones prédéfinies ({{ presets|length }})
+                </button>
+                <button
+                    @click="tab = 'custom'"
+                    :class="{ 'border-b-2 border-blue-500 text-blue-700 font-semibold': tab === 'custom', 'text-slate-600 hover:text-slate-900': tab !== 'custom' }"
+                    class="px-4 py-3 text-sm transition">
+                    Mes zones ({{ custom|length }})
+                </button>
+            </div>
+
+            <!-- Zones prédéfinies (lecture seule) -->
+            <div x-show="tab === 'presets'" x-transition class="space-y-4">
+                {% if presets is empty %}
+                    <div class="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+                        <p class="text-slate-600">Aucune zone prédéfinie disponible.</p>
+                    </div>
+                {% else %}
+                    {% for zone in presets %}
+                        <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="text-xs uppercase tracking-[0.3em] text-slate-400">{{ zone.code }}</p>
+                                        <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-700 rounded">Prédéfinie</span>
+                                    </div>
+                                    <h2 class="text-2xl font-semibold text-slate-900">{{ zone.name }}</h2>
+                                    {% if zone.description %}
+                                        <p class="text-sm text-slate-500 mt-2">{{ zone.description }}</p>
+                                    {% endif %}
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        {% for country in zone.countryCodes %}
+                                            <span class="inline-block px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded">{{ country }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    <p class="text-sm text-slate-600 mt-3">
+                                        <strong>Classe :</strong> {{ zone.taxClass }} • <strong>Taux :</strong> {{ zone.rate }}%
+                                    </p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button
+                                        type="button"
+                                        @click="$dispatch('copy-zone', { zoneId: {{ zone.id }}, zoneName: '{{ zone.name|escape('js') }}' })"
+                                        class="btn btn-outline whitespace-nowrap">
+                                        Créer une copie
+                                    </button>
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Zones personnalisées (CRUD) -->
+            <div x-show="tab === 'custom'" x-transition class="space-y-4">
+                {% if custom is empty %}
+                    <div class="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center space-y-3">
+                        <p class="text-lg font-semibold text-slate-900">Aucune zone personnalisée</p>
+                        <p class="text-slate-500">Crée ta première zone ou copie une zone prédéfinie.</p>
+                        <a href="{{ path('app_vendor_taxzones_new') }}" class="btn btn-outline">Créer ma première zone</a>
+                    </div>
+                {% else %}
+                    {% for zone in custom %}
+                        <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                <div class="flex-1">
+                                    <p class="text-xs uppercase tracking-[0.3em] text-slate-400">{{ zone.code }}</p>
+                                    <h2 class="text-2xl font-semibold text-slate-900">{{ zone.name }}</h2>
+                                    {% if zone.description %}
+                                        <p class="text-sm text-slate-500 mt-2">{{ zone.description }}</p>
+                                    {% endif %}
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        {% for country in zone.countryCodes %}
+                                            <span class="inline-block px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded">{{ country }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    <p class="text-sm text-slate-600 mt-3">
+                                        <strong>Classe :</strong> {{ zone.taxClass }} • <strong>Taux :</strong> {{ zone.rate }}%
+                                        {% if not zone.isActive %}<span class="text-red-600">(Inactive)</span>{% endif %}
+                                    </p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="{{ path('app_vendor_taxzones_edit', {id: zone.id}) }}" class="btn btn-outline">Modifier</a>
+                                    <form method="post" action="{{ path('app_vendor_taxzones_delete', {id: zone.id}) }}" onsubmit="return confirm('Supprimer cette zone ?');" class="inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('taxzone_delete_' ~ zone.id) }}">
+                                        <button type="submit" class="btn btn-outline text-red-600 border-red-200 hover:bg-red-50">Supprimer</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

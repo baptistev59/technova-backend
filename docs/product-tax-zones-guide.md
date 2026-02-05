@@ -1,7 +1,7 @@
 # 🎯 Guide Complet des ProductTaxZone (Zones TVA par Produit)
 
-**Version:** 1.0  
-**Date:** 2 février 2026  
+**Version:** 2.0 ✨ (TaxZone supprimée, refactorisation JSON)  
+**Date:** 5 février 2026  
 **Audience:** Vendeurs, Administrateurs, Développeurs
 
 ---
@@ -9,12 +9,12 @@
 ## 📌 Table des Matières
 
 1. [Concept fondamental](#concept-fondamental)
-2. [Différence avec TaxZone](#différence-avec-taxzone)
+2. [Architecture simplifiée](#architecture-simplifiée)
 3. [Structure d'une ProductTaxZone](#structure-dune-producttaxzone)
 4. [Priorité de résolution](#priorité-de-résolution)
 5. [Cas d'usage pratiques](#cas-dusage-pratiques)
 6. [Workflow vendeur](#workflow-vendeur)
-7. [Gestion multiple zones](#gestion-multiple-zones)
+7. [Gestion multiple pays](#gestion-multiple-pays)
 8. [Bonnes pratiques](#bonnes-pratiques)
 9. [Pièges courants](#pièges-courants)
 10. [Implémentation technique](#implémentation-technique)
@@ -25,79 +25,69 @@
 
 ### Qu'est-ce qu'une ProductTaxZone ?
 
-Une **ProductTaxZone** est une **association** entre :
-- Un **produit** spécifique
-- Une **TaxZone** (regroupement de pays)
-- Une **classe TVA** pour ce duo (peut différer de la classe par défaut de la zone)
+Une **ProductTaxZone** définit les **pays** où un **produit spécifique** applique une **classe TVA spéciale**.
 
-C'est une **table de jointure enrichie** qui permet de définir des règles TVA **granulaires par produit**.
+C'est une **entité autonome** (sans dépendance à une TaxZone externe) qui permet une **configuration flexible par produit**.
 
 ### Analogie
 
 ```
-TaxZone = Gabarit pour tous les produits
-ProductTaxZone = Exception spécifique pour UN produit
+Avant (TaxZone) → Gabarit partagé par tous les produits
+Maintenant → Configuration directe par produit
+             Spécifier simplement : "Ce produit s'applique à [FR, DE, IT]"
 
 Exemple:
-TaxZone EU_STANDARD : 
-  - Tous produits en UE → 20%
-
-ProductTaxZone :
-  - Livre + EU_BOOKS → 5.5% (REDUCED au lieu de STANDARD)
-  - Smartphone + DE_SPECIAL → 7% (REDUCED pour Allemagne seulement)
+ProductTaxZone pour un Livre:
+  - Pays: ['FR', 'DE', 'IT', 'ES']
+  - Classe TVA: REDUCED
+  - Taux appliqué: Résolu via VatRate('REDUCED', 'FR') = 5.5%
 ```
 
 ---
 
-## Différence avec TaxZone
+## Architecture Simplifiée
 
-### Tableau Comparatif Détaillé
+### ❌ Avant (Complexe - 3 niveaux)
 
-| Aspect | TaxZone | ProductTaxZone |
-|--------|---------|-----------------|
-| **Nature** | Regroupement de pays | Association produit ↔ zone |
-| **Entité** | `TaxZone` (standalone) | `ProductTaxZone` (jointure) |
-| **Relation** | Indépendante | Dépend de Product + TaxZone |
-| **Assignation** | 1 par produit (legacy) | **Plusieurs par produit** ✓ |
-| **Classe TVA** | Fixe dans la zone | **Peut être différente** ✓ |
-| **Taux** | Stocké dans la zone | Résolu via VatRate + classe |
-| **Flexibilité** | Basse (même pour tous) | **Haute (par produit)** ✓ |
-| **Priorité** | 2 (après ProductTaxZone) | **1 (PLUS HAUTE)** ✓ |
-| **Cas d'usage** | Config simple, fallback | Règles complexes, exceptions |
-| **Gestion** | Admin ou vendeur | **Vendeur uniquement** |
-| **Modification** | Impact tous les produits | Impact 1 seul produit |
+```
+Product → ProductTaxZone → TaxZone → VatRate → Taux final
+                             ↑
+                    (couche indirecte supprimée)
+```
+
+### ✅ Après (Simple - 2 niveaux)
+
+```
+Product → ProductTaxZone → VatRate → Taux final
+          [countries[],
+           taxClass]
+```
+
+**Avantages de la simplification:**
+- ✅ Moins d'indirection
+- ✅ Gestion directe par vendeur
+- ✅ Pas de dépendance à des configurations globales
+- ✅ Stockage JSON flexible
 
 ### Schéma Visuel
 
 ```
-┌─────────────────────────────────────────────┐
-│              TAXZONE                        │
-│  (Gabarit réutilisable)                     │
-│                                             │
-│  EU_STANDARD                                │
-│  ├─ Pays: [FR, DE, IT, ES, ...]            │
-│  ├─ Classe: STANDARD                        │
-│  └─ Taux: 20%                               │
-└────────────────┬────────────────────────────┘
-                 │
-        Utilisée par plusieurs produits
-                 │
-     ┌───────────┴──────────┬─────────────┐
-     ↓                      ↓             ↓
-┌─────────┐          ┌─────────┐    ┌─────────┐
-│ Laptop  │          │ Mouse   │    │ Book    │
-└─────────┘          └─────────┘    └─────────┘
-     │                                   │
-     └───────────────────────────────────┘
-                     │
-                     ↓
-     ┌───────────────────────────────────────┐
-     │      PRODUCTTAXZONE                   │
-     │  (Exception spécifique)               │
-     │                                       │
-     │  Book + EU_BOOKS_REDUCED              │
-     │  ├─ Zone: EU_BOOKS_REDUCED            │
-     │  ├─ Classe: REDUCED (au lieu de STD) │
+┌────────────────────────────────────────────────┐
+│           PRODUCTTAXZONE                       │
+│   (Configuration autonome par produit)         │
+│                                                │
+│  Livre:                                        │
+│  ├─ Pays: ["FR", "DE", "IT", "ES", "BE"]     │
+│  ├─ Classe: REDUCED                           │
+│  └─ → Résolution TVA: VatRate(REDUCED, {pays})│
+└────────────┬─────────────────────────────────┘
+             │
+    ┌────────┴────────┬──────────┬──────────┐
+    ↓                 ↓          ↓          ↓
+ VatRate('REDUCED', 'FR')   ...IT...    ...BE...
+    │
+    └─→ 5.5%  (taux TVA réduit France)
+```
      │  └─ Pays DE → Taux 7% via VatRate    │
      └───────────────────────────────────────┘
 ```
@@ -108,6 +98,10 @@ ProductTaxZone :
 
 ### Champs de l'entité
 
+## Structure d'une ProductTaxZone (Nouvelle)
+
+### Entité ProductTaxZone refactorisée
+
 ```php
 class ProductTaxZone {
     // === IDENTIFICATION ===
@@ -115,16 +109,22 @@ class ProductTaxZone {
     
     // === RELATIONS ===
     Product $product;                 // Le produit concerné
-    TaxZone $taxZone;                 // La zone utilisée
+    VatRate $vatRate;                 // Le taux TVA applicable
     
     // === CONFIGURATION ===
-    string $taxClass;                 // Classe TVA pour ce produit dans cette zone
-                                      // Peut différer de $taxZone->taxClass
-                                      // Valeurs: STANDARD|REDUCED|ZERO
+    array $countryCodes;              // Liste de pays ISO 3166-1 alpha-2
+                                      // Exemple: ["FR", "DE", "IT", "ES", "BE"]
+                                      // Stocké comme JSON en base
     
     // === AUDIT ===
     DateTimeImmutable $createdAt;     // Date de création
     DateTimeImmutable $updatedAt;     // Dernière modification
+    
+    // === MÉTHODES ===
+    public function hasCountry(string $countryCode): bool {
+        // Vérifie si le pays est couvert par cette zone
+        return in_array(strtoupper($countryCode), $this->countryCodes, true);
+    }
 }
 ```
 
@@ -134,58 +134,60 @@ class ProductTaxZone {
 CREATE TABLE product_tax_zone (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     product_id BIGINT NOT NULL,
-    tax_zone_id BIGINT NOT NULL,
-    tax_class VARCHAR(32) DEFAULT 'STANDARD',
+    vat_rate_id BIGINT NOT NULL,
+    country_codes JSON NOT NULL,        -- ["FR", "DE", "IT", ...]
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NULLABLE,
     
-    UNIQUE KEY `uniq_product_tax_zone_product_zone` (product_id, tax_zone_id),
+    UNIQUE KEY `uniq_product_vat_rate` (product_id, vat_rate_id),
     KEY `idx_product_tax_zone_product` (product_id),
-    KEY `idx_product_tax_zone_zone` (tax_zone_id),
+    KEY `idx_product_tax_zone_vat_rate` (vat_rate_id),
+    
+    -- Index GIN pour recherches efficaces sur JSON
+    FULLTEXT KEY `idx_country_codes` (country_codes),
     
     FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE,
-    FOREIGN KEY (tax_zone_id) REFERENCES tax_zone(id) ON DELETE CASCADE
+    FOREIGN KEY (vat_rate_id) REFERENCES vat_rate(id) ON DELETE RESTRICT
 );
 ```
 
+### Changements apportés
+
+| Aspect | Avant | Après | Raison |
+|--------|-------|-------|--------|
+| **Relation pays** | Via TaxZone | Directement dans array JSON | Autonomie, flexibilité |
+| **Storage** | Foreign key `tax_zone_id` | JSON array `country_codes` | Denormalisation pour perf |
+| **Relation TVA** | Via TaxZone indirect | Directe via `vat_rate_id` | Suppression TaxZone |
+| **Query** | JOIN tax_zone + pays | PostgreSQL JSON @> operator | Optimisation des requêtes |
+
 ### Contraintes Clés
 
-- ✅ **Unique** : Un produit ne peut avoir qu'UNE ProductTaxZone par TaxZone
+- ✅ **Unique** : Un produit ne peut avoir qu'UNE ProductTaxZone par VatRate
 - ✅ **Cascade** : Supprimer produit → supprime les ProductTaxZone
-- ✅ **Validation** : taxClass doit être STANDARD, REDUCED ou ZERO
+- ✅ **Restrict** : Impossible de supprimer un VatRate avec des ProductTaxZone
+- ✅ **JSON Valide** : Array de codes pays uppercase
 
 ---
 
 ## Priorité de Résolution
 
-### Flux Complet
+### Flux Complet (Simplifié après suppression de TaxZone)
 
 ```
 QUESTION: Quel taux pour Produit "Laptop" en Allemagne (DE) ?
 
 ┌──────────────────────────────────────────┐
 │ ÉTAPE 1️⃣: ProductTaxZone                 │
-│ Chercher: ProductTaxZone(Laptop, zone_DE)│
-│ Trouvée? → Utiliser sa classe            │
-│ Classe: REDUCED                          │
-│ → Chercher VatRate(DE, REDUCED) = 7%     │
+│ Chercher ProductTaxZone(Laptop)          │
+│ Si DE dans countryCodes array?           │
+│ OUI → Utiliser VatRate (DIRECT)          │
 │ RÉSULTAT: 7% ✓                           │
-└──────────────────────────────────────────┘
-        │
-        │ Si NON trouvée ↓
-        │
-┌──────────────────────────────────────────┐
-│ ÉTAPE 2️⃣: TaxZone (Legacy)               │
-│ Produit.taxZone = EU_STANDARD?           │
-│ DE dans EU_STANDARD.countryCodes?        │
-│ OUI → Taux: 20%                          │
-│ RÉSULTAT: 20% ✓                          │
 └──────────────────────────────────────────┘
         │
         │ Si NON applicable ↓
         │
 ┌──────────────────────────────────────────┐
-│ ÉTAPE 3️⃣: VatRate Global                 │
+│ ÉTAPE 2️⃣: VatRate Global (Fallback)      │
 │ Chercher: VatRate(DE, STANDARD)          │
 │ Trouvé → Taux: 19%                       │
 │ RÉSULTAT: 19% ✓                          │
@@ -194,7 +196,7 @@ QUESTION: Quel taux pour Produit "Laptop" en Allemagne (DE) ?
         │ Si NON trouvé ↓
         │
 ┌──────────────────────────────────────────┐
-│ ÉTAPE 4️⃣: Hard Default                   │
+│ ÉTAPE 3️⃣: Hard Default                   │
 │ RÉSULTAT: 20% (hardcoded)                │
 └──────────────────────────────────────────┘
 ```
@@ -202,10 +204,11 @@ QUESTION: Quel taux pour Produit "Laptop" en Allemagne (DE) ?
 ### Pourquoi ProductTaxZone a la priorité la plus haute ?
 
 **Raisons** :
-1. **Granularité** : Configuration la plus spécifique (produit + zone)
+1. **Granularité** : Configuration la plus spécifique (produit + pays)
 2. **Flexibilité** : Permet d'overrider tout le reste
 3. **Intent clair** : Le vendeur a explicitement configuré cette exception
 4. **Business logic** : Cas spéciaux (livres, denrées, etc.)
+5. **Dynamique** : Sélection intelligente basée sur VatRates du shop
 
 ---
 
@@ -217,47 +220,69 @@ QUESTION: Quel taux pour Produit "Laptop" en Allemagne (DE) ?
 
 **Configuration** :
 ```
-TaxZone: EU_STANDARD
-  - Pays: [FR, DE, IT, ES, BE, NL, AT, LU]
-  - Classe: STANDARD
-  - Taux: 20%
-
 Produit: "Python pour Nuls" (Livre)
-  - TaxZone assignée: EU_STANDARD (fallback)
 
 ProductTaxZone:
-  - Produit: "Python pour Nuls"
-  - Zone: EU_BOOKS_REDUCED (même pays que EU_STANDARD)
-  - Classe: REDUCED
+  - countryCodes: ["FR", "DE", "IT", "ES", "BE", "NL", "AT"]
+  - vat_rate_id: (5, REDUCED, 5.5%)
 
 VatRate:
-  - (FR, REDUCED) → 5.5%
-  - (DE, REDUCED) → 7%
-  - (IT, REDUCED) → 4%
+  - (REDUCED, FR) → 5.5%
+  - (REDUCED, DE) → 7%
+  - (REDUCED, IT) → 4%
 ```
 
 **Résultat** :
 ```
 Acheteur France:
-  1️⃣ ProductTaxZone trouvée (EU_BOOKS_REDUCED)
-  2️⃣ Classe: REDUCED
-  3️⃣ VatRate(FR, REDUCED) = 5.5%
+  1️⃣ ProductTaxZone trouvée avec FR dans countryCodes
+  2️⃣ VatRate appliquée: REDUCED = 5.5%
   ✓ Prix: 100€ + 5.5€ = 105.5€
 
 Acheteur Allemagne:
-  1️⃣ ProductTaxZone trouvée (EU_BOOKS_REDUCED)
-  2️⃣ Classe: REDUCED
-  3️⃣ VatRate(DE, REDUCED) = 7%
+  1️⃣ ProductTaxZone trouvée avec DE dans countryCodes
+  2️⃣ VatRate appliquée: REDUCED = 7%
   ✓ Prix: 100€ + 7€ = 107€
+  
+Acheteur USA:
+  1️⃣ ProductTaxZone NON trouvée (US pas dans countryCodes)
+  2️⃣ Fallback VatRate global = 20%
+  ✓ Prix: 100€ + 20€ = 120€
 ```
 
 ---
 
-### Cas 2: Smartphone avec Exception Allemagne
+### Cas 2: Configuration Multi-pays avec Sélection Intelligente
 
-**Besoin** : Smartphone à 7% en Allemagne, 20% ailleurs en UE
+**Besoin** : Vendeur français veut proposer 3 taux différents selon le pays
 
-**Configuration** :
+**Configuration UI** :
+```
+Formulaire ProductTaxZone pour Produit "Laptop":
+
+1️⃣ Sélection du taux TVA:
+   [Dropdown: "France (STANDARD, 20%)"]
+   
+2️⃣ Sélection des pays applicables:
+   [Checkboxes]
+   ☑️ 🇫🇷 France (20,0%)
+   ☑️ 🇩🇪 Allemagne (19,0%)
+   ☐ 🇮🇹 Italie (22,0%)    ← Grisé (vendeur n'a pas de taux STANDARD pour IT)
+   
+3️⃣ Sauvegarde:
+   ProductTaxZone.vat_rate_id = 5  (France STANDARD)
+   ProductTaxZone.country_codes = ["FR", "DE"]
+```
+
+**Intelligence** : 
+- ✅ Affiche UNIQUEMENT les VatRates créés par ce vendeur
+- ✅ Affiche le flag + nom pays + taux en ligne (depuis la table `country`)
+- ✅ Empêche sélection de pays sans VatRate associé
+- ✅ UX plus claire et moins d'erreurs
+
+---
+
+### Cas 3: Restriction par Shop
 ```
 TaxZone: EU_STANDARD (tous pays UE, 20%)
 

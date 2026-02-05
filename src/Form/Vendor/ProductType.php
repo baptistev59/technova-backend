@@ -7,7 +7,8 @@ namespace App\Form\Vendor;
 use App\Entity\Brand;
 use App\Entity\Category;
 use App\Entity\Product;
-use App\Form\ProductTaxZoneType;
+use App\Entity\Shop;
+use App\Form\ProductVatRateType;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -227,19 +228,20 @@ class ProductType extends AbstractType
                 'label' => 'Publier immédiatement',
                 'required' => false,
             ])
-            ->add('productTaxZones', CollectionType::class, [
-                'label' => 'Zones TVA du produit',
-                'entry_type' => ProductTaxZoneType::class,
+            ->add('productVatRates', CollectionType::class, [
+                'label' => 'Taux TVA par pays',
+                'entry_type' => ProductVatRateType::class,
                 'entry_options' => [
                     'label' => false,
+                    'shop' => $options['shop'] ?? null,
                 ],
                 'allow_add' => true,
                 'allow_delete' => true,
                 'by_reference' => false,
                 'required' => false,
-                'help' => 'Associe le produit à une ou plusieurs zones TVA, avec une classe fiscale par zone.',
+                'help' => 'Définissez le taux TVA applicable pour ce produit dans chaque pays.',
                 'attr' => [
-                    'class' => 'product-tax-zones-collection',
+                    'class' => 'product-vat-rates-collection',
                     'data-prototype-helper' => true,
                 ],
             ])
@@ -281,6 +283,9 @@ class ProductType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Product::class,
+            'shop' => null,
         ]);
+        
+        $resolver->setAllowedTypes('shop', ['null', Shop::class]);
     }
 }

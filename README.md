@@ -254,11 +254,22 @@ Espace vendeur (Sprint 4A)
 - `ShopType` (Twig) permet de créer la boutique : nom, description, email de contact, politiques SAV + upload optionnel d’un logo/bannière (stockés dans `public/uploads/shops`).
 - Le traitement des uploads y est orchestré par le service `App\Image\ImageUploader` avec les profils `shop_banner` / `shop_logo`, le reste de la logique (déplacement, création de répertoires) étant totalement centralisé.
 - Le slug est généré automatiquement (unique) et la boutique est liée au profil `Vendor` du user.
-- Gestion livraison : `/mon-espace-vendeur/livraison` permet de configurer zones, méthodes et grilles tarifaires (poids/zone).
-- Gestion stock : un seuil “stock faible” est disponible sur produit ou variante et déclenche un email vendeur.
+- Gestion livraison : `/mon-espace-vendeur/livraison` permet de configurer zones, méthodes et grilles tarifaires (poids/zone).- **Gestion TVA** : `/mon-espace-vendeur/tva` (configuration complète par vendeur).- Gestion stock : un seuil “stock faible” est disponible sur produit ou variante et déclenche un email vendeur.
 - Si une boutique existe déjà, la page affiche les informations en attendant les US d’édition / gestion.
 - Un client peut créer sa boutique : lors de la soumission du formulaire, un profil `Vendor` est créé/associé et le rôle `ROLE_VENDOR` est ajouté automatiquement. Les vendeurs existants ne voient que la page de gestion.
+**🎯 Système TVA Simplifié (v2.0 - février 2026)**
 
+- **Architecture:** Product → ProductTaxZone [countryCodes, vatRate] → Taux final (2 niveaux)
+- **Suppression TaxZone:** Couche indirecte redondante éliminée pour simplifier l'architecture
+- **ProductTaxZone Autonome:** Chaque produit stocke directement les pays applicables + classe TVA en JSON
+- **Sélection Intelligente:** Formulaire affiche UNIQUEMENT les taux TVA configurés par le vendeur
+- **Affichage:** Libellés pays + taux en ligne (flags depuis la table `country`) (ex: 🇫🇷 France (20,0%))
+- **Documentation complète:** 
+  - `docs/REFACTOR_TAXZONE_REMOVAL.md` – Détails techniques de la refactorisation
+  - `docs/product-tax-zones-guide.md` – Guide complet (architecture simplifiée)
+  - `docs/VAT_IMPLEMENTATION_SUMMARY.md` – Résumé système TVA
+  - `docs/vat-vendor-guide.md` – Guide utilisateur
+  - `docs/vat-admin-guide.md` – Configuration admin
 Bundles & packs groupés
 -----------------------
 

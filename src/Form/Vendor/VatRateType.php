@@ -8,7 +8,6 @@ use App\Entity\VatRate;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\CountryType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -22,25 +21,24 @@ class VatRateType extends AbstractType
             ->add('countryCode', CountryType::class, [
                 'label' => 'Pays',
                 'placeholder' => 'Sélectionner un pays',
-                // préférer la France pour l'UX; adapter si nécessaire
                 'preferred_choices' => ['FR'],
                 'required' => true,
-                // ajoute une classe pour activer la recherche côté frontend (Select2/TomSelect/Choices.js)
                 'attr' => ['class' => 'tn-input-select searchable'],
-                // utiliser les traductions FR si disponibles
                 'choice_translation_locale' => 'fr',
             ])
-            ->add('code', ChoiceType::class, [
-                'label' => 'Classe',
-                'choices' => [
-                    'Standard' => 'STANDARD',
-                    'Réduit' => 'REDUCED',
-                    'Taux zéro' => 'ZERO',
+            ->add('code', TextType::class, [
+                'label' => 'Code/Libellé',
+                'help' => 'Ex: STANDARD, REDUCED, BOOKS, MEDICINES, ZERO, etc.',
+                'required' => true,
+                'attr' => [
+                    'placeholder' => 'Ex: STANDARD',
+                    'maxlength' => 50,
                 ],
             ])
             ->add('label', TextType::class, [
-                'label' => 'Libellé',
+                'label' => 'Libellé descriptif',
                 'required' => false,
+                'help' => 'Description optionnelle pour votre référence',
             ])
             ->add('rate', NumberType::class, [
                 'label' => 'Taux (%)',

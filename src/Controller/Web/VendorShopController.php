@@ -1046,7 +1046,7 @@ class VendorShopController extends AbstractController
         $product->setType('simple');
         $product->setIsPublished(false);
 
-        $form = $this->createForm(ProductType::class, $product);
+        $form = $this->createForm(ProductType::class, $product, ['shop' => $shop]);
         $this->prefillPromoPercent($form, $product);
         $form->handleRequest($request);
         $variantAction = (string) $request->request->get('_action', '');
@@ -1101,10 +1101,6 @@ class VendorShopController extends AbstractController
                 $this->clearProductBundleItems($product);
             }
 
-            if (null !== $product->getTaxZone()) {
-                $product->setTaxClass($product->getTaxZone()->getTaxClass());
-            }
-
             $this->entityManager->persist($product);
             $this->entityManager->flush();
 
@@ -1145,7 +1141,7 @@ class VendorShopController extends AbstractController
 
         $this->denyAccessUnlessGranted(ProductVoter::MANAGE, $product);
 
-        $form = $this->createForm(ProductType::class, $product);
+        $form = $this->createForm(ProductType::class, $product, ['shop' => $product->getShop()]);
         $this->prefillPromoPercent($form, $product);
         $form->handleRequest($request);
         $variantAction = (string) $request->request->get('_action', '');
@@ -1198,10 +1194,6 @@ class VendorShopController extends AbstractController
                 $product->setLowStockThreshold(null);
             } else {
                 $this->clearProductBundleItems($product);
-            }
-
-            if (null !== $product->getTaxZone()) {
-                $product->setTaxClass($product->getTaxZone()->getTaxClass());
             }
 
             $this->entityManager->flush();

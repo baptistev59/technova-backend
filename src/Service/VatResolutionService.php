@@ -7,18 +7,21 @@ namespace App\Service;
 use App\Entity\Product;
 use App\Entity\Shop;
 use App\Repository\ProductTaxZoneRepository;
+use App\Repository\ProductVatRateRepository;
 use App\Repository\VatRateRepository;
 
 /**
  * Service to resolve VAT rate for a product/country combination.
  * Implements the priority system:
- * 1. ProductTaxZone (product-specific tax configuration by country)
- * 2. VatRate global (fallback by country/taxClass)
- * 3. Hard default (20%)
+ * 1. ProductVatRate (product-specific VAT rate for a country)
+ * 2. ProductTaxZone (product-specific tax configuration by country)
+ * 3. VatRate global (fallback by country/taxClass)
+ * 4. Hard default (20%)
  */
 final class VatResolutionService
 {
     public function __construct(
+        private readonly ProductVatRateRepository $productVatRateRepository,
         private readonly ProductTaxZoneRepository $productTaxZoneRepository,
         private readonly VatRateRepository $vatRateRepository,
         private readonly float $hardDefault = 20.0,
@@ -65,7 +68,27 @@ final class VatResolutionService
     {
         $countryCode = strtoupper($countryCode);
 
-        // 1️⃣ Check ProductTaxZone (HIGHEST PRIORITY)
+        // 1️⃣ Check ProductVatRate (HIGHEST PRIORITY)
+        $productVatRate = $this->productVatRateRepository->findByProductAndCountry($product, $countryCode);
+        if (null !== $productVatRate && $productVatRate->isActive()) {
+            $vatRate = $productVatRate->getVatRate();
+            if (null !== $vatRate) {
+                return [
+                    'rate' => $vatRate->getRate(),
+                    'source' => 'PRODUCT_VAT_RATE',
+                    'priority' => 1,
+                    'entity' => $productVatRate,
+                    'reason' => sprintf(
+                        'Sélection spécifique par produit: %s (%s): %.2f%%',
+                        $vatRate->getCode(),
+                        $countryCode,
+                        $vatRate->getRate()
+                    ),
+                ];
+            }
+        }
+
+        // 2️⃣ Check ProductTaxZone (LEGACY FALLBACK)
         $productTaxZone = $this->productTaxZoneRepository->findForProductAndCountry($product, $countryCode);
         if (null !== $productTaxZone) {
             $taxClass = $productTaxZone->getTaxClass();
@@ -75,10 +98,10 @@ final class VatResolutionService
                 return [
                     'rate' => $vatRate->getRate(),
                     'source' => 'PRODUCT_TAX_ZONE',
-                    'priority' => 1,
+                    'priority' => 2,
                     'entity' => $productTaxZone,
                     'reason' => sprintf(
-                        'Configuration produit: classe "%s" pour %s (couvre: %s): %.2f%%',
+                        'Configuration produit (héritage): classe "%s" pour %s (couvre: %s): %.2f%%',
                         $taxClass,
                         $countryCode,
                         $countriesFormatted,
@@ -88,14 +111,14 @@ final class VatResolutionService
             }
         }
 
-        // 2️⃣ Check VatRate global (FALLBACK)
+        // 3️⃣ Check VatRate global (FALLBACK)
         $taxClass = $product->getTaxClass();
         $vatRate = $this->vatRateRepository->findEffectiveRate($countryCode, $shop, $taxClass);
         if (null !== $vatRate) {
             return [
                 'rate' => $vatRate->getRate(),
                 'source' => 'VAT_RATE',
-                'priority' => 2,
+                'priority' => 3,
                 'entity' => $vatRate,
                 'reason' => sprintf(
                     'Taux global pour %s - classe %s: %.2f%%',
@@ -106,11 +129,11 @@ final class VatResolutionService
             ];
         }
 
-        // 3️⃣ Hard default (MINIMUM)
+        // 4️⃣ Hard default (MINIMUM)
         return [
             'rate' => $this->hardDefault,
             'source' => 'DEFAULT',
-            'priority' => 3,
+            'priority' => 4,
             'reason' => sprintf('Taux par défaut: %.2f%%', $this->hardDefault),
         ];
     }

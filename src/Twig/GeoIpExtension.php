@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Repository\CountryRepository;
 use App\Service\GeoIpService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -15,6 +16,7 @@ final class GeoIpExtension extends AbstractExtension
     public function __construct(
         private readonly GeoIpService $geoIpService,
         private readonly RequestStack $requestStack,
+        private readonly CountryRepository $countryRepository,
     ) {
     }
 
@@ -23,6 +25,8 @@ final class GeoIpExtension extends AbstractExtension
         return [
             new TwigFunction('get_country_from_ip', [$this, 'getCountryFromIp']),
             new TwigFunction('get_country_name', [$this, 'getCountryName']),
+            new TwigFunction('get_country_flag', [$this, 'getCountryFlag']),
+            new TwigFunction('get_country_label', [$this, 'getCountryLabel']),
         ];
     }
 
@@ -43,42 +47,28 @@ final class GeoIpExtension extends AbstractExtension
 
     public function getCountryName(string $countryCode): string
     {
-        $countries = [
-            'FR' => 'France',
-            'DE' => 'Allemagne',
-            'IT' => 'Italie',
-            'ES' => 'Espagne',
-            'GB' => 'Royaume-Uni',
-            'BE' => 'Belgique',
-            'NL' => 'Pays-Bas',
-            'AT' => 'Autriche',
-            'CH' => 'Suisse',
-            'SE' => 'Suède',
-            'NO' => 'Norvège',
-            'DK' => 'Danemark',
-            'FI' => 'Finlande',
-            'PL' => 'Pologne',
-            'CZ' => 'République Tchèque',
-            'SK' => 'Slovaquie',
-            'HU' => 'Hongrie',
-            'RO' => 'Roumanie',
-            'BG' => 'Bulgarie',
-            'HR' => 'Croatie',
-            'SI' => 'Slovénie',
-            'GR' => 'Grèce',
-            'PT' => 'Portugal',
-            'IE' => 'Irlande',
-            'US' => 'États-Unis',
-            'CA' => 'Canada',
-            'AU' => 'Australie',
-            'JP' => 'Japon',
-            'CN' => 'Chine',
-            'IN' => 'Inde',
-            'BR' => 'Brésil',
-            'MX' => 'Mexique',
-        ];
+        $code = strtoupper($countryCode);
+        $map = $this->countryRepository->getMapByCodes([$code]);
 
-        return $countries[strtoupper($countryCode)] ?? $countryCode;
+        return $map[$code]['name'] ?? $countryCode;
+    }
+
+    public function getCountryFlag(string $countryCode): string
+    {
+        $code = strtoupper($countryCode);
+        $map = $this->countryRepository->getMapByCodes([$code]);
+
+        return $map[$code]['flag'] ?? '🌍';
+    }
+
+    public function getCountryLabel(string $countryCode): string
+    {
+        $code = strtoupper($countryCode);
+        $map = $this->countryRepository->getMapByCodes([$code]);
+        $flag = $map[$code]['flag'] ?? '🌍';
+        $name = $map[$code]['name'] ?? $countryCode;
+
+        return sprintf('%s %s', $flag, $name);
     }
 
     private function getClientIp(Request $request): ?string

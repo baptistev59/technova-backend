@@ -163,86 +163,7 @@
                     </div>
                 </div>
 
-                 {# Card 1 : Zones TVA du produit #}
-                <div class="mt-6 rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-sm p-6"
-                     x-data="setupTaxZonesCollection('{{ form.productTaxZones.vars.prototype.vars.name }}', {{ form.productTaxZones|length }})">
-                    <div class="flex items-start gap-3 mb-5">
-                        <div class="p-2 rounded-lg bg-blue-100">
-                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <h3 class="text-base font-semibold text-slate-900">Zones TVA du produit</h3>
-                            <p class="text-sm text-slate-500 mt-1">
-                                Associe des zones géographiques spécifiques à ce produit pour un calcul précis de la TVA
-                            </p>
-                        </div>
-                    </div>
-
-                    {% set taxZonePrototype %}
-                        <div class="rounded-xl border border-blue-100 bg-white p-4 space-y-4" data-tax-zone-item>
-                            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                <div class="flex-1 grid gap-4 md:grid-cols-2">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-2">Pays concernés</label>
-                                        {{ form_widget(form.productTaxZones.vars.prototype.countryCodes, {attr: {class: 'tn-select rounded-xl border border-slate-200 bg-slate-50 p-3 w-full', multiple: 'multiple', size: 5}}) }}
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-2">Classe de TVA</label>
-                                        {{ form_widget(form.productTaxZones.vars.prototype.taxClass, {attr: {class: 'tn-select rounded-xl border border-slate-200 bg-slate-50 p-3 w-full'}}) }}
-                                    </div>
-                                </div>
-                                <button type="button" 
-                                        class="btn btn-outline text-red-600 border-red-200 hover:bg-red-50 whitespace-nowrap self-start"
-                                        onclick="this.closest('[data-tax-zone-item]').remove()">
-                                    Retirer
-                                </button>
-                            </div>
-                        </div>
-                    {% endset %}
-
-                    <div class="space-y-4" data-index="{{ form.productTaxZones|length }}" data-prototype="{{ taxZonePrototype|e('html_attr') }}">
-                        {% for productTaxZone in form.productTaxZones %}
-                            <div class="rounded-xl border border-blue-100 bg-white p-4 space-y-4" data-tax-zone-item>
-                                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                    <div class="flex-1 grid gap-4 md:grid-cols-2">
-                                        <div>
-                                            <label class="block text-sm font-medium text-slate-600 mb-2">Pays concernés</label>
-                                            {{ form_widget(productTaxZone.countryCodes, {attr: {class: 'tn-select rounded-xl border border-slate-200 bg-slate-50 p-3 w-full', multiple: 'multiple', size: 5}}) }}
-                                            {{ form_errors(productTaxZone.countryCodes) }}
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-slate-600 mb-2">Classe de TVA</label>
-                                            {{ form_widget(productTaxZone.taxClass, {attr: {class: 'tn-select rounded-xl border border-slate-200 bg-slate-50 p-3 w-full'}}) }}
-                                            {{ form_errors(productTaxZone.taxClass) }}
-                                        </div>
-                                    </div>
-                                    <button type="button" 
-                                            class="btn btn-outline text-red-600 border-red-200 hover:bg-red-50 whitespace-nowrap self-start"
-                                            @click="removeItem($el.closest('[data-tax-zone-item]'))">
-                                        Retirer
-                                    </button>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mt-4 flex flex-col gap-3">
-                        <button type="button" 
-                                class="btn bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto"
-                                @click="addItem()">
-                            + Ajouter une zone TVA
-                        </button>
-                        <div class="rounded-xl border border-blue-100 bg-blue-50/30 p-4">
-                            <p class="text-sm text-blue-700">
-                                <strong>ℹ️ Bon à savoir :</strong> Si aucune zone n'est associée, le système utilisera les taux TVA globaux définis par pays.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {# Card 2 : Classification #}
+                {# Card 1 : Classification #}
                 <div class="mt-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-sm p-6">
                     <div class="flex items-start gap-3 mb-5">
                         <div class="p-2 rounded-lg bg-slate-100">
@@ -273,6 +194,94 @@
                             {{ form_errors(form.keywords) }}
                             <p class="text-xs text-slate-400 mt-1">Sépare par des virgules</p>
                         </div>
+                    </div>
+                </div>
+
+                {# Card 2 : Taux TVA par pays #}
+                <div class="mt-6 rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-white shadow-sm p-6"
+                     x-data="setupVatRatesCollection('productVatRates', {{ form.productVatRates|length }})">
+                    <div class="flex items-start gap-3 mb-5">
+                        <div class="p-2 rounded-lg bg-green-100">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-base font-semibold text-slate-900">Taux TVA par pays</h3>
+                            <p class="text-sm text-slate-500 mt-1">
+                                Sélectionne les taux TVA que tu as créés pour chaque pays
+                            </p>
+                        </div>
+                    </div>
+
+                    {% set vatRatePrototype %}
+                        <div class="rounded-xl border border-green-100 bg-white p-4 grid gap-4 md:grid-cols-3 items-start" data-vat-rate-item
+                             x-data="filterVatRates()"
+                             @alpine:init="init()">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-2">Pays</label>
+                                {{ form_widget(form.productVatRates.vars.prototype.countryCode, {attr: {class: 'tn-select rounded-lg border border-slate-200 bg-white p-3 w-full country-selector', '@change': 'onCountryChange()'}}) }}
+                                {{ form_errors(form.productVatRates.vars.prototype.countryCode) }}
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-2">Taux TVA</label>
+                                {{ form_widget(form.productVatRates.vars.prototype.vatRate, {attr: {class: 'tn-select rounded-lg border border-slate-200 bg-white p-3 w-full vat-rate-selector'}}) }}
+                                {{ form_errors(form.productVatRates.vars.prototype.vatRate) }}
+                            </div>
+                            <div class="flex items-end gap-2">
+                                <label class="flex items-center gap-2">
+                                    {{ form_widget(form.productVatRates.vars.prototype.active, {attr: {class: 'h-5 w-5'}}) }}
+                                    <span class="text-sm font-medium text-slate-600">Actif</span>
+                                </label>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline text-red-600 border-red-200 hover:bg-red-50 ml-auto"
+                                        onclick="this.closest('[data-vat-rate-item]').remove()">
+                                    ✕ Retirer
+                                </button>
+                            </div>
+                        </div>
+                    {% endset %}
+
+                    <div class="space-y-3" data-index="{{ form.productVatRates|length }}" data-prototype="{{ vatRatePrototype|e('html_attr') }}">
+                        {% for productVatRate in form.productVatRates %}
+                            <div class="rounded-xl border border-green-100 bg-white p-4 grid gap-4 md:grid-cols-3 items-start" data-vat-rate-item
+                                 x-data="filterVatRates()"
+                                 @alpine:init="init()">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-2">Pays</label>
+                                    {{ form_widget(productVatRate.countryCode, {attr: {class: 'tn-select rounded-lg border border-slate-200 bg-white p-3 w-full country-selector', '@change': 'onCountryChange()'}}) }}
+                                    {{ form_errors(productVatRate.countryCode) }}
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-2">Taux TVA</label>
+                                    {{ form_widget(productVatRate.vatRate, {attr: {class: 'tn-select rounded-lg border border-slate-200 bg-white p-3 w-full vat-rate-selector'}}) }}
+                                    {{ form_errors(productVatRate.vatRate) }}
+                                </div>
+                                <div class="flex items-end gap-2">
+                                    <label class="flex items-center gap-2">
+                                        {{ form_widget(productVatRate.active, {attr: {class: 'h-5 w-5'}}) }}
+                                        <span class="text-sm font-medium text-slate-600">Actif</span>
+                                    </label>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline text-red-600 border-red-200 hover:bg-red-50 ml-auto"
+                                            onclick="this.closest('[data-vat-rate-item]').remove()">
+                                        ✕ Retirer
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" 
+                            class="mt-4 btn btn-primary w-full"
+                            @click="addItem()">
+                        + Ajouter un taux TVA
+                    </button>
+                    
+                    <div class="rounded-xl border border-green-100 bg-green-50/30 p-3 mt-3">
+                        <p class="text-xs text-green-700">
+                            <strong>💡 Conseil :</strong> Crée tes taux dans <a href="{{ path('app_vendor_vatrates') }}" class="underline font-semibold">Taux de TVA de ma boutique</a> puis reviens les assigner ici.
+                        </p>
                     </div>
                 </div>
 
@@ -1201,6 +1210,150 @@
             };
         }
 
+        // VAT Rates Collection Management (Alpine.js factory)
+        function setupVatRatesCollection(prototypeName, initialCount) {
+            return {
+                itemCount: initialCount,
+                prototypeName: prototypeName,
+                container: null,
+                prototype: null,
+                
+                init() {
+                    // Récupérer le conteneur et le prototype
+                    this.container = this.$el.querySelector('[data-prototype]');
+                    if (this.container) {
+                        this.prototype = this.container.getAttribute('data-prototype');
+                    }
+                },
+                
+                addItem() {
+                    if (!this.container || !this.prototype) {
+                        console.error('Container ou prototype non trouvé');
+                        return;
+                    }
+                    
+                    // Créer le nouvel élément
+                    const temp = document.createElement('div');
+                    temp.innerHTML = this.prototype
+                        .replace(new RegExp(`__${this.prototypeName}__`, 'g'), this.itemCount)
+                        .replace(new RegExp(this.prototypeName + '___name__', 'g'), this.itemCount);
+                    
+                    const newItem = temp.firstElementChild;
+                    if (newItem) {
+                        this.container.appendChild(newItem);
+                        // Initialiser Alpine sur le nouvel élément
+                        setTimeout(() => {
+                            if (window.Alpine) {
+                                Alpine.addScopeToNode(newItem, filterVatRates());
+                            }
+                        }, 0);
+                        this.itemCount++;
+                    }
+                },
+                
+                removeItem(element) {
+                    if (element) {
+                        element.remove();
+                    }
+                }
+            };
+        }
+
+        // VAT Rates Configurator (Alpine.js factory)
+        function vatRatesConfigurator(config) {
+            return {
+                rates: config.rates || [],
+                
+                init() {
+                    // Force une actualisation du DOM pour être sûr
+                    this.$nextTick(() => {
+                        this.refreshDisplay();
+                    });
+                },
+                
+                refreshDisplay() {
+                    // Forcer Symfony à mettre à jour les champs
+                    window.dispatchEvent(new Event('vat-rates-updated'));
+                }
+            };
+        }
+
+        // Filter VAT Rates based on selected country
+        function filterVatRates() {
+            return {
+                onCountryChange() {
+                    const container = this.$el.closest('[data-vat-rate-item]');
+                    if (!container) {
+                        console.error('Container not found');
+                        return;
+                    }
+                    
+                    const countrySelect = container.querySelector('select.country-selector');
+                    const vatRateSelect = container.querySelector('select.vat-rate-selector');
+                    
+                    if (!countrySelect || !vatRateSelect) {
+                        console.error('Selects not found', {countrySelect: !!countrySelect, vatRateSelect: !!vatRateSelect});
+                        return;
+                    }
+                    
+                    // Récupérer le code pays (valeur directe ou fallback regex)
+                    const selectedOption = countrySelect.selectedOptions[0] || null;
+                    const selectedValue = countrySelect.value;
+                    let countryCode = selectedOption?.dataset?.code || selectedValue;
+
+                    if (!/^[A-Z]{2}$/.test(countryCode)) {
+                        const match = selectedValue.match(/([A-Z]{2})/);
+                        if (match) {
+                            countryCode = match[1];
+                        }
+                    }
+
+                    
+                    if (!countryCode) {
+                        // Si aucun pays sélectionné, afficher tous les taux
+                        Array.from(vatRateSelect.options).forEach((option) => {
+                            option.disabled = false;
+                            option.hidden = false;
+                        });
+                        return;
+                    }
+                    
+                    // Filtrer les options basé sur le code pays extrait
+                    let visibleCount = 0;
+                    Array.from(vatRateSelect.options).forEach((option, index) => {
+                        // Skip placeholder
+                        if (!option.value || option.text.includes('Sélectionner')) {
+                            option.disabled = false;
+                            option.hidden = false;
+                            return;
+                        }
+                        
+                        // Utiliser l'attribut data-country pour filtrer de façon fiable
+                        const optionCountry = option.dataset.country || option.text.split(' ')[0];
+                        const shouldShow = optionCountry === countryCode;  // Comparer les codes !
+                        
+                        
+                        option.disabled = !shouldShow;
+                        option.hidden = !shouldShow;
+                        
+                        if (shouldShow) visibleCount++;
+                    });
+                    
+                    
+                    // Reset selection si l'option actuelle est cachée
+                    if (vatRateSelect.selectedIndex > 0 && vatRateSelect.options[vatRateSelect.selectedIndex].hidden) {
+                        vatRateSelect.selectedIndex = 0;
+                    }
+                },
+                
+                init() {
+                    this.$nextTick(() => {
+                        this.onCountryChange();
+                    });
+                }
+            };
+        }
+
         // Expose factories on window so Alpine can access them after Turbo body replacements
         window.slugEditor = slugEditor;
         window.promoPricing = promoPricing;
@@ -1208,5 +1361,8 @@
         window.productBundleConfigurator = productBundleConfigurator;
         window.variantAccordion = variantAccordion;
         window.setupTaxZonesCollection = setupTaxZonesCollection;
+        window.setupVatRatesCollection = setupVatRatesCollection;
+        window.vatRatesConfigurator = vatRatesConfigurator;
+        window.filterVatRates = filterVatRates;
     </script>
 {% endblock %}

@@ -161,6 +161,12 @@ class Product
     #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductTaxZone::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $productTaxZones;
 
+    /**
+     * @var Collection<int, ProductVatRate>
+     */
+    #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductVatRate::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $productVatRates;
+
     public function __construct()
     {
         $this->images = new ArrayCollection();
@@ -170,6 +176,7 @@ class Product
         $this->attributeSelections = new ArrayCollection();
         $this->bundleItems = new ArrayCollection();
         $this->productTaxZones = new ArrayCollection();
+        $this->productVatRates = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -642,6 +649,33 @@ class Product
     {
         if ($this->productTaxZones->removeElement($productTaxZone) && $productTaxZone->getProduct() === $this) {
             $productTaxZone->setProduct(null);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProductVatRate>
+     */
+    public function getProductVatRates(): Collection
+    {
+        return $this->productVatRates;
+    }
+
+    public function addProductVatRate(ProductVatRate $productVatRate): self
+    {
+        if (!$this->productVatRates->contains($productVatRate)) {
+            $this->productVatRates->add($productVatRate);
+            $productVatRate->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProductVatRate(ProductVatRate $productVatRate): self
+    {
+        if ($this->productVatRates->removeElement($productVatRate) && $productVatRate->getProduct() === $this) {
+            $productVatRate->setProduct(null);
         }
 
         return $this;

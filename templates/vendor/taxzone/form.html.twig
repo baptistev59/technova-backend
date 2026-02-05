@@ -1,0 +1,103 @@
+{% extends 'vendor/layout.html.twig' %}
+
+{% block title %}
+    {{ zone and zone.id ? 'Modifier la zone' : 'Créer une zone' }} — TechNova
+{% endblock %}
+
+{% block body %}
+    <style>
+        select.country-select {
+            padding: 10px 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            background-color: #ffffff;
+            border: 1px solid #e0e7ff;
+            border-radius: 8px;
+        }
+        select.country-select option {
+            padding: 8px;
+            line-height: 1.6;
+        }
+        select.country-select option:checked {
+            background: linear-gradient(#3b82f6, #3b82f6);
+            background-color: #3b82f6 !important;
+            color: white;
+        }
+    </style>
+    
+    {% set is_edit = zone and zone.id %}
+
+    <section class="bg-slate-50 py-10">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-blue-400">TechNova</p>
+                    <h1 class="text-3xl font-semibold text-slate-900">{{ is_edit ? 'Modifier la zone' : 'Créer une zone TVA' }}</h1>
+                    <p class="text-slate-500 mt-2">Regroupe plusieurs pays pour appliquer la même classe et taux de TVA.</p>
+                </div>
+                <a href="{{ path('app_vendor_taxzones') }}" class="btn btn-outline">← Retour aux zones</a>
+            </div>
+
+            <div class="bg-white rounded-[32px] border border-slate-100 shadow-[0_30px_90px_rgba(15,25,36,0.08)] p-8 space-y-6">
+                {{ form_start(form, {attr: {class: 'space-y-8'}}) }}
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        {{ form_label(form.name, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.name, {attr: {class: 'tn-input'}}) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    <div>
+                        {{ form_label(form.taxClass, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.taxClass, {attr: {class: 'tn-input-select'}}) }}
+                        {{ form_errors(form.taxClass) }}
+                    </div>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        {{ form_label(form.rate, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.rate, {attr: {class: 'tn-input'}}) }}
+                        {{ form_errors(form.rate) }}
+                    </div>
+                    <div>
+                        {{ form_label(form.active, null, {label_attr: {class: 'tn-label'}}) }}
+                        {{ form_widget(form.active) }}
+                        {{ form_errors(form.active) }}
+                    </div>
+                </div>
+
+                <div>
+                    {{ form_label(form.description, null, {label_attr: {class: 'tn-label'}}) }}
+                    {{ form_widget(form.description, {attr: {class: 'tn-input', 'rows': 3}}) }}
+                    <p class="text-xs text-slate-500 mt-1">Notes personnelles (optionnel).</p>
+                    {{ form_errors(form.description) }}
+                </div>
+
+                <div class="rounded-[28px] border border-slate-100 bg-slate-50/70 p-6">
+                    <div class="mb-4">
+                        <h2 class="text-xl font-semibold text-slate-900">Pays applicables</h2>
+                        <p class="text-sm text-slate-500">Sélectionne au moins un pays. Tu peux chercher par code ou par nom.</p>
+                    </div>
+                    <div class="relative">
+                        {{ form_label(form.countryCodes, null, {label_attr: {class: 'tn-label'}, skip_label: true}) }}
+                        <div class="border border-slate-200 rounded-lg bg-white overflow-hidden">
+                            {{ form_widget(form.countryCodes, {attr: {class: 'w-full p-3 border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none', 'size': '12'}}) }}
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">💡 Maintiens Ctrl (ou Cmd sur Mac) et clique pour sélectionner plusieurs pays.</p>
+                    </div>
+                    {{ form_errors(form.countryCodes) }}
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                    {{ form_rest(form) }}
+                    <button type="submit" class="btn btn-primary px-8">
+                        {{ is_edit ? 'Mettre à jour' : 'Créer la zone' }}
+                    </button>
+                </div>
+
+                {{ form_end(form, {render_rest: false}) }}
+            </div>
+        </div>
+    </section>
+{% endblock %}
