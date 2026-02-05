@@ -193,6 +193,23 @@
         <p class="text-xs text-slate-500 mt-1"
            x-show="$store.variantState && $store.variantState.message"
            x-text="$store.variantState ? $store.variantState.message : ''"></p>
+        {% if not bundleComponentsActive and vat_breakdown %}
+            <div class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                    <span>Prix HT</span>
+                    <span class="font-semibold text-slate-900">{{ vat_breakdown.net|number_format(2, ',', ' ') }} €</span>
+                </div>
+                <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                    <span>TVA ({{ vat_breakdown.rate|number_format(1, ',', ' ') }} %)</span>
+                    <span class="font-semibold text-slate-900">{{ vat_breakdown.tax|number_format(2, ',', ' ') }} €</span>
+                </div>
+                <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                    <span>Prix TTC</span>
+                    <span class="font-semibold text-slate-900">{{ vat_breakdown.gross|number_format(2, ',', ' ') }} €</span>
+                </div>
+            </div>
+            <p class="mt-2 text-xs text-slate-400">Calcul basé sur le pays {{ vat_breakdown.country }}.</p>
+        {% endif %}
         <div class="mt-4 text-sm text-blue-600">
             {% if product.shop %}
                 <span class="text-xs uppercase tracking-[0.3em] text-slate-400">Boutique</span>

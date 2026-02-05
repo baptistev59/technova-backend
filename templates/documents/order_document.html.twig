@@ -10,7 +10,13 @@
         .badge-refund { background: #e11d48; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
         th, td { border-bottom: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; }
+        th { background: #f9fafb; font-weight: 600; }
+        .text-right { text-align: right; }
+        .text-muted { color: #6b7280; font-size: 0.85rem; }
         .total { font-size: 1.25rem; font-weight: 600; text-align: right; margin-top: 0.5rem; }
+        .tax-summary { background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; }
+        .tax-row { display: flex; justify-content: space-between; padding: 0.25rem 0; }
+        .tax-row.bold { font-weight: 600; font-size: 1.1rem; border-top: 2px solid #e5e7eb; padding-top: 0.5rem; margin-top: 0.5rem; }
     </style>
 </head>
 <body>
@@ -45,31 +51,68 @@
         {% set document_items = vendor_items is defined ? vendor_items : order.items %}
         <table>
             <thead>
-                <tr><th>Produit</th><th>Qté</th><th>Prix ligne</th></tr>
+                <tr>
+                    <th>Produit</th>
+                    <th class="text-right">Qté</th>
+                    <th class="text-right">Prix HT</th>
+                    <th class="text-right">TVA %</th>
+                    <th class="text-right">Montant TVA</th>
+                    <th class="text-right">Total TTC</th>
+                </tr>
             </thead>
             <tbody>
                 {% for item in document_items %}
                     <tr>
-                        <td>{{ item.productName }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>{{ item.lineTotal|number_format(2, ',', ' ') }} €</td>
+                        <td>
+                            {{ item.productName }}
+                            {% if item.vatCountryCode %}
+                                <span class="text-muted">({{ item.vatCountryCode }})</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-right">{{ item.quantity }}</td>
+                        <td class="text-right">{{ item.appliedNetAmount|number_format(2, ',', ' ') }} €</td>
+                        <td class="text-right">{{ item.appliedVatPercent|number_format(1, ',', ' ') }} %</td>
+                        <td class="text-right">{{ item.appliedVatAmount|number_format(2, ',', ' ') }} €</td>
+                        <td class="text-right">{{ item.appliedGrossAmount|number_format(2, ',', ' ') }} €</td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        {# Récapitulatif TVA #}
         {% set DELIVERY = constant('App\\Enum\\DocumentType::DELIVERY') %}
         {% if not (type is same as(DELIVERY)) %}
-            {% if show_invoice_total %}
-                {% if show_shipping and order.shippingTotal is defined %}
-                    <p class="total">Livraison : {{ order.shippingTotal|number_format(2, ',', ' ') }} €</p>
+            <div class="tax-summary">
+                <h3 style="margin-top: 0; font-size: 1rem;">Récapitulatif TVA</h3>
+                <div class="tax-row">
+                    <span>Total HT (produits)</span>
+                    <span>{{ order.itemsNetTotal|number_format(2, ',', ' ') }} €</span>
+                </div>
+                <div class="tax-row">
+                    <span>Total TVA</span>
+                    <span>{{ order.itemsVatTotal|number_format(2, ',', ' ') }} €</span>
+                </div>
+                <div class="tax-row">
+                    <span>Total TTC (produits)</span>
+                    <span>{{ order.itemsGrossTotal|number_format(2, ',', ' ') }} €</span>
+                </div>
+                {% if show_shipping and order.shippingTotal is defined and order.shippingTotal > 0 %}
+                    <div class="tax-row">
+                        <span>Livraison</span>
+                        <span>{{ order.shippingTotal|number_format(2, ',', ' ') }} €</span>
+                    </div>
                 {% endif %}
                 {% if order.refundedAt %}
-                    <p class="total">Remboursée le {{ order.refundedAt|date('d/m/Y H:i') }}</p>
+                    <div class="tax-row">
+                        <span style="color: #e11d48;">Remboursée le {{ order.refundedAt|date('d/m/Y H:i') }}</span>
+                        <span></span>
+                    </div>
                 {% endif %}
-                <p class="total">Total : {{ order.totalAmount|number_format(2, ',', ' ') }} €</p>
-            {% else %}
-                <p class="total">Montant boutique : {{ order.itemsTotal|number_format(2, ',', ' ') }} €</p>
-            {% endif %}
+                <div class="tax-row bold">
+                    <span>Total à payer</span>
+                    <span>{{ order.totalAmount|number_format(2, ',', ' ') }} €</span>
+                </div>
+            </div>
         {% endif %}
     </section>
 

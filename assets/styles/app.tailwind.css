@@ -331,6 +331,29 @@ img {
     color: var(--tn-primary);
 }
 
+.tn-user-menu__country {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .6rem .85rem;
+    font-size: .95rem;
+    font-weight: 500;
+    color: var(--tn-text);
+    white-space: nowrap;
+}
+
+.tn-user-menu__country::before {
+    content: "📍";
+    display: inline-block;
+    margin-right: .2rem;
+}
+
+.tn-user-menu__divider {
+    margin: .5rem 0;
+    border: none;
+    border-top: 1px solid var(--tn-border);
+}
+
 .tn-user-avatar {
     width: 48px;
     height: 48px;

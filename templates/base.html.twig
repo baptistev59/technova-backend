@@ -164,6 +164,13 @@
                             </svg>
                         </summary>
                         <div class="tn-user-menu__panel">
+                            {% set detected_country_code = get_country_from_ip() %}
+                            {% set country_name = get_country_name(detected_country_code) %}
+                            <div class="tn-user-menu__country" title="Pays détecté automatiquement">
+                                {% if detected_country_code == 'FR' %}🇫🇷{% elseif detected_country_code == 'DE' %}🇩🇪{% elseif detected_country_code == 'IT' %}🇮🇹{% elseif detected_country_code == 'ES' %}🇪🇸{% elseif detected_country_code == 'GB' %}🇬🇧{% elseif detected_country_code == 'BE' %}🇧🇪{% elseif detected_country_code == 'NL' %}🇳🇱{% elseif detected_country_code == 'AT' %}🇦🇹{% elseif detected_country_code == 'CH' %}🇨🇭{% elseif detected_country_code == 'SE' %}🇸🇪{% elseif detected_country_code == 'NO' %}🇳🇴{% elseif detected_country_code == 'DK' %}🇩🇰{% elseif detected_country_code == 'FI' %}🇫🇮{% elseif detected_country_code == 'PL' %}🇵🇱{% elseif detected_country_code == 'CZ' %}🇨🇿{% elseif detected_country_code == 'SK' %}🇸🇰{% elseif detected_country_code == 'HU' %}🇭🇺{% elseif detected_country_code == 'RO' %}🇷🇴{% elseif detected_country_code == 'BG' %}🇧🇬{% elseif detected_country_code == 'HR' %}🇭🇷{% elseif detected_country_code == 'SI' %}🇸🇮{% elseif detected_country_code == 'GR' %}🇬🇷{% elseif detected_country_code == 'PT' %}🇵🇹{% elseif detected_country_code == 'IE' %}🇮🇪{% elseif detected_country_code == 'US' %}🇺🇸{% elseif detected_country_code == 'CA' %}🇨🇦{% elseif detected_country_code == 'AU' %}🇦🇺{% elseif detected_country_code == 'JP' %}🇯🇵{% elseif detected_country_code == 'CN' %}🇨🇳{% elseif detected_country_code == 'IN' %}🇮🇳{% elseif detected_country_code == 'BR' %}🇧🇷{% elseif detected_country_code == 'MX' %}🇲🇽{% else %}🌍{% endif %}
+                                {{ country_name }}
+                            </div>
+                            <hr class="tn-user-menu__divider">
                             <a class="tn-user-menu__item" href="{{ path('app_profile') }}">Mon profil</a>
                             {% if viewer_is_vendor %}
                                 <a class="tn-user-menu__item" href="{{ path('app_vendor_shop_new') }}">Mon espace vendeur</a>

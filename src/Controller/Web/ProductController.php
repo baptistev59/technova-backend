@@ -7,8 +7,11 @@ namespace App\Controller\Web;
 use App\Entity\Product;
 use App\Entity\ProductImage;
 use App\Entity\Shop;
+use App\Entity\User;
 use App\Repository\ProductRepository;
 use App\Repository\ProductReviewRepository;
+use App\Service\GeoIpService;
+use App\Service\VatResolutionService;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +26,8 @@ class ProductController extends AbstractController
     public function __construct(
         private readonly ProductRepository $productRepository,
         private readonly ProductReviewRepository $productReviewRepository,
+        private readonly VatResolutionService $vatResolutionService,
+        private readonly GeoIpService $geoIpService,
     )
     {
     }
@@ -56,6 +61,28 @@ class ProductController extends AbstractController
         $approvedReviews = $this->productReviewRepository->findApprovedForProduct($product->getId());
         $reviewStats = $this->productReviewRepository->getApprovedStatsForProduct($product->getId());
 
+        $vatBreakdown = null;
+        if (null !== $product->getPrice()) {
+            $countryCode = $this->resolveVatCountryCode($request);
+            $ratePercent = $this->vatResolutionService->getRateForProduct(
+                $product,
+                $countryCode,
+                $product->getShop()
+            );
+
+            $net = (float) ($product->getPromoPrice() ?? $product->getPrice() ?? 0);
+            $tax = round($net * ($ratePercent / 100), 2, PHP_ROUND_HALF_UP);
+            $gross = round($net + $tax, 2, PHP_ROUND_HALF_UP);
+
+            $vatBreakdown = [
+                'country' => $countryCode,
+                'rate' => $ratePercent,
+                'net' => $net,
+                'tax' => $tax,
+                'gross' => $gross,
+            ];
+        }
+
         return $this->render('catalog/product_show.html.twig', [
             'product' => $product,
             'optionGroups' => $optionGroups,
@@ -69,7 +96,66 @@ class ProductController extends AbstractController
             'nextProduct' => $nextProduct,
             'approved_reviews' => $approvedReviews,
             'review_stats' => $reviewStats,
+            'vat_breakdown' => $vatBreakdown,
         ]);
+    }
+
+    private function resolveVatCountryCode(Request $request): string
+    {
+        // 1. Query parameter override
+        $queryCountry = strtoupper((string) $request->query->get('country', ''));
+        if ('' !== $queryCountry) {
+            return $queryCountry;
+        }
+
+        // 2. User's default address
+        $user = $this->getUser();
+        if ($user instanceof User) {
+            $defaultAddress = null;
+            foreach ($user->getAddresses() as $address) {
+                if ($address->isDefault()) {
+                    $defaultAddress = $address;
+                    break;
+                }
+                if (null === $defaultAddress && $address->getCountry()) {
+                    $defaultAddress = $address;
+                }
+            }
+
+            if ($defaultAddress && $defaultAddress->getCountry()) {
+                return strtoupper((string) $defaultAddress->getCountry());
+            }
+        }
+
+        // 3. IP-based geolocation
+        $clientIp = $this->getClientIp($request);
+        if ($clientIp) {
+            $countryFromIp = $this->geoIpService->getCountryFromIp($clientIp);
+            if ('' !== $countryFromIp) {
+                return $countryFromIp;
+            }
+        }
+
+        // 4. Default fallback
+        return 'FR';
+    }
+
+    private function getClientIp(Request $request): ?string
+    {
+        // Try to get real IP (handles proxies)
+        if ($request->headers->has('CF-Connecting-IP')) {
+            // Cloudflare
+            return $request->headers->get('CF-Connecting-IP');
+        }
+
+        if ($request->headers->has('X-Forwarded-For')) {
+            // Standard proxy header
+            $ips = explode(',', $request->headers->get('X-Forwarded-For', ''));
+            $ip = trim($ips[0] ?? '');
+            return $ip ?: null;
+        }
+
+        return $request->getClientIp();
     }
 
     #[Route('/produit/{id}/modal', name: 'product_modal', methods: ['GET'])]

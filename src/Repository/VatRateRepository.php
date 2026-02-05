@@ -43,7 +43,9 @@ final class VatRateRepository extends ServiceEntityRepository implements VatRate
                 ->andWhere('v.countryCode = :country')
                 ->andWhere('v.code = :code')
                 ->andWhere('v.active = true')
-                ->setParameters(['shop' => $shop, 'country' => $countryCode, 'code' => $code])
+                ->setParameter('shop', $shop)
+                ->setParameter('country', $countryCode)
+                ->setParameter('code', $code)
                 ->setMaxResults(1);
 
             $res = $qb->getQuery()->getOneOrNullResult();
@@ -58,7 +60,8 @@ final class VatRateRepository extends ServiceEntityRepository implements VatRate
             ->andWhere('v.countryCode = :country')
             ->andWhere('v.code = :code')
             ->andWhere('v.active = true')
-            ->setParameters(['country' => $countryCode, 'code' => $code])
+            ->setParameter('country', $countryCode)
+            ->setParameter('code', $code)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
