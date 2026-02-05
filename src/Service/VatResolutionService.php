@@ -12,10 +12,9 @@ use App\Repository\VatRateRepository;
 /**
  * Service to resolve VAT rate for a product/country combination.
  * Implements the priority system:
- * 1. ProductTaxZone (zone + tax class matched by delivery country)
- * 2. Legacy TaxZone (product->taxZone) if still configured
- * 3. VatRate global (fallback by country/code)
- * 4. Hard default (20%)
+ * 1. ProductTaxZone (product-specific tax configuration by country)
+ * 2. VatRate global (fallback by country/taxClass)
+ * 3. Hard default (20%)
  */
 final class VatResolutionService
 {
@@ -30,10 +29,9 @@ final class VatResolutionService
      * Get the VAT rate for a product and country.
      *
      * Priority order:
-    * 1. ProductTaxZone (zone + tax class matched by delivery country)
-    * 2. Legacy TaxZone (if product has zone and country in zone)
-    * 3. VatRate global (by country + taxClass)
-    * 4. Hard default (20%)
+    * 1. ProductTaxZone (product-specific tax configuration)
+    * 2. VatRate global (by country + taxClass)
+    * 3. Hard default (20%)
      *
      * @param Product      $product The product
      * @param string       $countryCode Country code (e.g., 'FR', 'DE')
@@ -69,81 +67,35 @@ final class VatResolutionService
 
         // 1️⃣ Check ProductTaxZone (HIGHEST PRIORITY)
         $productTaxZone = $this->productTaxZoneRepository->findForProductAndCountry($product, $countryCode);
-        if (null !== $productTaxZone && null !== $productTaxZone->getTaxZone() && $productTaxZone->getTaxZone()->isActive()) {
+        if (null !== $productTaxZone) {
             $taxClass = $productTaxZone->getTaxClass();
             $vatRate = $this->vatRateRepository->findEffectiveRate($countryCode, $shop, $taxClass);
             if (null !== $vatRate) {
+                $countriesFormatted = implode(', ', $productTaxZone->getCountryCodes());
                 return [
                     'rate' => $vatRate->getRate(),
                     'source' => 'PRODUCT_TAX_ZONE',
                     'priority' => 1,
                     'entity' => $productTaxZone,
                     'reason' => sprintf(
-                        'Classe TVA "%s" pour %s via la zone "%s": %.2f%%',
+                        'Configuration produit: classe "%s" pour %s (couvre: %s): %.2f%%',
                         $taxClass,
                         $countryCode,
-                        $productTaxZone->getTaxZone()->getName(),
+                        $countriesFormatted,
                         $vatRate->getRate()
                     ),
                 ];
             }
-
-            return [
-                'rate' => $productTaxZone->getTaxZone()->getRate(),
-                'source' => 'TAX_ZONE',
-                'priority' => 1,
-                'entity' => $productTaxZone->getTaxZone(),
-                'reason' => sprintf(
-                    'Taux de la zone TVA "%s" pour %s: %.2f%%',
-                    $productTaxZone->getTaxZone()->getName(),
-                    $countryCode,
-                    $productTaxZone->getTaxZone()->getRate()
-                ),
-            ];
         }
 
-        // 2️⃣ Legacy TaxZone fallback
-        $legacyZone = $product->getTaxZone();
-        if (null !== $legacyZone && $legacyZone->isActive() && in_array($countryCode, $legacyZone->getCountryCodes(), true)) {
-            $legacyTaxClass = $legacyZone->getTaxClass();
-            $legacyVatRate = $this->vatRateRepository->findEffectiveRate($countryCode, $shop, $legacyTaxClass);
-            if (null !== $legacyVatRate) {
-                return [
-                    'rate' => $legacyVatRate->getRate(),
-                    'source' => 'TAX_ZONE',
-                    'priority' => 2,
-                    'entity' => $legacyZone,
-                    'reason' => sprintf(
-                        'Classe TVA "%s" via zone héritée "%s": %.2f%%',
-                        $legacyTaxClass,
-                        $legacyZone->getName(),
-                        $legacyVatRate->getRate()
-                    ),
-                ];
-            }
-
-            return [
-                'rate' => $legacyZone->getRate(),
-                'source' => 'TAX_ZONE',
-                'priority' => 2,
-                'entity' => $legacyZone,
-                'reason' => sprintf(
-                    'Taux de la zone TVA "%s" pour %s: %.2f%%',
-                    $legacyZone->getName(),
-                    $countryCode,
-                    $legacyZone->getRate()
-                ),
-            ];
-        }
-
-        // 3️⃣ Check VatRate global (LOW PRIORITY)
+        // 2️⃣ Check VatRate global (FALLBACK)
         $taxClass = $product->getTaxClass();
         $vatRate = $this->vatRateRepository->findEffectiveRate($countryCode, $shop, $taxClass);
         if (null !== $vatRate) {
             return [
                 'rate' => $vatRate->getRate(),
                 'source' => 'VAT_RATE',
-                'priority' => 3,
+                'priority' => 2,
                 'entity' => $vatRate,
                 'reason' => sprintf(
                     'Taux global pour %s - classe %s: %.2f%%',
@@ -154,11 +106,11 @@ final class VatResolutionService
             ];
         }
 
-        // 4️⃣ Hard default (MINIMUM)
+        // 3️⃣ Hard default (MINIMUM)
         return [
             'rate' => $this->hardDefault,
             'source' => 'DEFAULT',
-            'priority' => 4,
+            'priority' => 3,
             'reason' => sprintf('Taux par défaut: %.2f%%', $this->hardDefault),
         ];
     }
@@ -202,20 +154,12 @@ final class VatResolutionService
         // Product tax zones information
         $productZones = $this->productTaxZoneRepository->findForProduct($product);
         foreach ($productZones as $productZone) {
-            $zone = $productZone->getTaxZone();
-            if (null === $zone || !$zone->isActive()) {
-                continue;
-            }
-
             $zoneInfo[] = [
-                'name' => $zone->getName(),
-                'code' => $zone->getCode(),
-                'rate' => $zone->getRate(),
                 'tax_class' => $productZone->getTaxClass(),
-                'countries' => $zone->getCountryCodes(),
+                'countries' => $productZone->getCountryCodes(),
             ];
 
-            foreach ($zone->getCountryCodes() as $country) {
+            foreach ($productZone->getCountryCodes() as $country) {
                 if (!in_array($country, $coveredCountries, true)) {
                     $coveredCountries[] = $country;
                 }
@@ -265,14 +209,8 @@ final class VatResolutionService
 
         // Check ProductTaxZone
         $productTaxZone = $this->productTaxZoneRepository->findForProductAndCountry($product, $countryCode);
-        if (null !== $productTaxZone && null !== $productTaxZone->getTaxZone()) {
+        if (null !== $productTaxZone) {
             return $productTaxZone->getTaxClass();
-        }
-
-        // Legacy TaxZone
-        $legacyZone = $product->getTaxZone();
-        if (null !== $legacyZone && in_array($countryCode, $legacyZone->getCountryCodes(), true)) {
-            return $legacyZone->getTaxClass();
         }
 
         // Default to product tax class
@@ -301,7 +239,7 @@ final class VatResolutionService
         $issues = [];
 
         $productTaxZone = $this->productTaxZoneRepository->findForProductAndCountry($product, $countryCode);
-        $hasZone = null !== $productTaxZone && null !== $productTaxZone->getTaxZone() && $productTaxZone->getTaxZone()->isActive();
+        $hasZone = null !== $productTaxZone;
 
         $taxClass = $this->getTaxClassForProduct($product, $countryCode);
         $vatRate = $this->vatRateRepository->findEffectiveRate($countryCode, null, $taxClass);
@@ -316,7 +254,7 @@ final class VatResolutionService
         }
 
         if (!$hasZone && !$hasGlobalVat) {
-            $issues[] = sprintf('Aucune source de taux (zone ou taux global) pour %s', $countryCode);
+            $issues[] = sprintf('Aucune source de taux (configuration produit ou taux global) pour %s', $countryCode);
         }
 
         return [

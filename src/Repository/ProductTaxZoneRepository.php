@@ -6,7 +6,6 @@ namespace App\Repository;
 
 use App\Entity\Product;
 use App\Entity\ProductTaxZone;
-use App\Entity\TaxZone;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -21,22 +20,23 @@ class ProductTaxZoneRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find all tax zones for a specific product
+     * Find all tax zone configurations for a specific product.
+     * 
+     * @return ProductTaxZone[]
      */
     public function findForProduct(Product $product): array
     {
         return $this->createQueryBuilder('ptz')
             ->andWhere('ptz.product = :product')
             ->setParameter('product', $product)
-            ->leftJoin('ptz.taxZone', 'tz')
-            ->addSelect('tz')
-            ->orderBy('tz.sortOrder', 'ASC')
+            ->orderBy('ptz.id', 'ASC')
             ->getQuery()
             ->getResult();
     }
 
     /**
-     * Find tax zone for product in a specific country
+     * Find tax zone configuration for product in a specific country.
+     * Returns the first matching configuration that includes the country code.
      */
     public function findForProductAndCountry(Product $product, string $countryCode): ?ProductTaxZone
     {
@@ -45,12 +45,14 @@ class ProductTaxZoneRepository extends ServiceEntityRepository
             return null;
         }
 
+        $countryCode = strtoupper($countryCode);
+
+        // PostgreSQL JSONB query: check if country_codes array contains the country
         $sql = <<<'SQL'
             SELECT ptz.id
             FROM product_tax_zone ptz
-            INNER JOIN tax_zone tz ON tz.id = ptz.tax_zone_id
             WHERE ptz.product_id = :productId
-              AND tz.country_codes @> to_jsonb(:country::text)
+              AND ptz.country_codes @> to_jsonb(:country::text)
             LIMIT 1
             SQL;
 
@@ -59,7 +61,7 @@ class ProductTaxZoneRepository extends ServiceEntityRepository
                 ->getConnection()
                 ->fetchOne($sql, [
                     'productId' => $productId,
-                    'country' => strtoupper($countryCode),
+                    'country' => $countryCode,
                 ]);
 
             if (!$id) {
@@ -68,11 +70,10 @@ class ProductTaxZoneRepository extends ServiceEntityRepository
 
             return $this->find((int) $id);
         } catch (\Exception $e) {
-            // If the raw query fails, fall back to in-memory checking
+            // Fallback: in-memory checking if JSON query fails
             $zones = $this->findForProduct($product);
             foreach ($zones as $zone) {
-                $codes = $zone->getTaxZone()?->getCountryCodes() ?? [];
-                if (in_array(strtoupper($countryCode), $codes, true)) {
+                if ($zone->hasCountry($countryCode)) {
                     return $zone;
                 }
             }
@@ -82,19 +83,20 @@ class ProductTaxZoneRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get tax class for product in a specific zone
+     * Get all countries covered by product tax zone configurations.
+     * 
+     * @return string[] Array of country codes
      */
-    public function getTaxClassForZone(Product $product, TaxZone $zone): ?string
+    public function getCoveredCountries(Product $product): array
     {
-        $result = $this->createQueryBuilder('ptz')
-            ->select('ptz.taxClass')
-            ->andWhere('ptz.product = :product')
-            ->andWhere('ptz.taxZone = :zone')
-            ->setParameter('product', $product)
-            ->setParameter('zone', $zone)
-            ->getQuery()
-            ->getOneOrNullResult();
-
-        return $result['taxClass'] ?? null;
+        $zones = $this->findForProduct($product);
+        $countries = [];
+        
+        foreach ($zones as $zone) {
+            $countries = array_merge($countries, $zone->getCountryCodes());
+        }
+        
+        return array_unique($countries);
     }
 }
+

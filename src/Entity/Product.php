@@ -97,10 +97,6 @@ class Product
     #[Assert\Choice(choices: ['STANDARD', 'REDUCED', 'ZERO'])]
     private string $taxClass = 'STANDARD';
 
-    #[ORM\ManyToOne(targetEntity: \App\Entity\TaxZone::class)]
-    #[ORM\JoinColumn(name: 'tax_zone_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    private ?\App\Entity\TaxZone $taxZone = null;
-
     #[ORM\Column(length: 255, nullable: true)]
     #[Assert\Length(max: 255)]
     private ?string $keywords = null;
@@ -345,18 +341,6 @@ class Product
     public function setTaxClass(string $taxClass): self
     {
         $this->taxClass = strtoupper($taxClass);
-
-        return $this;
-    }
-
-    public function getTaxZone(): ?\App\Entity\TaxZone
-    {
-        return $this->taxZone;
-    }
-
-    public function setTaxZone(?\App\Entity\TaxZone $taxZone): self
-    {
-        $this->taxZone = $taxZone;
 
         return $this;
     }

@@ -9,22 +9,17 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * Junction table: Product can belong to multiple TaxZones
- * Each zone can have a different tax class for the same product
+ * Product-specific tax configuration by country.
+ * Allows defining different tax classes for different countries.
  * 
  * Example: 
- *   - Product "Laptop" in Zone EU with class STANDARD (20%)
- *   - Same "Laptop" in Zone UK/IE with class REDUCED (17%)
+ *   - Product "Laptop" for FR+DE+IT with class STANDARD (20%)
+ *   - Same "Laptop" for GB+IE with class REDUCED (17%)
  */
 #[ORM\Entity(repositoryClass: ProductTaxZoneRepository::class)]
 #[ORM\Table(name: 'product_tax_zone', indexes: [
     new ORM\Index(name: 'idx_product_tax_zone_product', columns: ['product_id']),
-    new ORM\Index(name: 'idx_product_tax_zone_zone', columns: ['tax_zone_id']),
 ])]
-#[ORM\UniqueConstraint(
-    name: 'uniq_product_tax_zone_product_zone',
-    columns: ['product_id', 'tax_zone_id']
-)]
 #[ORM\HasLifecycleCallbacks]
 class ProductTaxZone
 {
@@ -37,13 +32,24 @@ class ProductTaxZone
     #[ORM\JoinColumn(name: 'product_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?Product $product = null;
 
-    #[ORM\ManyToOne(targetEntity: TaxZone::class)]
-    #[ORM\JoinColumn(name: 'tax_zone_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
-    private ?TaxZone $taxZone = null;
+    /**
+     * List of country codes (ISO 3166-1 alpha-2) covered by this configuration.
+     * Example: ["FR", "DE", "IT"]
+     * 
+     * @var string[]
+     */
+    #[ORM\Column(type: 'json')]
+    #[Assert\NotBlank]
+    #[Assert\Count(min: 1, minMessage: 'Au moins un pays doit être sélectionné')]
+    #[Assert\All([
+        new Assert\Length(exactly: 2),
+        new Assert\Regex(pattern: '/^[A-Z]{2}$/', message: 'Code pays invalide (doit être 2 lettres majuscules)')
+    ])]
+    private array $countryCodes = [];
 
     /**
-     * Tax class for this product in this specific zone
-     * Can be different from the product's default tax class
+     * Tax class for this product in these countries.
+     * Can be different from the product's default tax class.
      */
     #[ORM\Column(length: 32)]
     #[Assert\NotBlank]
@@ -77,15 +83,27 @@ class ProductTaxZone
         return $this;
     }
 
-    public function getTaxZone(): ?TaxZone
+    /**
+     * @return string[]
+     */
+    public function getCountryCodes(): array
     {
-        return $this->taxZone;
+        return $this->countryCodes;
     }
 
-    public function setTaxZone(?TaxZone $taxZone): self
+    /**
+     * @param string[] $countryCodes
+     */
+    public function setCountryCodes(array $countryCodes): self
     {
-        $this->taxZone = $taxZone;
+        // Normalize to uppercase
+        $this->countryCodes = array_map('strtoupper', array_values($countryCodes));
         return $this;
+    }
+
+    public function hasCountry(string $countryCode): bool
+    {
+        return in_array(strtoupper($countryCode), $this->countryCodes, true);
     }
 
     public function getTaxClass(): string
